@@ -22,7 +22,6 @@ public sealed class GenerationResolver
         var facts = orderedContributions.SelectMany(_ => _.Facts).ToArray();
         var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics).ToList();
 
-        diagnostics.AddRange(UnsupportedSchemaDiagnostics(orderedContributions));
         diagnostics.AddRange(ConflictingFactIdentityDiagnostics(facts));
 
         var artifacts = ResolveArtifacts(facts.OfType<ArtifactFact>(), diagnostics);
@@ -140,16 +139,6 @@ public sealed class GenerationResolver
             .GroupBy(Canonical.Evidence, StringComparer.Ordinal)
             .OrderBy(_ => _.Key, StringComparer.Ordinal)
             .Select(_ => _.First())];
-
-    static IEnumerable<GenerationDiagnostic> UnsupportedSchemaDiagnostics(IEnumerable<AdapterContribution> contributions) =>
-        contributions
-            .Where(_ => _.SchemaVersion != AdapterContribution.CurrentSchemaVersion)
-            .Select(_ => new GenerationDiagnostic
-            {
-                Code = GenerationDiagnosticCodes.UnsupportedSchema,
-                Severity = GenerationDiagnosticSeverity.Error,
-                Message = $"Adapter '{_.Adapter.Id}' produced semantic fact schema '{_.SchemaVersion}', but this generator supports '{AdapterContribution.CurrentSchemaVersion}'"
-            });
 
     static IEnumerable<GenerationDiagnostic> ConflictingFactIdentityDiagnostics(IEnumerable<GenerationFact> facts) =>
         facts

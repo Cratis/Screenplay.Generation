@@ -14,11 +14,6 @@ public static class GenerationDiagnosticCodes
     public const string ConflictingArtifact = "GEN0001";
 
     /// <summary>
-    /// An adapter contribution uses an unsupported semantic fact schema.
-    /// </summary>
-    public const string UnsupportedSchema = "GEN0002";
-
-    /// <summary>
     /// Two assertions reuse one fact identity for different semantic facts.
     /// </summary>
     public const string ConflictingFactIdentity = "GEN0003";
@@ -52,4 +47,9 @@ public static class GenerationDiagnosticCodes
     /// A recognized artifact lacks relationships required to represent it faithfully.
     /// </summary>
     public const string IncompleteArtifact = "GEN0009";
+
+    /// <summary>
+    /// The generated document changed after compile and canonical reprint.
+    /// </summary>
+    public const string UnstableRoundTrip = "GEN0010";
 }

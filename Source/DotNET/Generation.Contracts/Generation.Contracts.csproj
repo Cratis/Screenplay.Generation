@@ -3,6 +3,7 @@
         <AssemblyName>Cratis.Screenplay.Generation.Contracts</AssemblyName>
         <RootNamespace>Cratis.Screenplay.Generation</RootNamespace>
         <IsPackable>true</IsPackable>
+        <IsTestProject>false</IsTestProject>
         <EnablePackageValidation>false</EnablePackageValidation>
         <Description>Framework-neutral semantic facts, evidence, and diagnostics for generating Cratis Screenplay documents</Description>
     </PropertyGroup>

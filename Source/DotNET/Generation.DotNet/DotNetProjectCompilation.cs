@@ -29,6 +29,13 @@ public sealed record DotNetProjectCompilation
     /// Gets the Roslyn compilation.
     /// </summary>
     public required Compilation Compilation { get; init; }
+
+    /// <summary>
+    /// Gets a project-qualified subject identity for a named type.
+    /// </summary>
+    /// <param name="type">The type to identify.</param>
+    /// <returns>The project-qualified subject identity.</returns>
+    public SubjectId SubjectForType(INamedTypeSymbol type) => DotNetSubjectIds.ForType(type, Name);
 }
 
 /// <summary>

@@ -42,9 +42,22 @@ public sealed class ScreenplayLowerer
         var placements = graph.Placements
             .Where(_ => !_.IsConflicted)
             .ToDictionary(_ => Canonical.ArtifactKey(_.Artifact), _ => _.EffectiveVariants.Single().Placement, StringComparer.Ordinal);
-        var artifacts = graph.Artifacts
+        var definitions = graph.Artifacts
             .Where(_ => !_.IsConflicted)
             .Select(_ => _.Variants.Single().Definition)
+            .ToArray();
+        foreach (var unplaced in definitions.Where(_ => CanLower(_.Key.Kind) && !placements.ContainsKey(Canonical.ArtifactKey(_.Key))))
+        {
+            diagnostics.Add(new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.IncompleteArtifact,
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Message = $"The recognized {unplaced.Key.Kind} artifact '{unplaced.Name}' has no Screenplay placement and was omitted",
+                Subject = unplaced.Key.Subject
+            });
+        }
+
+        var artifacts = definitions
             .Where(_ => placements.ContainsKey(Canonical.ArtifactKey(_.Key)))
             .Select(_ => new PlacedArtifact(_, placements[Canonical.ArtifactKey(_.Key)]))
             .OrderBy(_ => Canonical.Artifact(_.Definition), StringComparer.Ordinal)

@@ -9,16 +9,6 @@ namespace Cratis.Screenplay.Generation;
 public sealed record AdapterContribution
 {
     /// <summary>
-    /// Gets the current semantic fact schema version.
-    /// </summary>
-    public const string CurrentSchemaVersion = "1.0";
-
-    /// <summary>
-    /// Gets the semantic fact schema version used by this contribution.
-    /// </summary>
-    public string SchemaVersion { get; init; } = CurrentSchemaVersion;
-
-    /// <summary>
     /// Gets the adapter that produced the contribution.
     /// </summary>
     public required AdapterIdentity Adapter { get; init; }

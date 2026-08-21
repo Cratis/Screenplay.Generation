@@ -11,13 +11,14 @@ namespace Cratis.Screenplay.Generation.DotNet;
 public static class DotNetSubjectIds
 {
     /// <summary>
-    /// Gets the stable subject identity for a named type.
+    /// Gets the stable subject identity for a named type within a project identity.
     /// </summary>
     /// <param name="type">The type to identify.</param>
+    /// <param name="projectIdentity">The stable project identity within the analyzed workspace.</param>
     /// <returns>The generation subject identity.</returns>
-    public static SubjectId ForType(INamedTypeSymbol type) => new()
+    public static SubjectId ForType(INamedTypeSymbol type, string projectIdentity) => new()
     {
-        Value = $"dotnet://{type.ContainingAssembly.Identity.Name}/{MetadataName(type)}"
+        Value = $"dotnet://{Uri.EscapeDataString(projectIdentity)}/{type.ContainingAssembly.Identity.Name}/{MetadataName(type)}"
     };
 
     /// <summary>

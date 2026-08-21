@@ -76,12 +76,7 @@ public enum RelationshipKind
     /// <summary>
     /// A behavior deletes a document.
     /// </summary>
-    Deletes = 13,
-
-    /// <summary>
-    /// Two source-level identities explicitly represent the same semantic subject.
-    /// </summary>
-    Equivalent = 14
+    Deletes = 13
 }
 
 /// <summary>

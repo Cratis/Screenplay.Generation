@@ -3,6 +3,7 @@
         <AssemblyName>Cratis.Screenplay.Generation.DotNet</AssemblyName>
         <RootNamespace>Cratis.Screenplay.Generation.DotNet</RootNamespace>
         <IsPackable>true</IsPackable>
+        <IsTestProject>false</IsTestProject>
         <EnablePackageValidation>false</EnablePackageValidation>
         <Description>Reusable Roslyn source analysis for Cratis Screenplay generation adapters</Description>
     </PropertyGroup>

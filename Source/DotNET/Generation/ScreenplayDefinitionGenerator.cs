@@ -84,9 +84,20 @@ public sealed class ScreenplayDefinitionGenerator(
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
+        var verificationDiagnostics = VerificationDiagnostics(verification).ToList();
+        if (verification.Success && printer.Print(verification.Value!) != source)
+        {
+            verificationDiagnostics.Add(new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.UnstableRoundTrip,
+                Severity = GenerationDiagnosticSeverity.Error,
+                Message = "The generated Screenplay document changed after compile and canonical reprint"
+            });
+        }
+
         var diagnostics = graph.Diagnostics
             .Concat(lowering.Diagnostics)
-            .Concat(VerificationDiagnostics(verification))
+            .Concat(verificationDiagnostics)
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .ToArray();
 
