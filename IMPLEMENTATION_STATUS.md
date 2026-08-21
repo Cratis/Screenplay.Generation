@@ -57,7 +57,7 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 - Lowering for events, read models, reducers, commands, and queries.
 - Canonical Screenplay printing and compiler verification.
 - Reusable Roslyn compilation context, artifact catalog, symbol IDs, generated-source recognition, source ranges, type-shape conversion, and adapter interface.
-- Dedicated specs for deterministic generation, conflicts, schema mismatch, source cataloging, generated source, type shapes, and provenance.
+- Dedicated specs for deterministic generation, conflicts, evidence-strength placement, unplaced artifacts, source cataloging, generated source, type shapes, and provenance.
 
 ## Verified before repository split
 
@@ -75,25 +75,33 @@ The code was built and tested while still in the Screenplay working tree:
 
 The Critter Stack source and fixture specs now live in the separate `Screenplay.CritterStack` repository.
 
-## Contract issues to resolve before first public release
+## Pre-release contract hardening completed
 
-1. Include project/target identity in .NET subject IDs, not assembly name alone.
-2. Either implement or remove the currently declared `Equivalent` relationship before freezing contracts.
-3. Decide what in-process schema/version promise `AdapterContribution` makes; do not accidentally promise a future wire protocol.
-4. Add full print/compile/print verification rather than compile-only verification.
-5. Define deliberate behavior for unplaced/non-lowerable facts.
-6. Derive adapter identity/version from assembly package metadata in adapter repositories.
-7. Add package-level compatibility and scratch-consumer tests.
+- .NET adapters now have a required project-qualified subject-ID API; assembly-only IDs were removed.
+- The unimplemented `Equivalent` relationship was removed before publication.
+- The premature CLR `SchemaVersion` promise was removed; a wire schema will be designed only for a real external adapter protocol.
+- Generation now verifies print/compile/print stability.
+- Lowerable artifacts without placement produce explicit diagnostics.
+- Placement resolution retains all provenance while allowing stronger exact/configured evidence to supersede weaker heuristics.
+- Packable projects no longer run as empty test assemblies.
+- Local packages were packed, nuspec dependency direction was inspected, and a scratch consumer restored and executed solely from the local NuGet feed.
+
+## Current verification
+
+- Generation specs: 24 passing.
+- Generation.DotNet specs: 19 passing.
+- Debug tests: green.
+- Release net8/net9/net10 build: zero warnings/errors.
+- Three NuGet packages created successfully.
+- Scratch package consumer generated and printed a valid Screenplay document.
 
 ## Immediate next actions
 
-1. Finish repository scaffolding: package metadata, central versions, solution, CI, publishing, README, and framework instructions.
-2. Change `Generation` to consume the published `Cratis.Screenplay` package instead of a cross-repository project reference.
-3. Restore, build, and run all SDK specs in this independent repository.
-4. Fix the pre-release contract issues above and add regression specs.
-5. Pack all public packages and inspect nuspec dependency direction.
-6. Open and merge the SDK PR with a `minor` release label.
-7. Use the published SDK versions in `Screenplay.CritterStack`.
+1. Commit this status update and open the SDK pull request.
+2. Add the `minor` release label and monitor CI to green.
+3. Merge and verify the three 1.0 packages are published.
+4. Use the published SDK versions in `Screenplay.CritterStack`.
+5. Derive Critter Stack adapter identity/version from assembly informational version.
 
 ## Safety
 
