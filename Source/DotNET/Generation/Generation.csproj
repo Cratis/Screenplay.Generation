@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>Cratis.Screenplay.Generation</AssemblyName>
+        <RootNamespace>Cratis.Screenplay.Generation</RootNamespace>
+        <IsPackable>true</IsPackable>
+        <IsTestProject>false</IsTestProject>
+        <EnablePackageValidation>false</EnablePackageValidation>
+        <Description>Resolves semantic adapter facts and generates verified Cratis Screenplay documents</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Cratis.Screenplay" />
+        <ProjectReference Include="../Generation.Contracts/Generation.Contracts.csproj" />
+    </ItemGroup>
+</Project>

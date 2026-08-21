@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>Cratis.Screenplay.Generation.DotNet</AssemblyName>
+        <RootNamespace>Cratis.Screenplay.Generation.DotNet</RootNamespace>
+        <IsPackable>true</IsPackable>
+        <IsTestProject>false</IsTestProject>
+        <EnablePackageValidation>false</EnablePackageValidation>
+        <Description>Reusable Roslyn source analysis for Cratis Screenplay generation adapters</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+        <ProjectReference Include="../Generation.Contracts/Generation.Contracts.csproj" />
+    </ItemGroup>
+</Project>
