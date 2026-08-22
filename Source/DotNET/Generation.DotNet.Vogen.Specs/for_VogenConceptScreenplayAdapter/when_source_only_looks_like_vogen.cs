@@ -54,9 +54,19 @@ public class when_source_only_looks_like_vogen : given.a_vogen_compilation
                     public string Value { get; }
                     public static RealCode From(string value) => default;
                 }
+                """),
+            new SourceFile(
+                "/workspace/generator/UnmarkedGenerated.cs",
+                """
+                namespace Concepts;
+                [Vogen.ValueObject<System.Guid>]
+                public partial struct UnmarkedGenerated;
                 """));
         var adapter = new VogenConceptScreenplayAdapter();
-        var project = Project("Concepts.Project", compilation);
+        var project = Project(
+            "Concepts.Project",
+            compilation,
+            authoredSyntaxTrees: compilation.SyntaxTrees.Where(_ => _.FilePath == "/workspace/Concepts/Authored.cs"));
         _contribution = adapter.Analyze(new DotNetAnalysisContext([project]), new DotNetAdapterOptions());
 
         var lookalikeCompilation = CompilationFrom(
@@ -87,6 +97,7 @@ public class when_source_only_looks_like_vogen : given.a_vogen_compilation
     [Fact] void should_only_discover_the_exact_authored_partial_declaration() => _contribution.Facts.OfType<ArtifactFact>().Select(_ => _.Definition.Name).ShouldContainOnly("RealCode");
     [Fact] void should_ignore_fake_short_name_attributes() => _contribution.Facts.OfType<ArtifactFact>().Any(_ => _.Definition.Name.StartsWith("Fake", StringComparison.Ordinal)).ShouldBeFalse();
     [Fact] void should_ignore_generated_only_declarations() => _contribution.Facts.OfType<ArtifactFact>().Any(_ => _.Definition.Name == "GeneratedOnly").ShouldBeFalse();
+    [Fact] void should_ignore_unmarked_generated_declarations() => _contribution.Facts.OfType<ArtifactFact>().Any(_ => _.Definition.Name == "UnmarkedGenerated").ShouldBeFalse();
     [Fact] void should_ignore_non_partial_declarations() => _contribution.Facts.OfType<ArtifactFact>().Any(_ => _.Definition.Name == "NotPartial").ShouldBeFalse();
     [Fact] void should_not_use_generated_members_or_names_as_primary_evidence() => _contribution.Facts.OfType<ArtifactFact>().Any(_ => _.Definition.Name == "CustomerId").ShouldBeFalse();
     [Fact] void should_anchor_the_real_concept_in_authored_source() => ConceptNamed(_contribution, "RealCode").Evidence.Source!.Path.ShouldEqual("Concepts/Authored.cs");

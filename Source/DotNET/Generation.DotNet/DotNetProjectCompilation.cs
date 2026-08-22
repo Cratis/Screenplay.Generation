@@ -31,6 +31,15 @@ public sealed record DotNetProjectCompilation
     public required Compilation Compilation { get; init; }
 
     /// <summary>
+    /// Gets the syntax trees known by the workspace host to come from authored project documents.
+    /// </summary>
+    /// <remarks>
+    /// Source-generator trees must not be included. A host can establish this set from project documents before
+    /// generators update the compilation; generated-file naming and headers are not an authoritative origin signal.
+    /// </remarks>
+    public required IReadOnlySet<SyntaxTree> AuthoredSyntaxTrees { get; init; }
+
+    /// <summary>
     /// Gets a project-qualified subject identity for a named type.
     /// </summary>
     /// <param name="type">The type to identify.</param>

@@ -60,12 +60,18 @@ public static class DotNetSource
     /// <param name="symbol">The symbol whose declarations should be inspected.</param>
     /// <returns>The authored declaration references.</returns>
     public static IReadOnlyList<SyntaxReference> AuthoredDeclarationsOf(ISymbol symbol) =>
-    [
-        .. symbol.DeclaringSyntaxReferences
-            .Where(_ => !DotNetGeneratedSource.IsGenerated(_.SyntaxTree))
-            .OrderBy(_ => _.SyntaxTree.FilePath, StringComparer.Ordinal)
-            .ThenBy(_ => _.Span.Start)
-    ];
+        AuthoredDeclarationsOf(symbol, tree => !DotNetGeneratedSource.IsGenerated(tree));
+
+    /// <summary>
+    /// Gets declarations of a symbol that belong to the authoritative authored-tree set.
+    /// </summary>
+    /// <param name="symbol">The symbol whose declarations should be inspected.</param>
+    /// <param name="authoredSyntaxTrees">The syntax trees established as authored by the workspace host.</param>
+    /// <returns>The authored declaration references.</returns>
+    public static IReadOnlyList<SyntaxReference> AuthoredDeclarationsOf(
+        ISymbol symbol,
+        IReadOnlySet<SyntaxTree> authoredSyntaxTrees) =>
+        AuthoredDeclarationsOf(symbol, authoredSyntaxTrees.Contains);
 
     /// <summary>
     /// Gets whether a symbol has at least one authored declaration.
@@ -75,15 +81,32 @@ public static class DotNetSource
     public static bool HasAuthoredDeclaration(ISymbol symbol) => AuthoredDeclarationsOf(symbol).Count > 0;
 
     /// <summary>
+    /// Gets whether a symbol has a declaration in the authoritative authored-tree set.
+    /// </summary>
+    /// <param name="symbol">The symbol to inspect.</param>
+    /// <param name="authoredSyntaxTrees">The syntax trees established as authored by the workspace host.</param>
+    /// <returns><see langword="true"/> when an authored declaration exists; otherwise, <see langword="false"/>.</returns>
+    public static bool HasAuthoredDeclaration(ISymbol symbol, IReadOnlySet<SyntaxTree> authoredSyntaxTrees) =>
+        AuthoredDeclarationsOf(symbol, authoredSyntaxTrees).Count > 0;
+
+    /// <summary>
     /// Gets whether a named type has an authored partial declaration.
     /// </summary>
     /// <param name="type">The named type to inspect.</param>
     /// <returns><see langword="true"/> when an authored declaration is partial; otherwise, <see langword="false"/>.</returns>
     public static bool HasAuthoredPartialDeclaration(INamedTypeSymbol type) =>
-        AuthoredDeclarationsOf(type)
-            .Select(_ => _.GetSyntax())
-            .OfType<TypeDeclarationSyntax>()
-            .Any(_ => _.Modifiers.Any(SyntaxKind.PartialKeyword));
+        HasPartialDeclaration(AuthoredDeclarationsOf(type));
+
+    /// <summary>
+    /// Gets whether a named type has a partial declaration in the authoritative authored-tree set.
+    /// </summary>
+    /// <param name="type">The named type to inspect.</param>
+    /// <param name="authoredSyntaxTrees">The syntax trees established as authored by the workspace host.</param>
+    /// <returns><see langword="true"/> when an authored partial declaration exists; otherwise, <see langword="false"/>.</returns>
+    public static bool HasAuthoredPartialDeclaration(
+        INamedTypeSymbol type,
+        IReadOnlySet<SyntaxTree> authoredSyntaxTrees) =>
+        HasPartialDeclaration(AuthoredDeclarationsOf(type, authoredSyntaxTrees));
 
     /// <summary>
     /// Gets attributes whose applications occur in authored source, in deterministic source order.
@@ -91,12 +114,18 @@ public static class DotNetSource
     /// <param name="symbol">The attributed symbol.</param>
     /// <returns>The authored attribute data.</returns>
     public static IReadOnlyList<AttributeData> AuthoredAttributesOf(ISymbol symbol) =>
-    [
-        .. symbol.GetAttributes()
-            .Where(_ => _.ApplicationSyntaxReference is not null && !DotNetGeneratedSource.IsGenerated(_.ApplicationSyntaxReference.SyntaxTree))
-            .OrderBy(_ => _.ApplicationSyntaxReference!.SyntaxTree.FilePath, StringComparer.Ordinal)
-            .ThenBy(_ => _.ApplicationSyntaxReference!.Span.Start)
-    ];
+        AuthoredAttributesOf(symbol, tree => !DotNetGeneratedSource.IsGenerated(tree));
+
+    /// <summary>
+    /// Gets attributes whose applications belong to the authoritative authored-tree set.
+    /// </summary>
+    /// <param name="symbol">The attributed symbol.</param>
+    /// <param name="authoredSyntaxTrees">The syntax trees established as authored by the workspace host.</param>
+    /// <returns>The authored attribute data.</returns>
+    public static IReadOnlyList<AttributeData> AuthoredAttributesOf(
+        ISymbol symbol,
+        IReadOnlySet<SyntaxTree> authoredSyntaxTrees) =>
+        AuthoredAttributesOf(symbol, authoredSyntaxTrees.Contains);
 
     /// <summary>
     /// Gets a portable source range for a Roslyn location.
@@ -159,10 +188,70 @@ public static class DotNetSource
         AdapterIdentity adapter,
         EvidenceStrength strength,
         string? sourceRoot,
-        string? explanation = null)
+        string? explanation = null) =>
+        EvidenceFor(
+            attribute,
+            tree => !DotNetGeneratedSource.IsGenerated(tree),
+            adapter,
+            strength,
+            sourceRoot,
+            explanation);
+
+    /// <summary>
+    /// Gets deterministic evidence anchored at an attribute application in the authoritative authored-tree set.
+    /// </summary>
+    /// <param name="attribute">The authored attribute data.</param>
+    /// <param name="authoredSyntaxTrees">The syntax trees established as authored by the workspace host.</param>
+    /// <param name="adapter">The adapter producing the evidence.</param>
+    /// <param name="strength">The evidence strength.</param>
+    /// <param name="sourceRoot">The workspace root used to make paths relative.</param>
+    /// <param name="explanation">An optional explanation of the evidence.</param>
+    /// <returns>The evidence.</returns>
+    public static Evidence EvidenceFor(
+        AttributeData attribute,
+        IReadOnlySet<SyntaxTree> authoredSyntaxTrees,
+        AdapterIdentity adapter,
+        EvidenceStrength strength,
+        string? sourceRoot,
+        string? explanation = null) =>
+        EvidenceFor(attribute, authoredSyntaxTrees.Contains, adapter, strength, sourceRoot, explanation);
+
+    static IReadOnlyList<SyntaxReference> AuthoredDeclarationsOf(
+        ISymbol symbol,
+        Func<SyntaxTree, bool> isAuthored) =>
+    [
+        .. symbol.DeclaringSyntaxReferences
+            .Where(_ => isAuthored(_.SyntaxTree))
+            .OrderBy(_ => _.SyntaxTree.FilePath, StringComparer.Ordinal)
+            .ThenBy(_ => _.Span.Start)
+    ];
+
+    static bool HasPartialDeclaration(IEnumerable<SyntaxReference> declarations) =>
+        declarations
+            .Select(_ => _.GetSyntax())
+            .OfType<TypeDeclarationSyntax>()
+            .Any(_ => _.Modifiers.Any(SyntaxKind.PartialKeyword));
+
+    static IReadOnlyList<AttributeData> AuthoredAttributesOf(
+        ISymbol symbol,
+        Func<SyntaxTree, bool> isAuthored) =>
+    [
+        .. symbol.GetAttributes()
+            .Where(_ => _.ApplicationSyntaxReference is not null && isAuthored(_.ApplicationSyntaxReference.SyntaxTree))
+            .OrderBy(_ => _.ApplicationSyntaxReference!.SyntaxTree.FilePath, StringComparer.Ordinal)
+            .ThenBy(_ => _.ApplicationSyntaxReference!.Span.Start)
+    ];
+
+    static Evidence EvidenceFor(
+        AttributeData attribute,
+        Func<SyntaxTree, bool> isAuthored,
+        AdapterIdentity adapter,
+        EvidenceStrength strength,
+        string? sourceRoot,
+        string? explanation)
     {
         var reference = attribute.ApplicationSyntaxReference;
-        var location = reference is not null && !DotNetGeneratedSource.IsGenerated(reference.SyntaxTree)
+        var location = reference is not null && isAuthored(reference.SyntaxTree)
             ? reference.GetSyntax().GetLocation()
             : null;
 

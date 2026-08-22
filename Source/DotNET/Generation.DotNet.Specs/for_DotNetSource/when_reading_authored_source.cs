@@ -30,20 +30,31 @@ public class when_reading_authored_source : given.a_compilation
                 namespace Banking;
                 [Marker]
                 public readonly partial record struct AccountId;
+                """),
+            new SourceFile(
+                "/workspace/generator/AccountId.cs",
+                """
+                namespace Banking;
+                [Marker]
+                public readonly partial record struct AccountId;
                 """));
         _type = TypeNamed(compilation, "Banking.AccountId");
-        _declarations = DotNetSource.AuthoredDeclarationsOf(_type);
-        _attributes = DotNetSource.AuthoredAttributesOf(_type);
-        _assemblyAttributes = DotNetSource.AuthoredAttributesOf(compilation.Assembly);
+        var authoredSyntaxTrees = compilation.SyntaxTrees
+            .Where(_ => _.FilePath == "/workspace/Banking/AccountId.cs")
+            .ToHashSet();
+        _declarations = DotNetSource.AuthoredDeclarationsOf(_type, authoredSyntaxTrees);
+        _attributes = DotNetSource.AuthoredAttributesOf(_type, authoredSyntaxTrees);
+        _assemblyAttributes = DotNetSource.AuthoredAttributesOf(compilation.Assembly, authoredSyntaxTrees);
         _attributeEvidence = DotNetSource.EvidenceFor(
             _attributes.Single(),
+            authoredSyntaxTrees,
             new AdapterIdentity { Id = "test", Version = "1.0.0" },
             EvidenceStrength.Exact,
             "/workspace");
     }
 
     [Fact] void should_only_return_the_authored_declaration() => _declarations.Select(_ => _.SyntaxTree.FilePath).ShouldContainOnly("/workspace/Banking/AccountId.cs");
-    [Fact] void should_recognize_the_authored_partial_declaration() => DotNetSource.HasAuthoredPartialDeclaration(_type).ShouldBeTrue();
+    [Fact] void should_recognize_the_authored_partial_declaration() => DotNetSource.HasAuthoredPartialDeclaration(_type, _declarations.Select(_ => _.SyntaxTree).ToHashSet()).ShouldBeTrue();
     [Fact] void should_only_return_the_authored_attribute_application() => _attributes.Count.ShouldEqual(1);
     [Fact] void should_return_authored_assembly_attributes() => _assemblyAttributes.Count.ShouldEqual(1);
     [Fact] void should_anchor_attribute_evidence_at_the_attribute_application() => _attributeEvidence.Source.ShouldEqual(new SourceRange { Path = "Banking/AccountId.cs", StartLine = 5, StartColumn = 2, EndLine = 5, EndColumn = 8 });

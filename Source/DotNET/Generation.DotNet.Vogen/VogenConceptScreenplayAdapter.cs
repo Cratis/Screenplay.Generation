@@ -35,6 +35,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         {
             var defaultAttribute = AuthoredAttribute(
                 project.Compilation.Assembly,
+                project.AuthoredSyntaxTrees,
                 VogenMetadataNames.DefaultsAttribute);
 
             foreach (var declaration in DeclarationsIn(project))
@@ -63,6 +64,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         var subject = project.SubjectForType(type);
         var conceptEvidence = DotNetSource.EvidenceFor(
             attribute,
+            project.AuthoredSyntaxTrees,
             identity,
             EvidenceStrength.Exact,
             project.SourceRoot,
@@ -86,6 +88,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         {
             var representationEvidence = DotNetSource.EvidenceFor(
                 backing.Evidence,
+                project.AuthoredSyntaxTrees,
                 identity,
                 EvidenceStrength.Exact,
                 project.SourceRoot,
@@ -113,6 +116,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
             Message = $"Vogen concept '{type.Name}' uses unsupported backing type '{DisplayName(backing.Type)}'; no concept representation was contributed",
             Source = DotNetSource.EvidenceFor(
                 backing.Evidence,
+                project.AuthoredSyntaxTrees,
                 identity,
                 EvidenceStrength.Exact,
                 project.SourceRoot).Source,
@@ -121,20 +125,30 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
     }
 
     static IEnumerable<VogenDeclaration> DeclarationsIn(DotNetProjectCompilation project) =>
-        new DotNetArtifactCatalog(project.Compilation).AuthoredTypes
-            .Where(DotNetSource.HasAuthoredPartialDeclaration)
-            .Select(type => new { Type = type, Attribute = ValueObjectAttribute(type) })
+        new DotNetArtifactCatalog(project.Compilation).Types
+            .Where(type => DotNetSource.HasAuthoredDeclaration(type, project.AuthoredSyntaxTrees))
+            .Where(type => DotNetSource.HasAuthoredPartialDeclaration(type, project.AuthoredSyntaxTrees))
+            .Select(type => new
+            {
+                Type = type,
+                Attribute = ValueObjectAttribute(type, project.AuthoredSyntaxTrees)
+            })
             .Where(_ => _.Attribute is not null)
             .Select(_ => new VogenDeclaration(_.Type, _.Attribute!));
 
-    static AttributeData? ValueObjectAttribute(INamedTypeSymbol type) =>
-        DotNetSource.AuthoredAttributesOf(type)
+    static AttributeData? ValueObjectAttribute(
+        INamedTypeSymbol type,
+        IReadOnlySet<SyntaxTree> authoredSyntaxTrees) =>
+        DotNetSource.AuthoredAttributesOf(type, authoredSyntaxTrees)
             .FirstOrDefault(_ =>
                 string.Equals(MetadataName(_), VogenMetadataNames.ValueObjectAttribute, StringComparison.Ordinal) ||
                 string.Equals(MetadataName(_), VogenMetadataNames.GenericValueObjectAttribute, StringComparison.Ordinal));
 
-    static AttributeData? AuthoredAttribute(ISymbol symbol, string metadataName) =>
-        DotNetSource.AuthoredAttributesOf(symbol)
+    static AttributeData? AuthoredAttribute(
+        ISymbol symbol,
+        IReadOnlySet<SyntaxTree> authoredSyntaxTrees,
+        string metadataName) =>
+        DotNetSource.AuthoredAttributesOf(symbol, authoredSyntaxTrees)
             .FirstOrDefault(_ => string.Equals(MetadataName(_), metadataName, StringComparison.Ordinal));
 
     static string? MetadataName(AttributeData attribute) =>

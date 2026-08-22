@@ -30,11 +30,13 @@ public class a_vogen_compilation : Specification
     protected static DotNetProjectCompilation Project(
         string name,
         CSharpCompilation compilation,
-        string sourceRoot = "/workspace") => new()
+        string sourceRoot = "/workspace",
+        IEnumerable<SyntaxTree>? authoredSyntaxTrees = null) => new()
         {
             Name = name,
             Compilation = compilation,
-            SourceRoot = sourceRoot
+            SourceRoot = sourceRoot,
+            AuthoredSyntaxTrees = (authoredSyntaxTrees ?? compilation.SyntaxTrees.Where(_ => !DotNetGeneratedSource.IsGenerated(_))).ToHashSet()
         };
 
     protected static ArtifactFact ConceptNamed(AdapterContribution contribution, string name) =>
