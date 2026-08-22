@@ -201,6 +201,48 @@ public sealed record ResolvedConceptAttribute
 }
 
 /// <summary>
+/// Represents one distinct concept validation rule and all evidence establishing it.
+/// </summary>
+public sealed record ResolvedConceptValidationRuleVariant
+{
+    /// <summary>
+    /// Gets the asserted concept validation rule.
+    /// </summary>
+    public required ConceptValidationRuleDefinition Definition { get; init; }
+
+    /// <summary>
+    /// Gets the ordered evidence supporting the rule.
+    /// </summary>
+    public IReadOnlyList<Evidence> Evidence { get; init; } = [];
+}
+
+/// <summary>
+/// Represents every distinct definition asserted for one concept validation rule identity.
+/// </summary>
+public sealed record ResolvedConceptValidationRule
+{
+    /// <summary>
+    /// Gets the concept subject.
+    /// </summary>
+    public required SubjectId Concept { get; init; }
+
+    /// <summary>
+    /// Gets the stable adapter-authored rule identity.
+    /// </summary>
+    public required string RuleIdentity { get; init; }
+
+    /// <summary>
+    /// Gets the distinct definitions in deterministic order.
+    /// </summary>
+    public IReadOnlyList<ResolvedConceptValidationRuleVariant> Variants { get; init; } = [];
+
+    /// <summary>
+    /// Gets whether incompatible definitions were asserted for the rule identity.
+    /// </summary>
+    public bool IsConflicted => Variants.Count > 1;
+}
+
+/// <summary>
 /// Represents the deterministic semantic graph resolved from all adapter contributions.
 /// </summary>
 public sealed record ResolvedApplicationGraph
@@ -219,6 +261,11 @@ public sealed record ResolvedApplicationGraph
     /// Gets resolved concept attributes in canonical concept/name order.
     /// </summary>
     public IReadOnlyList<ResolvedConceptAttribute> ConceptAttributes { get; init; } = [];
+
+    /// <summary>
+    /// Gets resolved concept validation rules in canonical concept/rule identity order.
+    /// </summary>
+    public IReadOnlyList<ResolvedConceptValidationRule> ConceptValidationRules { get; init; } = [];
 
     /// <summary>
     /// Gets the resolved artifact placements in canonical order.

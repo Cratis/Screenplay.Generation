@@ -92,4 +92,14 @@ public static class GenerationDiagnosticCodes
     /// A concept attribute cannot be represented safely by Screenplay.
     /// </summary>
     public const string UnsupportedConceptAttribute = "GEN0019";
+
+    /// <summary>
+    /// Incompatible definitions were asserted for one concept validation rule identity.
+    /// </summary>
+    public const string ConflictingConceptValidationRule = "GEN0020";
+
+    /// <summary>
+    /// A concept validation rule cannot be represented safely by Screenplay.
+    /// </summary>
+    public const string UnsupportedConceptValidationRule = "GEN0021";
 }

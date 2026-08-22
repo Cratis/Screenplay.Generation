@@ -35,6 +35,11 @@ public sealed class GenerationResolver
         var conceptAttributes = ResolveConceptAttributes(
             conceptAttributeFacts.Where(_ => _.Subject == _.Definition.Concept),
             diagnostics);
+        var conceptValidationRuleFacts = facts.OfType<ConceptValidationRuleFact>().ToArray();
+        diagnostics.AddRange(InvalidConceptFactDiagnostics(conceptValidationRuleFacts));
+        var conceptValidationRules = ResolveConceptValidationRules(
+            conceptValidationRuleFacts.Where(_ => _.Subject == _.Definition.Concept),
+            diagnostics);
         var placements = ResolvePlacements(facts.OfType<ArtifactPlacementFact>(), diagnostics);
         var relationships = ResolveRelationships(facts.OfType<RelationshipFact>(), diagnostics);
 
@@ -43,6 +48,7 @@ public sealed class GenerationResolver
             Artifacts = artifacts,
             ConceptRepresentations = conceptRepresentations,
             ConceptAttributes = conceptAttributes,
+            ConceptValidationRules = conceptValidationRules,
             Placements = placements,
             Relationships = relationships,
             Diagnostics = [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]
@@ -150,6 +156,40 @@ public sealed class GenerationResolver
                 })
         ];
 
+    static ResolvedConceptValidationRule[] ResolveConceptValidationRules(
+        IEnumerable<ConceptValidationRuleFact> facts,
+        List<GenerationDiagnostic> diagnostics) =>
+        [
+            .. facts
+                .GroupBy(_ => Canonical.ConceptValidationRuleKey(_.Definition), StringComparer.Ordinal)
+                .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                .Select(group =>
+                {
+                    var variants = group
+                        .GroupBy(_ => Canonical.ConceptValidationRule(_.Definition), StringComparer.Ordinal)
+                        .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                        .Select(_ => new ResolvedConceptValidationRuleVariant
+                        {
+                            Definition = _.First().Definition,
+                            Evidence = OrderedEvidence(_.Select(fact => fact.Evidence))
+                        })
+                        .ToArray();
+                    var rule = new ResolvedConceptValidationRule
+                    {
+                        Concept = group.First().Definition.Concept,
+                        RuleIdentity = group.First().Definition.RuleIdentity,
+                        Variants = variants
+                    };
+
+                    if (rule.IsConflicted)
+                    {
+                        diagnostics.Add(ConflictFor(rule));
+                    }
+
+                    return rule;
+                })
+        ];
+
     static ResolvedArtifactPlacement[] ResolvePlacements(
         IEnumerable<ArtifactPlacementFact> facts,
         List<GenerationDiagnostic> diagnostics) =>
@@ -237,6 +277,18 @@ public sealed class GenerationResolver
                 Subject = _.Subject
             });
 
+    static IEnumerable<GenerationDiagnostic> InvalidConceptFactDiagnostics(IEnumerable<ConceptValidationRuleFact> facts) =>
+        facts
+            .Where(_ => _.Subject != _.Definition.Concept)
+            .Select(_ => new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.InvalidConceptFact,
+                Severity = GenerationDiagnosticSeverity.Error,
+                Message = $"Concept validation rule fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
+                Source = _.Evidence.Source,
+                Subject = _.Subject
+            });
+
     static Evidence[] OrderedEvidence(IEnumerable<Evidence> evidence) =>
         [.. evidence
             .GroupBy(Canonical.Evidence, StringComparer.Ordinal)
@@ -267,6 +319,7 @@ public sealed class GenerationResolver
         ArtifactFact artifact => $"artifact:{Canonical.Artifact(artifact.Definition)}",
         ConceptRepresentationFact representation => $"concept-representation:{Canonical.ConceptRepresentation(representation.Definition)}",
         ConceptAttributeFact attribute => $"concept-attribute:{Canonical.ConceptAttribute(attribute.Definition)}",
+        ConceptValidationRuleFact validationRule => $"concept-validation-rule:{Canonical.ConceptValidationRule(validationRule.Definition)}",
         ArtifactPlacementFact placement => $"placement:{Canonical.ArtifactKey(placement.Artifact)}:{Canonical.Placement(placement.Placement)}",
         RelationshipFact relationship => $"relationship:{Canonical.Relationship(relationship.Definition)}",
         _ => fact.GetType().FullName ?? fact.GetType().Name
@@ -297,6 +350,15 @@ public sealed class GenerationResolver
         Message = $"Concept '{attribute.Concept.Value}' has {attribute.Variants.Count} incompatible '{attribute.Name}' attribute definitions",
         Source = FirstSource(attribute.Variants.SelectMany(_ => _.Evidence)),
         Subject = attribute.Concept
+    };
+
+    static GenerationDiagnostic ConflictFor(ResolvedConceptValidationRule rule) => new()
+    {
+        Code = GenerationDiagnosticCodes.ConflictingConceptValidationRule,
+        Severity = GenerationDiagnosticSeverity.Error,
+        Message = $"Concept '{rule.Concept.Value}' has {rule.Variants.Count} incompatible validation definitions for rule identity '{rule.RuleIdentity}'",
+        Source = FirstSource(rule.Variants.SelectMany(_ => _.Evidence)),
+        Subject = rule.Concept
     };
 
     static GenerationDiagnostic ConflictFor(ResolvedArtifactPlacement placement) => new()

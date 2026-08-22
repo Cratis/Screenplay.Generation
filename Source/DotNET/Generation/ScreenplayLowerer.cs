@@ -174,7 +174,8 @@ public sealed class ScreenplayLowerer
             }
 
             var attributes = BuildConceptAttributes(graph, definition, diagnostics);
-            concepts.Add(new ConceptSyntax(definition.Name, type, attributes, values, _generated)
+            var validations = BuildConceptValidations(graph, definition, diagnostics);
+            concepts.Add(new ConceptSyntax(definition.Name, type, attributes, values, _generated, validations)
             {
                 File = FileFrom(definition.File)
             });
@@ -212,6 +213,64 @@ public sealed class ScreenplayLowerer
 
         return [.. attributes];
     }
+
+    static ValidateSyntax[] BuildConceptValidations(
+        ResolvedApplicationGraph graph,
+        ArtifactDefinition concept,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        var rules = new List<ValidationRuleSyntax>();
+        foreach (var resolved in graph.ConceptValidationRules
+                     .Where(_ => _.Concept == concept.Key.Subject)
+                     .OrderBy(_ => _.RuleIdentity, StringComparer.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(resolved.RuleIdentity))
+            {
+                ReportUnsupportedValidation(concept, resolved.RuleIdentity, "has no rule identity", diagnostics);
+                continue;
+            }
+
+            if (resolved.IsConflicted)
+            {
+                continue;
+            }
+
+            var definition = resolved.Variants.Single().Definition;
+            if (definition.Kind != ConceptValidationRuleKind.NamedPredicate ||
+                definition.Predicate is not { } predicate ||
+                !IsRuleIdentifier(predicate) ||
+                !IsValidImplementationFile(definition.ImplementationFile))
+            {
+                ReportUnsupportedValidation(concept, definition.RuleIdentity, "has invalid or missing required data", diagnostics);
+                continue;
+            }
+
+            rules.Add(new ValidationRuleSyntax(
+                ValidationRuleSyntax.ConceptValue,
+                ValidationRuleKind.Rule,
+                new PathExpressionSyntax(predicate, _generated),
+                definition.Message,
+                _generated,
+                FileFrom(definition.ImplementationFile)));
+        }
+
+        return rules.Count == 0
+            ? []
+            : [new DeclarativeValidateSyntax(rules, _generated)];
+    }
+
+    static void ReportUnsupportedValidation(
+        ArtifactDefinition concept,
+        string? ruleIdentity,
+        string reason,
+        List<GenerationDiagnostic> diagnostics) =>
+        diagnostics.Add(new GenerationDiagnostic
+        {
+            Code = GenerationDiagnosticCodes.UnsupportedConceptValidationRule,
+            Severity = GenerationDiagnosticSeverity.Warning,
+            Message = $"Concept '{concept.Name}' validation rule '{ruleIdentity ?? string.Empty}' {reason} and was omitted",
+            Subject = concept.Key.Subject
+        });
 
     static HashSet<string> ReportMissingConceptReferences(
         IEnumerable<ArtifactDefinition> definitions,
@@ -253,6 +312,19 @@ public sealed class ScreenplayLowerer
         IsIdentifier(value) &&
         !string.Equals(value, "file", StringComparison.Ordinal) &&
         !string.Equals(value, "validate", StringComparison.Ordinal);
+
+    static bool IsRuleIdentifier(string value) =>
+        value.Length > 0 &&
+        (value[0] == '_' || (value[0] is >= 'A' and <= 'Z') || (value[0] is >= 'a' and <= 'z')) &&
+        value.Skip(1).All(_ =>
+            _ == '_' ||
+            (_ is >= 'A' and <= 'Z') ||
+            (_ is >= 'a' and <= 'z') ||
+            (_ is >= '0' and <= '9'));
+
+    static bool IsValidImplementationFile(string? value) =>
+        value is null ||
+        (!string.IsNullOrWhiteSpace(value) && value.IndexOfAny(['\r', '\n']) < 0);
 
     static string? TypeOf(ConceptRepresentationDefinition representation) => representation.Kind switch
     {
