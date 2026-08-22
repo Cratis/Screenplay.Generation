@@ -32,6 +32,14 @@ Adapters contribute semantic facts; they do not construct syntax nodes or concat
 
 `Cratis.Screenplay.Generation.DotNet` deliberately does not own `MSBuildWorkspace`. Hosts such as Cratis CLI load a project once and pass Roslyn compilations to official adapters.
 
+## Concepts
+
+Adapters can contribute `ArtifactKind.Concept` together with an independently proven `ConceptRepresentationFact`. Primitive and enumeration representations resolve deterministically and lower to top-level Screenplay concepts without module placement.
+
+`TypeReferenceDefinition.Subject` binds an artifact property to the exact concept subject rather than a simple display name. Missing, conflicting, unsupported, or same-named concept definitions produce stable diagnostics; generation never falls back to `String`.
+
+Concept validation and attributes are separate capabilities and must not be inferred from concept identity or representation.
+
 See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the current implementation checkpoint and pre-release decisions.
 
 ## Build and test
