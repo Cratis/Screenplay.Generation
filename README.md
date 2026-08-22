@@ -8,7 +8,8 @@ Framework-neutral source adapter SDK for generating verified [Cratis Screenplay]
 | --- | --- |
 | `Cratis.Screenplay.Generation.Contracts` | Typed semantic facts, evidence, provenance, and diagnostics contributed by source adapters |
 | `Cratis.Screenplay.Generation` | Deterministic fact resolution, Screenplay lowering, canonical printing, and compiler verification |
-| `Cratis.Screenplay.Generation.DotNet` | Reusable Roslyn compilation, symbol, source, and type-shape APIs for .NET adapter authors |
+| `Cratis.Screenplay.Generation.DotNet` | Reusable Roslyn compilation, symbol, authored-source, and type-shape APIs for .NET adapter authors |
+| `Cratis.Screenplay.Generation.DotNet.Vogen` | Authored-source Vogen value-object discovery as neutral concept and primitive-representation facts |
 
 Framework adapters remain owned by their source ecosystems:
 
@@ -31,6 +32,31 @@ source adapter
 Adapters contribute semantic facts; they do not construct syntax nodes or concatenate `.play` fragments. This allows facts from related frameworks—such as Marten and Wolverine—to be resolved together before one document is emitted.
 
 `Cratis.Screenplay.Generation.DotNet` deliberately does not own `MSBuildWorkspace`. Hosts such as Cratis CLI load a project once and pass Roslyn compilations to official adapters.
+
+## Vogen adapter composition
+
+`Cratis.Screenplay.Generation.DotNet.Vogen` recognizes the exact Roslyn metadata names `Vogen.ValueObjectAttribute`, ``Vogen.ValueObjectAttribute`1``, and `Vogen.VogenDefaultsAttribute`. It has no Vogen package or runtime dependency. Vogen is pinned only in the adapter's semantic spec project so production consumers remain decoupled from the source generator.
+
+A clean consumer composes Vogen with any external ecosystem adapter by keeping contributions separate until neutral resolution:
+
+```csharp
+var adapters = new IDotNetScreenplayAdapter[]
+{
+    new VogenConceptScreenplayAdapter(),
+    externalAdapter
+};
+
+var adapterOptions = new DotNetAdapterOptions();
+var contributions = adapters
+    .Where(adapter => adapter.CanAnalyze(context))
+    .Select(adapter => adapter.Analyze(context, adapterOptions));
+
+var definition = new ScreenplayDefinitionGenerator().Generate(
+    contributions,
+    new ScreenplayGenerationOptions { Domain = "Ordering" });
+```
+
+The Vogen contribution establishes only authored concepts and supported primitive representations. It never infers identity or validation, never treats generated members as primary evidence, and reports `VOG0001` instead of inventing `String` for an unsupported backing type.
 
 ## Concepts
 

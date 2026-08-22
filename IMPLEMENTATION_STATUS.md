@@ -17,6 +17,7 @@ Cratis/Screenplay.Generation
   Cratis.Screenplay.Generation.Contracts
   Cratis.Screenplay.Generation
   Cratis.Screenplay.Generation.DotNet
+  Cratis.Screenplay.Generation.DotNet.Vogen
 
 Cratis/Screenplay.CritterStack
   Cratis.CritterStack.Screenplay
@@ -35,9 +36,9 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 
 - GitHub repository created: <https://github.com/Cratis/Screenplay.Generation>
 - Local repository: `/Volumes/sourcecode/repos/cratis/Screenplay.Generation`
-- `main` is synchronized with `origin/main` through the `v0.3.0` neutral concept SDK release.
-- Current feature branch: `feat/named-concept-validation`.
-- Latest GitHub release: [`v0.3.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.3.0).
+- This groundwork is based on the `v0.4.0` `main` baseline.
+- Current feature branch: `feat/vogen-concept-interpreter-clean`.
+- Latest baseline release: [`v0.4.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.4.0).
 - NuGet publication remains blocked by [issue #2](https://github.com/Cratis/Screenplay.Generation/issues/2); verified packages are attached to the release and available through the local feed.
 
 ## Projects transferred
@@ -60,6 +61,10 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 - Canonical Screenplay printing and compiler verification.
 - Reusable Roslyn compilation context, artifact catalog, symbol IDs, generated-source recognition, source ranges, type-shape conversion, and adapter interface.
 - Dedicated specs for deterministic generation, conflicts, evidence-strength placement, unplaced artifacts, source cataloging, generated source, type shapes, and provenance.
+- Authored-declaration, authored-attribute, authored-partial, and attribute-evidence helpers for reusable .NET adapters.
+- A separate Vogen adapter that recognizes exact generic/non-generic value-object attributes and assembly defaults by Roslyn metadata name.
+- Vogen concept and supported primitive-representation facts with stable `VOG0001` diagnostics for representation loss.
+- Vogen generated members remain corroboration only; identity and validation discovery are intentionally deferred to separate capabilities.
 
 ## Verified before repository split
 
@@ -100,10 +105,9 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 
 ## Immediate next actions
 
-1. Release named external concept validation rules to complete [issue #6](https://github.com/Cratis/Screenplay.Generation/issues/6).
-2. Add authored-source helpers and the Vogen interpreter package in [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
-3. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
-4. Enable package validation after trusted publication through issue #3.
+1. Release the authored-source helpers and Vogen interpreter package to complete [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
+2. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
+3. Enable package validation after trusted publication through issue #3.
 
 ## Safety
 
@@ -111,4 +115,5 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 - `Generation.Contracts` remains framework/compiler independent.
 - `Generation` depends only on Contracts and `Cratis.Screenplay`.
 - `Generation.DotNet` depends only on Contracts and Roslyn, never MSBuildWorkspace.
+- `Generation.DotNet.Vogen` depends only on `Generation.DotNet`; the Vogen 8.0.7 package is pinned exclusively in semantic specs.
 - Never commit local source-reference roots, credentials, caches, `.pi`, `bin`, or `obj`.
