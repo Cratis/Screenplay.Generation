@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace Cratis.Screenplay.Generation.DotNet.Vogen;
 
@@ -9,13 +10,15 @@ namespace Cratis.Screenplay.Generation.DotNet.Vogen;
 /// Discovers Vogen value-object declarations as neutral Screenplay concept facts.
 /// </summary>
 /// <remarks>
-/// Recognition uses Roslyn metadata names and authored attribute applications only. Generated members can corroborate
-/// a declaration but never originate concept, identity, validation, or representation facts.
+/// Recognition uses Roslyn metadata names and authoritative authored-source evidence. Generated members can corroborate
+/// a declaration but never originate concept, identity, validation, normalization, named-instance, or representation evidence.
 /// </remarks>
 public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
 {
     const string AdapterId = "vogen";
     const string AdapterVersion = "1.0.0";
+    const string ValidationPredicate = "Validate";
+    const string ValidationRuleIdentity = "vogen.validate";
 
     /// <inheritdoc/>
     public AdapterIdentity Identity { get; } = new() { Id = AdapterId, Version = AdapterVersion };
@@ -105,23 +108,136 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
                     Primitive = primitive
                 }
             });
+        }
+        else
+        {
+            diagnostics.Add(new GenerationDiagnostic
+            {
+                Code = VogenGenerationDiagnosticCodes.UnsupportedBackingType,
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Message = $"Vogen concept '{type.Name}' uses unsupported backing type '{DisplayName(backing.Type)}'; no concept representation was contributed",
+                Source = DotNetSource.EvidenceFor(
+                    backing.Evidence,
+                    project.AuthoredSyntaxTrees,
+                    identity,
+                    EvidenceStrength.Exact,
+                    project.SourceRoot).Source,
+                Subject = subject
+            });
+        }
 
+        var attributedDeclaration = DeclarationContaining(type, attribute);
+        AddValidation(project, type, attributedDeclaration, backing.Type, subject, identity, facts);
+        AddNormalizationDiagnostic(project, type, attributedDeclaration, backing.Type, subject, identity, diagnostics);
+        AddNamedInstanceDiagnostics(project, type, subject, identity, diagnostics);
+    }
+
+    static void AddValidation(
+        DotNetProjectCompilation project,
+        INamedTypeSymbol type,
+        SyntaxReference attributedDeclaration,
+        ITypeSymbol backingType,
+        SubjectId subject,
+        AdapterIdentity identity,
+        List<GenerationFact> facts)
+    {
+        var validationType = project.Compilation.GetTypeByMetadataName(VogenMetadataNames.Validation);
+        if (validationType is null)
+        {
+            return;
+        }
+
+        var validation = ExactAuthoredMethod(
+            project,
+            type,
+            attributedDeclaration,
+            ValidationPredicate,
+            backingType,
+            validationType);
+        if (validation is null)
+        {
+            return;
+        }
+
+        var evidence = EvidenceFor(
+            project,
+            validation,
+            identity,
+            $"The authored Vogen declaration has the exact static '{ValidationPredicate}({DisplayName(backingType)})' validation hook");
+        facts.Add(new ConceptValidationRuleFact
+        {
+            Id = FactIdFor($"concept-validation:{ValidationRuleIdentity}", subject),
+            Subject = subject,
+            Evidence = evidence,
+            Definition = new ConceptValidationRuleDefinition
+            {
+                Concept = subject,
+                RuleIdentity = ValidationRuleIdentity,
+                Kind = ConceptValidationRuleKind.NamedPredicate,
+                Predicate = ValidationPredicate,
+                Message = ConstantInvalidMessage(project.Compilation, validation),
+                ImplementationFile = evidence.Source?.Path
+            }
+        });
+    }
+
+    static void AddNormalizationDiagnostic(
+        DotNetProjectCompilation project,
+        INamedTypeSymbol type,
+        SyntaxReference attributedDeclaration,
+        ITypeSymbol backingType,
+        SubjectId subject,
+        AdapterIdentity identity,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        var normalization = ExactAuthoredMethod(
+            project,
+            type,
+            attributedDeclaration,
+            "NormalizeInput",
+            backingType,
+            backingType);
+        if (normalization is null)
+        {
             return;
         }
 
         diagnostics.Add(new GenerationDiagnostic
         {
-            Code = VogenGenerationDiagnosticCodes.UnsupportedBackingType,
+            Code = VogenGenerationDiagnosticCodes.InputNormalizationNotRepresented,
             Severity = GenerationDiagnosticSeverity.Warning,
-            Message = $"Vogen concept '{type.Name}' uses unsupported backing type '{DisplayName(backing.Type)}'; no concept representation was contributed",
-            Source = DotNetSource.EvidenceFor(
-                backing.Evidence,
-                project.AuthoredSyntaxTrees,
-                identity,
-                EvidenceStrength.Exact,
-                project.SourceRoot).Source,
+            Message = $"Vogen concept '{type.Name}' normalizes input with authored method 'NormalizeInput'; Screenplay concept validation cannot preserve normalization and no validation fact was contributed for it",
+            Source = EvidenceFor(project, normalization, identity).Source,
             Subject = subject
         });
+    }
+
+    static void AddNamedInstanceDiagnostics(
+        DotNetProjectCompilation project,
+        INamedTypeSymbol type,
+        SubjectId subject,
+        AdapterIdentity identity,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        foreach (var attribute in DotNetSource.AuthoredAttributesOf(type, project.AuthoredSyntaxTrees)
+                     .Where(_ => string.Equals(MetadataName(_), VogenMetadataNames.InstanceAttribute, StringComparison.Ordinal)))
+        {
+            var name = attribute.ConstructorArguments.FirstOrDefault().Value as string;
+            var displayName = string.IsNullOrWhiteSpace(name) ? "an unnamed instance" : $"named instance '{name}'";
+            diagnostics.Add(new GenerationDiagnostic
+            {
+                Code = VogenGenerationDiagnosticCodes.NamedInstanceNotRepresented,
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Message = $"Vogen concept '{type.Name}' declares {displayName}; Screenplay generation does not treat named instances as optional values or defaults and no concept fact was contributed for it",
+                Source = DotNetSource.EvidenceFor(
+                    attribute,
+                    project.AuthoredSyntaxTrees,
+                    identity,
+                    EvidenceStrength.Exact,
+                    project.SourceRoot).Source,
+                Subject = subject
+            });
+        }
     }
 
     static IEnumerable<VogenDeclaration> DeclarationsIn(DotNetProjectCompilation project) =>
@@ -151,6 +267,121 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         string metadataName) =>
         DotNetSource.AuthoredAttributesOf(symbol, authoredSyntaxTrees)
             .FirstOrDefault(_ => string.Equals(MetadataName(_), metadataName, StringComparison.Ordinal));
+
+    static SyntaxReference DeclarationContaining(INamedTypeSymbol type, AttributeData attribute)
+    {
+        var application = attribute.ApplicationSyntaxReference!;
+        return type.DeclaringSyntaxReferences.Single(reference =>
+            reference.SyntaxTree == application.SyntaxTree &&
+            reference.Span.Contains(application.Span));
+    }
+
+    static AuthoredMethod? ExactAuthoredMethod(
+        DotNetProjectCompilation project,
+        INamedTypeSymbol type,
+        SyntaxReference attributedDeclaration,
+        string name,
+        ITypeSymbol parameterType,
+        ITypeSymbol returnType) =>
+        type.GetMembers(name)
+            .OfType<IMethodSymbol>()
+            .Where(method =>
+                method.MethodKind == MethodKind.Ordinary &&
+                method.IsStatic &&
+                !method.IsGenericMethod &&
+                !method.ReturnsByRef &&
+                !method.ReturnsByRefReadonly &&
+                SymbolEqualityComparer.Default.Equals(method.ReturnType, returnType) &&
+                method.Parameters is [var parameter] &&
+                parameter.RefKind == RefKind.None &&
+                SymbolEqualityComparer.Default.Equals(parameter.Type, parameterType))
+            .SelectMany(method => DotNetSource.AuthoredDeclarationsOf(method, project.AuthoredSyntaxTrees)
+                .Where(reference =>
+                    reference.SyntaxTree == attributedDeclaration.SyntaxTree &&
+                    attributedDeclaration.Span.Contains(reference.Span) &&
+                    project.Compilation.GetSemanticModel(reference.SyntaxTree).GetOperation(reference.GetSyntax()) is not null)
+                .Select(reference => new AuthoredMethod(method, reference)))
+            .OrderBy(_ => _.Reference.SyntaxTree.FilePath, StringComparer.Ordinal)
+            .ThenBy(_ => _.Reference.Span.Start)
+            .FirstOrDefault();
+
+    static Evidence EvidenceFor(
+        DotNetProjectCompilation project,
+        AuthoredMethod method,
+        AdapterIdentity identity,
+        string? explanation = null) => new()
+        {
+            Adapter = identity,
+            Strength = EvidenceStrength.Exact,
+            Source = DotNetSource.Range(method.Reference.GetSyntax().GetLocation(), project.SourceRoot),
+            Explanation = explanation
+        };
+
+    static string? ConstantInvalidMessage(Compilation compilation, AuthoredMethod validation)
+    {
+        var operation = compilation.GetSemanticModel(validation.Reference.SyntaxTree).GetOperation(validation.Reference.GetSyntax());
+        if (operation is null)
+        {
+            return null;
+        }
+
+        var invalidInvocations = OperationsIn(operation)
+            .OfType<IInvocationOperation>()
+            .Where(invocation =>
+                invocation.TargetMethod.Name == "Invalid" &&
+                invocation.TargetMethod.IsStatic &&
+                invocation.TargetMethod.ContainingType is { } containingType &&
+                string.Equals(DotNetSubjectIds.MetadataName(containingType), VogenMetadataNames.Validation, StringComparison.Ordinal) &&
+                IsDirectlyReturnedFromValidation(invocation))
+            .ToArray();
+        if (invalidInvocations is not [var invalid])
+        {
+            return null;
+        }
+
+        var argument = invalid.Arguments.SingleOrDefault(_ => _.Parameter?.Ordinal == 0);
+        return argument is { IsImplicit: false } &&
+               argument.Value.ConstantValue is { HasValue: true, Value: string message } &&
+               !string.IsNullOrEmpty(message)
+            ? message
+            : null;
+    }
+
+    static IEnumerable<IOperation> OperationsIn(IOperation root)
+    {
+        yield return root;
+        foreach (var child in root.ChildOperations)
+        {
+            foreach (var descendant in OperationsIn(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
+    static bool IsDirectlyReturnedFromValidation(IOperation operation)
+    {
+        var parent = operation.Parent;
+        while (parent is IConditionalOperation or IConversionOperation)
+        {
+            parent = parent.Parent;
+        }
+
+        if (parent is not IReturnOperation returned)
+        {
+            return false;
+        }
+
+        for (parent = returned.Parent; parent is not null; parent = parent.Parent)
+        {
+            if (parent is IAnonymousFunctionOperation or ILocalFunctionOperation)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     static string? MetadataName(AttributeData attribute) =>
         attribute.AttributeClass is null ? null : DotNetSubjectIds.MetadataName(attribute.AttributeClass);
@@ -225,6 +456,8 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
 
     static string DisplayName(ITypeSymbol type) =>
         type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty, StringComparison.Ordinal);
+
+    sealed record AuthoredMethod(IMethodSymbol Method, SyntaxReference Reference);
 
     sealed record VogenDeclaration(INamedTypeSymbol Type, AttributeData Attribute);
 

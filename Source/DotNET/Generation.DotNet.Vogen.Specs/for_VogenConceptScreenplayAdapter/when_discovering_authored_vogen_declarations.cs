@@ -22,11 +22,7 @@ public class when_discovering_authored_vogen_declarations : given.a_vogen_compil
                 [Vogen.ValueObject(typeof(decimal))]
                 public partial class Money;
                 [Vogen.ValueObject]
-                public partial struct CustomerCode
-                {
-                    private static Vogen.Validation Validate(string value) => default;
-                    private static string NormalizeInput(string value) => value;
-                }
+                public partial struct CustomerCode;
                 [Vogen.ValueObject<long>]
                 public partial record ReferenceCode;
                 """));
@@ -63,5 +59,5 @@ public class when_discovering_authored_vogen_declarations : given.a_vogen_compil
     [Fact] void should_use_the_exact_project_qualified_subject() => ConceptNamed(_contribution, "OrderId").Subject.Value.ShouldEqual("dotnet://Banking.Project/Banking/Banking.OrderId");
     [Fact] void should_preserve_the_authored_file() => ConceptNamed(_contribution, "OrderId").Definition.File.ShouldEqual("Banking/Concepts.cs");
     [Fact] void should_not_infer_identity() => _contribution.Facts.OfType<ArtifactFact>().SelectMany(_ => _.Definition.Properties).Any(_ => _.IsIdentifier).ShouldBeFalse();
-    [Fact] void should_not_infer_validation_or_normalization() => _contribution.Facts.Count.ShouldEqual(10);
+    [Fact] void should_not_infer_validation_without_an_authored_hook() => _contribution.Facts.Count.ShouldEqual(10);
 }

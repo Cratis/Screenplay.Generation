@@ -12,4 +12,14 @@ public static class VogenGenerationDiagnosticCodes
     /// A Vogen concept has a backing type that Screenplay generation cannot represent as a primitive.
     /// </summary>
     public const string UnsupportedBackingType = "VOG0001";
+
+    /// <summary>
+    /// A Vogen concept normalizes input in a way Screenplay concept validation cannot preserve.
+    /// </summary>
+    public const string InputNormalizationNotRepresented = "VOG0002";
+
+    /// <summary>
+    /// A Vogen concept declares a named instance that Screenplay concepts cannot preserve.
+    /// </summary>
+    public const string NamedInstanceNotRepresented = "VOG0003";
 }

@@ -22,4 +22,14 @@ public static class VogenMetadataNames
     /// The assembly defaults attribute. Its first constructor argument is the optional default backing type.
     /// </summary>
     public const string DefaultsAttribute = "Vogen.VogenDefaultsAttribute";
+
+    /// <summary>
+    /// The named-instance attribute applied to a value-object declaration.
+    /// </summary>
+    public const string InstanceAttribute = "Vogen.InstanceAttribute";
+
+    /// <summary>
+    /// The result type returned by an authored Vogen validation hook.
+    /// </summary>
+    public const string Validation = "Vogen.Validation";
 }
