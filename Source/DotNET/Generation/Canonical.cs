@@ -36,6 +36,12 @@ static class Canonical
             definition.Primitive?.ToString(),
             string.Concat(definition.EnumerationValues.Select(_ => $"{_.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{_}")));
 
+    public static string ConceptAttribute(ConceptAttributeDefinition definition) =>
+        Join(definition.Concept.Value, Encode(definition.Name), Encode(definition.Reason));
+
+    public static string ConceptAttributeKey(ConceptAttributeDefinition definition) =>
+        Join(definition.Concept.Value, Encode(definition.Name));
+
     public static string Placement(ArtifactPlacement placement) =>
         Join(
             placement.Module,
@@ -75,6 +81,10 @@ static class Canonical
             diagnostic.Source?.StartColumn.ToString(),
             diagnostic.Subject?.Value,
             diagnostic.Message);
+
+    static string Encode(string? value) => value is null
+        ? "-1:"
+        : $"{value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{value}";
 
     static string Join(params string?[] values) => string.Join(Separator, values.Select(_ => _ ?? string.Empty));
 }

@@ -173,7 +173,8 @@ public sealed class ScreenplayLowerer
                 continue;
             }
 
-            concepts.Add(new ConceptSyntax(definition.Name, type, [], values, _generated)
+            var attributes = BuildConceptAttributes(graph, definition, diagnostics);
+            concepts.Add(new ConceptSyntax(definition.Name, type, attributes, values, _generated)
             {
                 File = FileFrom(definition.File)
             });
@@ -181,6 +182,35 @@ public sealed class ScreenplayLowerer
         }
 
         return ([.. concepts], names);
+    }
+
+    static ConceptAttributeSyntax[] BuildConceptAttributes(
+        ResolvedApplicationGraph graph,
+        ArtifactDefinition concept,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        var attributes = new List<ConceptAttributeSyntax>();
+        foreach (var resolved in graph.ConceptAttributes
+                     .Where(_ => _.Concept == concept.Key.Subject && !_.IsConflicted)
+                     .OrderBy(_ => _.Name, StringComparer.Ordinal))
+        {
+            var definition = resolved.Variants.Single().Definition;
+            if (!IsIdentifier(definition.Name))
+            {
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.UnsupportedConceptAttribute,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Message = $"Concept '{concept.Name}' has invalid attribute name '{definition.Name}', which was omitted",
+                    Subject = concept.Key.Subject
+                });
+                continue;
+            }
+
+            attributes.Add(new ConceptAttributeSyntax(definition.Name, _generated, definition.Reason));
+        }
+
+        return [.. attributes];
     }
 
     static HashSet<string> ReportMissingConceptReferences(
@@ -214,10 +244,13 @@ public sealed class ScreenplayLowerer
         ? value
         : $"{char.ToLowerInvariant(value[0])}{value[1..]}";
 
-    static bool IsEnumValue(string value) =>
+    static bool IsIdentifier(string value) =>
         value.Length > 0 &&
         (value[0] == '_' || char.IsLower(value[0])) &&
-        value.Skip(1).All(_ => _ == '_' || char.IsLetterOrDigit(_)) &&
+        value.Skip(1).All(_ => _ == '_' || char.IsLetterOrDigit(_));
+
+    static bool IsEnumValue(string value) =>
+        IsIdentifier(value) &&
         !string.Equals(value, "file", StringComparison.Ordinal) &&
         !string.Equals(value, "validate", StringComparison.Ordinal);
 

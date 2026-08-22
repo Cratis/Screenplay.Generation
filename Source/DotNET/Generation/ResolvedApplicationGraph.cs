@@ -159,6 +159,48 @@ public sealed record ResolvedConceptRepresentation
 }
 
 /// <summary>
+/// Represents one distinct concept attribute and all evidence establishing it.
+/// </summary>
+public sealed record ResolvedConceptAttributeVariant
+{
+    /// <summary>
+    /// Gets the asserted concept attribute.
+    /// </summary>
+    public required ConceptAttributeDefinition Definition { get; init; }
+
+    /// <summary>
+    /// Gets the ordered evidence supporting the attribute.
+    /// </summary>
+    public IReadOnlyList<Evidence> Evidence { get; init; } = [];
+}
+
+/// <summary>
+/// Represents every distinct definition asserted for one named concept attribute.
+/// </summary>
+public sealed record ResolvedConceptAttribute
+{
+    /// <summary>
+    /// Gets the concept subject.
+    /// </summary>
+    public required SubjectId Concept { get; init; }
+
+    /// <summary>
+    /// Gets the attribute name.
+    /// </summary>
+    public required string Name { get; init; }
+
+    /// <summary>
+    /// Gets the distinct definitions in deterministic order.
+    /// </summary>
+    public IReadOnlyList<ResolvedConceptAttributeVariant> Variants { get; init; } = [];
+
+    /// <summary>
+    /// Gets whether incompatible definitions were asserted for the named attribute.
+    /// </summary>
+    public bool IsConflicted => Variants.Count > 1;
+}
+
+/// <summary>
 /// Represents the deterministic semantic graph resolved from all adapter contributions.
 /// </summary>
 public sealed record ResolvedApplicationGraph
@@ -172,6 +214,11 @@ public sealed record ResolvedApplicationGraph
     /// Gets resolved concept representations in canonical subject order.
     /// </summary>
     public IReadOnlyList<ResolvedConceptRepresentation> ConceptRepresentations { get; init; } = [];
+
+    /// <summary>
+    /// Gets resolved concept attributes in canonical concept/name order.
+    /// </summary>
+    public IReadOnlyList<ResolvedConceptAttribute> ConceptAttributes { get; init; } = [];
 
     /// <summary>
     /// Gets the resolved artifact placements in canonical order.
