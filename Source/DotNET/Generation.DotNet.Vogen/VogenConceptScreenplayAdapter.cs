@@ -126,8 +126,9 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
 
     static IEnumerable<VogenDeclaration> DeclarationsIn(DotNetProjectCompilation project) =>
         new DotNetArtifactCatalog(project.Compilation).Types
-            .Where(type => DotNetSource.HasAuthoredDeclaration(type, project.AuthoredSyntaxTrees))
-            .Where(type => DotNetSource.HasAuthoredPartialDeclaration(type, project.AuthoredSyntaxTrees))
+            .Where(type =>
+                DotNetSource.HasAuthoredDeclaration(type, project.AuthoredSyntaxTrees) &&
+                DotNetSource.HasAuthoredPartialDeclaration(type, project.AuthoredSyntaxTrees))
             .Select(type => new
             {
                 Type = type,
