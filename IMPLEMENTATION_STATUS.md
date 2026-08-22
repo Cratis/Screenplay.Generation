@@ -61,7 +61,7 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 - Canonical Screenplay printing and compiler verification.
 - Reusable Roslyn compilation context, artifact catalog, symbol IDs, generated-source recognition, source ranges, type-shape conversion, and adapter interface.
 - Dedicated specs for deterministic generation, conflicts, evidence-strength placement, unplaced artifacts, source cataloging, generated source, type shapes, and provenance.
-- Authored-declaration, authored-attribute, authored-partial, and attribute-evidence helpers for reusable .NET adapters.
+- Authoritative authored-tree, declaration, attribute, partial, and attribute-evidence helpers for reusable .NET adapters.
 - A separate Vogen adapter that recognizes exact generic/non-generic value-object attributes and assembly defaults by Roslyn metadata name.
 - Vogen concept and supported primitive-representation facts with stable `VOG0001` diagnostics for representation loss.
 - Vogen generated members remain corroboration only; identity and validation discovery are intentionally deferred to separate capabilities.
@@ -96,12 +96,13 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 ## Current verification
 
 - Generation specs: 93 passing.
-- Generation.DotNet specs: 22 passing.
-- Debug and Release net8/net9/net10 builds: zero warnings/errors.
+- Generation.DotNet specs: 28 passing.
+- Generation.DotNet.Vogen specs: 48 passing.
+- Debug net10 and Release net8/net9/net10 builds: zero warnings/errors.
 - Concept output compiles and remains stable through print/compile/print.
 - Primitive, enum, missing/conflicting representation, named attributes, exact subject references, duplicate/conflicting validation rules, invalid predicate omission, and shuffled-order cases are covered.
-- All three packages pack with sentinel version 9999.0.0.
-- A scratch consumer restored the sentinel Generation package, emitted a concept with a named validation rule through the public API, and compiled the resulting Screenplay.
+- All four packages pack with sentinel version 9999.0.0, including `Cratis.Screenplay.Generation.DotNet.Vogen`.
+- An isolated scratch consumer restored the sentinel Generation and Vogen adapter packages, composed Vogen with an external `IDotNetScreenplayAdapter`, emitted `OrderId` as a `Uuid` concept through the public API, and compiler-verified the resulting Screenplay.
 
 ## Immediate next actions
 

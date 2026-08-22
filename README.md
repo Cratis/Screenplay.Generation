@@ -39,6 +39,8 @@ Adapters contribute semantic facts; they do not construct syntax nodes or concat
 
 Each `DotNetProjectCompilation` requires the workspace host's authoritative `AuthoredSyntaxTrees`. Build this set from project documents before source generators update the compilation. Generated filenames and headers remain useful conventions, but they are not trusted as proof of authored origin.
 
+A composition host references `Cratis.Screenplay.Generation` and `Cratis.Screenplay.Generation.DotNet.Vogen` directly, plus its external ecosystem adapter package. The Vogen adapter package brings `Cratis.Screenplay.Generation.DotNet` and `Cratis.Screenplay.Generation.Contracts` transitively; the analyzed application references Vogen itself.
+
 A clean consumer composes Vogen with any external ecosystem adapter by keeping contributions separate until neutral resolution:
 
 ```csharp

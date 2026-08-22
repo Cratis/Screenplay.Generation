@@ -60,8 +60,12 @@ public sealed class DotNetArtifactCatalog(Compilation compilation)
     ];
 
     /// <summary>
-    /// Gets every type with at least one authored declaration in canonical metadata-name order.
+    /// Gets every type with at least one conventionally authored declaration in canonical metadata-name order.
     /// </summary>
+    /// <remarks>
+    /// This view uses generated path and header conventions. Use the authoritative-tree overloads on
+    /// <see cref="DotNetSource"/> when generated source must not establish facts.
+    /// </remarks>
     public IReadOnlyList<INamedTypeSymbol> AuthoredTypes =>
     [
         .. Types.Where(DotNetSource.HasAuthoredDeclaration)
