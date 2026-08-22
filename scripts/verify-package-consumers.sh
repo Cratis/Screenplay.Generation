@@ -206,8 +206,8 @@ cat > "$VOGEN_DIR/VogenBaseline.csproj" <<'PROJECT'
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Cratis.Screenplay.Generation" Version="0.2.0" />
-    <PackageReference Include="Cratis.Screenplay.Generation.DotNet.Vogen" Version="0.2.0" />
+    <PackageReference Include="Cratis.Screenplay.Generation" Version="0.5.0" />
+    <PackageReference Include="Cratis.Screenplay.Generation.DotNet.Vogen" Version="0.5.0" />
   </ItemGroup>
 </Project>
 PROJECT
@@ -255,14 +255,14 @@ public static class BaselineVogenConsumer
         IDotNetScreenplayAdapter adapter = new VogenConceptScreenplayAdapter();
         if (!adapter.CanAnalyze(context))
         {
-            throw new InvalidOperationException("The 0.2.0 Vogen API did not recognize the authored value object.");
+            throw new InvalidOperationException("The 0.5.0 Vogen API did not recognize the authored value object.");
         }
 
         var contribution = adapter.Analyze(context, new DotNetAdapterOptions());
         if (!contribution.Facts.OfType<ConceptRepresentationFact>().Any(
                 _ => _.Definition.Primitive == GenerationPrimitiveKind.Uuid))
         {
-            throw new InvalidOperationException("The 0.2.0 Vogen API did not contribute a UUID representation.");
+            throw new InvalidOperationException("The 0.5.0 Vogen API did not contribute a UUID representation.");
         }
 
         var generated = new ScreenplayDefinitionGenerator().Generate(
@@ -289,7 +289,7 @@ echo "Compiling the core consumer against public package baseline 0.1.0..."
 dotnet restore "$CORE_DIR/CoreBaseline.csproj" --configfile "$WORK_DIR/nuget.config" --nologo
 dotnet build "$CORE_DIR/CoreBaseline.csproj" --no-restore --configuration Release --nologo
 
-echo "Compiling the Vogen consumer against its first public package baseline 0.2.0..."
+echo "Compiling the Vogen consumer against its first correctly sourced public package baseline 0.5.0..."
 dotnet restore "$VOGEN_DIR/VogenBaseline.csproj" --configfile "$WORK_DIR/nuget.config" --nologo
 dotnet build "$VOGEN_DIR/VogenBaseline.csproj" --no-restore --configuration Release --nologo
 
@@ -334,7 +334,7 @@ if (currentReference.Subject is null || coreSource.Length == 0 || vogenSource.Le
     return 1;
 }
 
-Console.WriteLine("Baseline 0.1.0 and 0.2.0 consumer binaries ran against the current packages.");
+Console.WriteLine("Baseline 0.1.0 and 0.5.0 consumer binaries ran against the current packages.");
 return 0;
 CSHARP
 
