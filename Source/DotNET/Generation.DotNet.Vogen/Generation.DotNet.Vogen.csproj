@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>Cratis.Screenplay.Generation.DotNet.Vogen</AssemblyName>
+        <RootNamespace>Cratis.Screenplay.Generation.DotNet.Vogen</RootNamespace>
+        <IsPackable>true</IsPackable>
+        <IsTestProject>false</IsTestProject>
+        <EnablePackageValidation>false</EnablePackageValidation>
+        <Description>Authored-source Vogen concept discovery for Cratis Screenplay generation</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../Generation.DotNet/Generation.DotNet.csproj" />
+    </ItemGroup>
+</Project>
