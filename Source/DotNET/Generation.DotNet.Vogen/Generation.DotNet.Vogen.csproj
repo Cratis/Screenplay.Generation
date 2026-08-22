@@ -4,7 +4,7 @@
         <RootNamespace>Cratis.Screenplay.Generation.DotNet.Vogen</RootNamespace>
         <IsPackable>true</IsPackable>
         <IsTestProject>false</IsTestProject>
-        <EnablePackageValidation>false</EnablePackageValidation>
+        <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
         <Description>Authored-source Vogen concept discovery for Cratis Screenplay generation</Description>
     </PropertyGroup>
 

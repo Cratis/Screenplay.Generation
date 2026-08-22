@@ -8,7 +8,17 @@
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <IncludeSource>true</IncludeSource>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-        <EnablePackageValidation>false</EnablePackageValidation>
+
+        <!--
+            Compare every packable assembly with its first public package. The contracts are records and the .NET
+            surface analyzes positional records, so source-compatible signature changes can still break an already
+            compiled adapter at run time. The Vogen project overrides the baseline because it first shipped in 0.2.0.
+        -->
+        <EnablePackageValidation>true</EnablePackageValidation>
+        <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
+        <!-- Compatible additions are intentional; removals and signature changes remain errors. -->
+        <EnableStrictModeForBaselineValidation>false</EnableStrictModeForBaselineValidation>
+
         <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
         <RunAnalyzersDuringLiveAnalysis>true</RunAnalyzersDuringLiveAnalysis>
         <RunAnalyzers>true</RunAnalyzers>

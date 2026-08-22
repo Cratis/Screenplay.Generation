@@ -4,7 +4,6 @@
         <RootNamespace>Cratis.Screenplay.Generation</RootNamespace>
         <IsPackable>true</IsPackable>
         <IsTestProject>false</IsTestProject>
-        <EnablePackageValidation>false</EnablePackageValidation>
         <Description>Resolves semantic adapter facts and generates verified Cratis Screenplay documents</Description>
     </PropertyGroup>
 
