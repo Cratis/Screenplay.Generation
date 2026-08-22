@@ -10,6 +10,11 @@ public class when_generating_concepts : given.a_generator
     void Because()
     {
         var orderId = Concept("OrderId", GenerationPrimitiveKind.Uuid);
+        GenerationFact[] orderAttributes =
+        [
+            Attribute("order-attribute-pii", orderId.Subject, "pii", "Used to locate a customer's order"),
+            Attribute("order-attribute-sensitive", orderId.Subject, "sensitive", null)
+        ];
         var statusSubject = new SubjectId { Value = "dotnet://Banking/Concepts.OrderStatus" };
         var evidence = new Evidence
         {
@@ -51,12 +56,13 @@ public class when_generating_concepts : given.a_generator
             Property("status", "UnresolvedOrderStatus", statusSubject));
 
         _result = Generator.Generate(
-            [Contribution([.. orderId.Facts, .. status, .. placed])],
+            [Contribution([.. orderId.Facts, .. orderAttributes, .. status, .. placed])],
             new ScreenplayGenerationOptions { Domain = "Ordering" });
     }
 
     [Fact] void should_succeed() => _result.IsSuccess.ShouldBeTrue();
-    [Fact] void should_generate_the_primitive_concept() => _result.Source.ShouldContain("concept OrderId : Uuid");
+    [Fact] void should_generate_the_primitive_concept() => _result.Source.ShouldContain("concept OrderId : Uuid @pii @sensitive");
+    [Fact] void should_generate_the_attribute_reason() => _result.Source.ShouldContain("pii reason \"Used to locate a customer's order\"");
     [Fact] void should_generate_the_enumeration_concept() => _result.Source.ShouldContain("concept OrderStatus : Enum");
     [Fact] void should_generate_the_pending_enumeration_value() => _result.Source.ShouldContain("pending");
     [Fact] void should_generate_the_accepted_enumeration_value() => _result.Source.ShouldContain("accepted");
@@ -64,4 +70,12 @@ public class when_generating_concepts : given.a_generator
     [Fact] void should_resolve_the_exact_concept_subject_for_the_event_property() => _result.Source.ShouldContain("orderId OrderId");
     [Fact] void should_resolve_the_exact_enumeration_subject_for_the_event_property() => _result.Source.ShouldContain("status OrderStatus");
     [Fact] void should_not_require_concept_placement() => _result.Diagnostics.Select(_ => _.Code).ShouldNotContain(GenerationDiagnosticCodes.IncompleteArtifact);
+
+    ConceptAttributeFact Attribute(string id, SubjectId subject, string name, string? reason) => new()
+    {
+        Id = new FactId { Value = id },
+        Subject = subject,
+        Definition = new ConceptAttributeDefinition { Concept = subject, Name = name, Reason = reason },
+        Evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact }
+    };
 }
