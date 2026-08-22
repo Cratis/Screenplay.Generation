@@ -34,11 +34,11 @@ Adapters contribute semantic facts; they do not construct syntax nodes or concat
 
 ## Concepts
 
-Adapters can contribute `ArtifactKind.Concept` together with an independently proven `ConceptRepresentationFact`. Primitive and enumeration representations resolve deterministically and lower to top-level Screenplay concepts without module placement.
+Adapters can contribute `ArtifactKind.Concept` together with independently proven `ConceptRepresentationFact` and `ConceptAttributeFact` assertions. Primitive/enumeration representations and named attributes resolve deterministically and lower to top-level Screenplay concepts without module placement.
 
 `TypeReferenceDefinition.Subject` binds an artifact property to the exact concept subject rather than a simple display name. Missing, conflicting, unsupported, or same-named concept definitions produce stable diagnostics; generation never falls back to `String`.
 
-Concept validation and attributes are separate capabilities and must not be inferred from concept identity or representation.
+Concept validation remains a separate capability and must not be inferred from concept identity, representation, or attributes.
 
 See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the current implementation checkpoint and pre-release decisions.
 

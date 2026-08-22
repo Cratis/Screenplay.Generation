@@ -82,4 +82,14 @@ public static class GenerationDiagnosticCodes
     /// A concept fact's subject does not match the concept subject in its definition.
     /// </summary>
     public const string InvalidConceptFact = "GEN0017";
+
+    /// <summary>
+    /// Incompatible definitions were asserted for one named concept attribute.
+    /// </summary>
+    public const string ConflictingConceptAttribute = "GEN0018";
+
+    /// <summary>
+    /// A concept attribute cannot be represented safely by Screenplay.
+    /// </summary>
+    public const string UnsupportedConceptAttribute = "GEN0019";
 }

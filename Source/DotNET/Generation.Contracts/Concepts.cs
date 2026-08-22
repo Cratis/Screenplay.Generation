@@ -96,3 +96,35 @@ public sealed record ConceptRepresentationFact : GenerationFact
     /// </summary>
     public required ConceptRepresentationDefinition Definition { get; init; }
 }
+
+/// <summary>
+/// Describes one named attribute applied to a concept.
+/// </summary>
+public sealed record ConceptAttributeDefinition
+{
+    /// <summary>
+    /// Gets the source-level concept subject.
+    /// </summary>
+    public required SubjectId Concept { get; init; }
+
+    /// <summary>
+    /// Gets the attribute name without its target-language marker.
+    /// </summary>
+    public required string Name { get; init; }
+
+    /// <summary>
+    /// Gets the optional documented reason for the attribute.
+    /// </summary>
+    public string? Reason { get; init; }
+}
+
+/// <summary>
+/// Asserts one concept attribute with its source evidence.
+/// </summary>
+public sealed record ConceptAttributeFact : GenerationFact
+{
+    /// <summary>
+    /// Gets the asserted concept attribute.
+    /// </summary>
+    public required ConceptAttributeDefinition Definition { get; init; }
+}
