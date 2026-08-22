@@ -10,12 +10,12 @@
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
         <!--
-            Compare every packable assembly with its first public package. The contracts are records and the .NET
-            surface analyzes positional records, so source-compatible signature changes can still break an already
-            compiled adapter at run time. The Vogen project overrides the baseline because it first shipped in 0.2.0.
+            Compare every packable assembly with the current public compatibility floor, 0.7.0. The 0.1.0 core and
+            0.5.0 Vogen ancestry remain covered by unchanged legacy consumer binaries. Package validation protects
+            the current public floor while those binaries prove that older compatible entry points still execute.
         -->
         <EnablePackageValidation>true</EnablePackageValidation>
-        <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
+        <PackageValidationBaselineVersion>0.7.0</PackageValidationBaselineVersion>
         <!-- Compatible additions are intentional; removals and signature changes remain errors. -->
         <EnableStrictModeForBaselineValidation>false</EnableStrictModeForBaselineValidation>
 

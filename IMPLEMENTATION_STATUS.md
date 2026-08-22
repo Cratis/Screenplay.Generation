@@ -5,121 +5,83 @@ Licensed under the MIT license. See LICENSE file in the project root for full li
 
 # Screenplay generation SDK implementation status
 
-## Architecture decision
+## Architecture and ownership
 
-The source-generation work uses separate repositories and release cadences:
+The source-generation work is split by responsibility and release cadence:
 
 ```text
 Cratis/Screenplay
-  Language, compiler, AST, printer, editor tooling only
+  Language, compiler, AST, printer, and editor tooling
 
 Cratis/Screenplay.Generation
-  Cratis.Screenplay.Generation.Contracts
-  Cratis.Screenplay.Generation
-  Cratis.Screenplay.Generation.DotNet
-  Cratis.Screenplay.Generation.DotNet.Vogen
+  Neutral contracts, deterministic resolution/lowering/verification,
+  reusable Roslyn source mechanics, and the separate Vogen adapter
 
 Cratis/Screenplay.CritterStack
-  Cratis.CritterStack.Screenplay
-  complete Marten/Wolverine generator façade
+  Marten/Wolverine semantics and the composed generator facade
 
 Cratis/Arc
-  existing Cratis.Arc.Screenplay complete generator
+  Arc semantics and its complete generator facade
 
 Cratis/cli
-  MSBuildWorkspace loading and generator package selection
+  Workspace/project loading, authored-tree establishment,
+  package/provider discovery and admission, and output orchestration
 ```
 
-This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`, whose generator receives Roslyn compilations and returns verified `.play` source; Cratis CLI consumes that package and owns workspace loading. The Critter Stack package will expose the same compilation-in/source-out experience while using this shared SDK internally.
+Hosts own loading and orchestration, adapters own source-framework semantics, and Screenplay Generation owns neutral composition plus deterministic AST/text generation and compiler verification. Protocol, schema, adapter, Screenplay language, Generation package, and CLI versions remain independent compatibility dimensions.
 
-## Repository state
+## Current Generation release
 
-- GitHub repository created: <https://github.com/Cratis/Screenplay.Generation>
-- Local repository: `/Volumes/sourcecode/repos/cratis/Screenplay.Generation`
-- This groundwork is rebased on current `main` after the `v0.6.0` package-validation release.
-- Current feature branch: `feat/vogen-validation-hooks`.
-- Latest baseline release: [`v0.6.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.6.0).
-- NuGet publication is available. Contracts, Generation, and DotNet use their initial `0.1.0` packages as compatibility baselines; DotNet.Vogen uses its first correctly sourced listed version, `0.5.0`. Mispublished historical 0.2.0-0.4.0 packages are tracked for unlisting in issue #13 and must not be compatibility baselines.
+- Repository: <https://github.com/Cratis/Screenplay.Generation>
+- Current public release: [`v0.7.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.7.0) at `d9ff40966b637b25126160629d567719ce218a01`.
+- The four packages release in lockstep: Contracts, Generation, DotNet, and DotNet.Vogen.
+- `0.7.0` is the public compatibility floor protected by package validation. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
+- Unchanged legacy binaries compiled against the `0.1.0` core packages and the first correctly sourced `0.5.0` Vogen package remain the compatibility-ancestry smoke.
+- Historical `Cratis.Screenplay.Generation.DotNet.Vogen` versions `0.2.0` through `0.4.0` were incorrectly sourced. Manual unlisting remains tracked in [issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13); OIDC publication credentials cannot delete or unlist them.
+- The normative lifecycle and compatibility contract is in [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
-## Projects transferred
+## Delivered public capability
 
-- `Source/DotNET/Generation.Contracts`
-- `Source/DotNET/Generation`
-- `Source/DotNET/Generation.Specs`
-- `Source/DotNET/Generation.DotNet`
-- `Source/DotNET/Generation.DotNet.Specs`
+- Typed adapter, subject, and fact identities; evidence, provenance, source ranges, and stable diagnostics.
+- Artifact, placement, relationship, concept-representation, concept-attribute, and named concept-validation facts.
+- Exact `TypeReferenceDefinition.Subject` binding across projects and namespaces without display-name fallback.
+- Deterministic duplicate collapse, conflict diagnostics, and public visibility of every incompatible resolved variant.
+- Evidence-strength-aware placement resolution that retains weaker provenance while stronger exact/configured evidence determines the effective placement.
+- Lowering for concepts, events, read models, reducers, commands, queries, attributes, and named external validation predicates.
+- Canonical printing, Screenplay compiler verification, and print/compile/print stability checking.
+- Required authoritative `AuthoredSyntaxTrees` on every `DotNetProjectCompilation`, plus reusable authored declaration, attribute, partial, evidence, symbol, catalog, and type-shape APIs.
+- Exact authored Vogen value-object, supported primitive representation, and `Validate(TBacking) -> Vogen.Validation` discovery without a production Vogen dependency.
+- Stable Vogen loss codes: `VOG0001` unsupported backing, `VOG0002` unrepresented normalization, and `VOG0003` unrepresented named instance.
+- Independent Vogen and external-adapter contribution composition through one neutral resolver/generator pipeline.
 
-## Functionality already implemented locally
-
-- Typed adapter identity, subject identity, fact identity, evidence, source range, and diagnostics.
-- Artifact, placement, relationship, concept-representation, concept-attribute, and concept-validation-rule facts.
-- Subject-aware type references for exact concept binding across projects and namespaces.
-- Deterministic fact resolution with duplicate collapse and conflict diagnostics.
-- Evidence-strength-aware placement resolution.
-- Lowering for concepts, events, read models, reducers, commands, and queries.
-- Primitive/enumeration concept, named attribute, and named external predicate validation lowering without module placement, with explicit missing/conflicting/unsupported diagnostics and no `String` fallback.
-- Canonical Screenplay printing and compiler verification.
-- Reusable Roslyn compilation context, artifact catalog, symbol IDs, generated-source recognition, source ranges, type-shape conversion, and adapter interface.
-- Dedicated specs for deterministic generation, conflicts, evidence-strength placement, unplaced artifacts, source cataloging, generated source, type shapes, and provenance.
-- Authoritative authored-tree, declaration, attribute, partial, and attribute-evidence helpers for reusable .NET adapters.
-- A separate Vogen adapter that recognizes exact generic/non-generic value-object attributes and assembly defaults by Roslyn metadata name.
-- Vogen concept and supported primitive-representation facts with stable `VOG0001` diagnostics for representation loss.
-- Exact authored Vogen `Validate(TBacking) -> Vogen.Validation` methods contribute neutral named-predicate validation facts with stable rule identity, predicate, implementation file, and conservatively proven constant invalid messages.
-- Exact authored normalization and named-instance evidence produces stable `VOG0002`/`VOG0003` semantic-loss warnings; neither behavior is misclassified as validation, optionality, or defaults.
-- Vogen generated members remain corroboration only, and identity is never inferred from `Guid` backing or `Id` naming.
-
-## Verified before repository split
-
-The code was built and tested while still in the Screenplay working tree:
-
-- Generation Contracts Debug and Release: zero warnings/errors.
-- Generation Debug and Release: zero warnings/errors.
-- Generation specs: 20 passing.
-- Generation.DotNet Debug: zero warnings/errors.
-- Generation.DotNet specs: 19 passing.
-- Critter Stack synthetic specs: 18 passing.
-- Real `BankAccountES` project built cleanly.
-- A temporary MSBuildWorkspace runner loaded real BankAccountES source and generated a compiling `.play` document with no diagnostics.
-- Canonical Wolverine IncidentService built cleanly.
-
-The Critter Stack source and fixture specs now live in the separate `Screenplay.CritterStack` repository.
-
-## Pre-release contract hardening completed
-
-- .NET adapters now have a required project-qualified subject-ID API; assembly-only IDs were removed.
-- The unimplemented `Equivalent` relationship was removed before publication.
-- The premature CLR `SchemaVersion` promise was removed; a wire schema will be designed only for a real external adapter protocol.
-- Generation now verifies print/compile/print stability.
-- Lowerable artifacts without placement produce explicit diagnostics.
-- Placement resolution retains all provenance while allowing stronger exact/configured evidence to supersede weaker heuristics.
-- Packable projects no longer run as empty test assemblies.
-- Local packages were packed, nuspec dependency direction was inspected, and a scratch consumer restored and executed solely from the local NuGet feed.
-
-## Current verification
+## Current verification evidence
 
 - Generation specs: 93 passing.
 - Generation.DotNet specs: 28 passing.
 - Generation.DotNet.Vogen specs: 84 passing.
-- Debug net10 and Release net8/net9/net10 builds: zero warnings/errors.
-- Concept output compiles and remains stable through print/compile/print.
-- Primitive, enum, missing/conflicting representation, named attributes, exact subject references, duplicate/conflicting validation rules, invalid predicate omission, and shuffled-order cases are covered.
-- Package validation is enabled for all four packable projects and resolves its baselines from public NuGet: `0.1.0` for Contracts, Generation, and DotNet, and `0.5.0` for DotNet.Vogen.
-- Pull-request packing retains sentinel version `9999.0.0` on both the Release build and no-build pack so assembly and package versions agree during validation.
-- A repository-local clean consumer smoke runs baseline-compiled binaries against current packages.
-- All four packages pack with sentinel version 9999.0.0, including `Cratis.Screenplay.Generation.DotNet.Vogen`.
-- An isolated empty-cache consumer composed Vogen with an external `IDotNetScreenplayAdapter`, emitted `CustomerCode` with its named `Validate` rule, implementation file, and constant invalid message, and compiler-verified the resulting Screenplay.
+- Total Debug specs: **205 passing**.
+- Debug `net10.0` and Release `net8.0`, `net9.0`, and `net10.0`: zero warnings and zero errors.
+- All four sentinel `9999.0.0` packages pack with package validation against published `0.7.0`.
+- The isolated package cache starts empty for consumer verification.
+- Existing binaries compiled against core `0.1.0` and Vogen `0.5.0` run unchanged against the sentinel packages.
+- A separate current-source consumer compiles only against the sentinel package set. With fake exact Vogen metadata authored directly in Roslyn source and no Vogen runtime/source-generator package, it verifies authoritative authored trees, exact subject references, neutral representation and named validation facts, conflict variants, stable Vogen diagnostic-code APIs, independent adapter composition and provenance, and compiler-verified deterministic source without verification loss.
+
+## Coordinated repository state
+
+- Critter Stack is released as [`v0.15.0`](https://github.com/Cratis/Screenplay.CritterStack/releases/tag/v0.15.0) at `a0df0c22f112b98b353ca6a84072761de119c7ba`. Its facade composes independent Vogen and Marten/Wolverine contributions through Generation `0.7.0`; the low-level Critter Stack adapter remains Vogen-independent. The release gate passed 352 specs and seven canonical fixtures while preserving the six pre-existing outputs.
+- CLI `v2.14.0` is the coordinated CLI checkpoint. It owns workspace evaluation, explicit multi-target-framework selection, provider/host selection, package and assembly provenance, compatibility admission, and output. It consumes Generation `0.6.1` plus Critter Stack `0.13.1`; updating to Generation `0.7.0` plus Critter Stack `0.15.0` remains active CLI work.
 
 ## Immediate next actions
 
-1. Release exact authored Vogen validation hooks and loss diagnostics through [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
-2. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25); no Critter Stack semantics belong in this adapter.
-3. Keep each package-validation baseline on the first correctly sourced listed compatible line until an intentional major release resets the contract.
+1. Continue [Generation issue #5](https://github.com/Cratis/Screenplay.Generation/issues/5) after this compatibility-floor increment. Typed `Unknown` representation and disposition hardening remain outstanding; **issue #5 is not closed by this increment**.
+2. Continue [CLI issue #87](https://github.com/Cratis/cli/issues/87), including the Generation `0.7.0` / Critter Stack `0.15.0` update and the remaining fail-closed workspace behavior.
+3. Leave [Generation issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13) open until a NuGet owner manually unlists the identified incorrectly sourced Vogen packages.
 
-## Safety
+## Safety boundaries
 
-- Do not add Marten, Wolverine, Arc, MSBuildWorkspace, or CLI dependencies here.
+- Do not add Marten, Wolverine, Arc, MSBuildWorkspace, CLI, or Vogen runtime/source-generator dependencies here.
 - `Generation.Contracts` remains framework/compiler independent.
 - `Generation` depends only on Contracts and `Cratis.Screenplay`.
 - `Generation.DotNet` depends only on Contracts and Roslyn, never MSBuildWorkspace.
-- `Generation.DotNet.Vogen` depends only on `Generation.DotNet`; the Vogen 8.0.7 package is pinned exclusively in semantic specs.
+- `Generation.DotNet.Vogen` depends only on `Generation.DotNet`; Vogen is used only in semantic specs.
 - Never commit local source-reference roots, credentials, caches, `.pi`, `bin`, or `obj`.

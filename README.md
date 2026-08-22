@@ -2,6 +2,8 @@
 
 Framework-neutral source adapter SDK for generating verified [Cratis Screenplay](https://github.com/Cratis/Screenplay) definitions.
 
+**Public compatibility floor and lifecycle:** [`COMPATIBILITY.md`](https://github.com/Cratis/Screenplay.Generation/blob/main/COMPATIBILITY.md)
+
 ## Packages
 
 | Package | Responsibility |
@@ -108,7 +110,7 @@ dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Art
 ./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
 
-Package validation runs during pack against the first public package for each assembly: `0.1.0` for Contracts, Generation, and DotNet, and `0.5.0` for DotNet.Vogen. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke compiles clean binaries against those public baselines, then runs them unchanged with the current packages to cover record, positional-record analysis, generator, adapter, and Vogen APIs.
+Package validation runs during pack against the current public compatibility floor, `0.7.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
 
 All builds require zero errors and zero warnings. Generated Screenplay output must compile and remain stable through print/compile/print.
 
