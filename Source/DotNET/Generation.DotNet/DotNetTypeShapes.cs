@@ -15,7 +15,36 @@ public static class DotNetTypeShapes
     /// </summary>
     /// <param name="type">The Roslyn type.</param>
     /// <returns>The type reference.</returns>
-    public static TypeReferenceDefinition TypeReferenceFor(ITypeSymbol type)
+    public static TypeReferenceDefinition TypeReferenceFor(ITypeSymbol type) => CreateTypeReference(type, null);
+
+    /// <summary>
+    /// Gets the Screenplay-oriented type reference with an exact source subject when the analyzed projects own it.
+    /// </summary>
+    /// <param name="type">The Roslyn type.</param>
+    /// <param name="context">The analyzed project context used to resolve source subjects.</param>
+    /// <returns>The type reference.</returns>
+    public static TypeReferenceDefinition TypeReferenceFor(ITypeSymbol type, DotNetAnalysisContext context) =>
+        CreateTypeReference(type, context.SubjectForType);
+
+    /// <summary>
+    /// Gets the public readable instance properties of a source type in declaration order.
+    /// </summary>
+    /// <param name="type">The source type.</param>
+    /// <returns>The property definitions.</returns>
+    public static IReadOnlyList<PropertyDefinition> PropertiesOf(INamedTypeSymbol type) => PropertiesOf(type, TypeReferenceFor);
+
+    /// <summary>
+    /// Gets public readable instance properties with exact source subjects when the analyzed projects own their types.
+    /// </summary>
+    /// <param name="type">The source type.</param>
+    /// <param name="context">The analyzed project context used to resolve source subjects.</param>
+    /// <returns>The property definitions.</returns>
+    public static IReadOnlyList<PropertyDefinition> PropertiesOf(INamedTypeSymbol type, DotNetAnalysisContext context) =>
+        PropertiesOf(type, propertyType => TypeReferenceFor(propertyType, context));
+
+    static TypeReferenceDefinition CreateTypeReference(
+        ITypeSymbol type,
+        Func<INamedTypeSymbol, SubjectId?>? subjectForType)
     {
         var isOptional = type.NullableAnnotation == NullableAnnotation.Annotated;
         var current = type;
@@ -29,17 +58,15 @@ public static class DotNetTypeShapes
         return new()
         {
             Name = TypeName(elementType),
+            Subject = elementType is INamedTypeSymbol named ? subjectForType?.Invoke(named) : null,
             IsCollection = isCollection,
             IsOptional = isOptional
         };
     }
 
-    /// <summary>
-    /// Gets the public readable instance properties of a source type in declaration order.
-    /// </summary>
-    /// <param name="type">The source type.</param>
-    /// <returns>The property definitions.</returns>
-    public static IReadOnlyList<PropertyDefinition> PropertiesOf(INamedTypeSymbol type) =>
+    static IReadOnlyList<PropertyDefinition> PropertiesOf(
+        INamedTypeSymbol type,
+        Func<ITypeSymbol, TypeReferenceDefinition> typeReferenceFor) =>
     [
         .. type.GetMembers()
             .OfType<IPropertySymbol>()
@@ -49,7 +76,7 @@ public static class DotNetTypeShapes
             .Select(_ => new PropertyDefinition
             {
                 Name = PropertyName(_.Name),
-                Type = TypeReferenceFor(_.Type)
+                Type = typeReferenceFor(_.Type)
             })
     ];
 

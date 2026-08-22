@@ -25,12 +25,18 @@ public sealed class GenerationResolver
         diagnostics.AddRange(ConflictingFactIdentityDiagnostics(facts));
 
         var artifacts = ResolveArtifacts(facts.OfType<ArtifactFact>(), diagnostics);
+        var conceptRepresentationFacts = facts.OfType<ConceptRepresentationFact>().ToArray();
+        diagnostics.AddRange(InvalidConceptFactDiagnostics(conceptRepresentationFacts));
+        var conceptRepresentations = ResolveConceptRepresentations(
+            conceptRepresentationFacts.Where(_ => _.Subject == _.Definition.Concept),
+            diagnostics);
         var placements = ResolvePlacements(facts.OfType<ArtifactPlacementFact>(), diagnostics);
         var relationships = ResolveRelationships(facts.OfType<RelationshipFact>(), diagnostics);
 
         return new()
         {
             Artifacts = artifacts,
+            ConceptRepresentations = conceptRepresentations,
             Placements = placements,
             Relationships = relationships,
             Diagnostics = [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]
@@ -69,6 +75,39 @@ public sealed class GenerationResolver
 
                 return artifact;
             })
+        ];
+
+    static ResolvedConceptRepresentation[] ResolveConceptRepresentations(
+        IEnumerable<ConceptRepresentationFact> facts,
+        List<GenerationDiagnostic> diagnostics) =>
+        [
+            .. facts
+                .GroupBy(_ => _.Definition.Concept.Value, StringComparer.Ordinal)
+                .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                .Select(group =>
+                {
+                    var variants = group
+                        .GroupBy(_ => Canonical.ConceptRepresentation(_.Definition), StringComparer.Ordinal)
+                        .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                        .Select(_ => new ResolvedConceptRepresentationVariant
+                        {
+                            Definition = _.First().Definition,
+                            Evidence = OrderedEvidence(_.Select(fact => fact.Evidence))
+                        })
+                        .ToArray();
+                    var representation = new ResolvedConceptRepresentation
+                    {
+                        Concept = group.First().Definition.Concept,
+                        Variants = variants
+                    };
+
+                    if (representation.IsConflicted)
+                    {
+                        diagnostics.Add(ConflictFor(representation));
+                    }
+
+                    return representation;
+                })
         ];
 
     static ResolvedArtifactPlacement[] ResolvePlacements(
@@ -134,6 +173,18 @@ public sealed class GenerationResolver
             })
         ];
 
+    static IEnumerable<GenerationDiagnostic> InvalidConceptFactDiagnostics(IEnumerable<ConceptRepresentationFact> facts) =>
+        facts
+            .Where(_ => _.Subject != _.Definition.Concept)
+            .Select(_ => new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.InvalidConceptFact,
+                Severity = GenerationDiagnosticSeverity.Error,
+                Message = $"Concept representation fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
+                Source = _.Evidence.Source,
+                Subject = _.Subject
+            });
+
     static Evidence[] OrderedEvidence(IEnumerable<Evidence> evidence) =>
         [.. evidence
             .GroupBy(Canonical.Evidence, StringComparer.Ordinal)
@@ -162,6 +213,7 @@ public sealed class GenerationResolver
     static string FactDefinition(GenerationFact fact) => fact switch
     {
         ArtifactFact artifact => $"artifact:{Canonical.Artifact(artifact.Definition)}",
+        ConceptRepresentationFact representation => $"concept-representation:{Canonical.ConceptRepresentation(representation.Definition)}",
         ArtifactPlacementFact placement => $"placement:{Canonical.ArtifactKey(placement.Artifact)}:{Canonical.Placement(placement.Placement)}",
         RelationshipFact relationship => $"relationship:{Canonical.Relationship(relationship.Definition)}",
         _ => fact.GetType().FullName ?? fact.GetType().Name
@@ -174,6 +226,15 @@ public sealed class GenerationResolver
         Message = $"Artifact '{artifact.Key.Subject.Value}' has {artifact.Variants.Count} incompatible {artifact.Key.Kind} definitions",
         Source = FirstSource(artifact.Variants.SelectMany(_ => _.Evidence)),
         Subject = artifact.Key.Subject
+    };
+
+    static GenerationDiagnostic ConflictFor(ResolvedConceptRepresentation representation) => new()
+    {
+        Code = GenerationDiagnosticCodes.ConflictingConceptRepresentation,
+        Severity = GenerationDiagnosticSeverity.Error,
+        Message = $"Concept '{representation.Concept.Value}' has {representation.Variants.Count} incompatible representations",
+        Source = FirstSource(representation.Variants.SelectMany(_ => _.Evidence)),
+        Subject = representation.Concept
     };
 
     static GenerationDiagnostic ConflictFor(ResolvedArtifactPlacement placement) => new()
