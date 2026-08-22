@@ -60,10 +60,58 @@ public class a_generator : Specification
         ];
     }
 
-    protected static PropertyDefinition Property(string name, string type) => new()
+    protected (SubjectId Subject, GenerationFact[] Facts) Concept(
+        string name,
+        GenerationPrimitiveKind primitive,
+        string? file = null)
+    {
+        var subject = new SubjectId { Value = $"dotnet://Banking/Concepts.{name}" };
+        var evidence = new Evidence
+        {
+            Adapter = Adapter,
+            Strength = EvidenceStrength.Exact,
+            Source = new SourceRange
+            {
+                Path = file ?? $"Concepts/{name}.cs",
+                StartLine = 1,
+                StartColumn = 1,
+                EndLine = 1,
+                EndColumn = 1
+            }
+        };
+        return (subject,
+        [
+            new ArtifactFact
+            {
+                Id = new FactId { Value = $"concept:{name}" },
+                Subject = subject,
+                Definition = new ArtifactDefinition
+                {
+                    Key = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Concept },
+                    Name = name,
+                    File = file ?? $"Concepts/{name}.cs"
+                },
+                Evidence = evidence
+            },
+            new ConceptRepresentationFact
+            {
+                Id = new FactId { Value = $"concept-representation:{name}" },
+                Subject = subject,
+                Definition = new ConceptRepresentationDefinition
+                {
+                    Concept = subject,
+                    Kind = ConceptRepresentationKind.Primitive,
+                    Primitive = primitive
+                },
+                Evidence = evidence
+            }
+        ]);
+    }
+
+    protected static PropertyDefinition Property(string name, string type, SubjectId? subject = null) => new()
     {
         Name = name,
-        Type = new TypeReferenceDefinition { Name = type }
+        Type = new TypeReferenceDefinition { Name = type, Subject = subject }
     };
 
     protected AdapterContribution Contribution(params GenerationFact[] facts) => new()
