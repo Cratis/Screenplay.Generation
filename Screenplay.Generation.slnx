@@ -2,6 +2,8 @@
     <Folder Name="/Source/">
         <Project Path="Source/DotNET/Generation.Contracts/Generation.Contracts.csproj" />
         <Project Path="Source/DotNET/Generation.DotNet.Specs/Generation.DotNet.Specs.csproj" />
+        <Project Path="Source/DotNET/Generation.DotNet.Vogen.Specs/Generation.DotNet.Vogen.Specs.csproj" />
+        <Project Path="Source/DotNET/Generation.DotNet.Vogen/Generation.DotNet.Vogen.csproj" />
         <Project Path="Source/DotNET/Generation.DotNet/Generation.DotNet.csproj" />
         <Project Path="Source/DotNET/Generation.Specs/Generation.Specs.csproj" />
         <Project Path="Source/DotNET/Generation/Generation.csproj" />

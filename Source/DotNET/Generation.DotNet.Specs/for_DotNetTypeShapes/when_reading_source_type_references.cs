@@ -18,7 +18,12 @@ public class when_reading_source_type_references : given.a_compilation
             public readonly record struct OrderId(System.Guid Value);
             public record OrderPlaced(OrderId? OrderId, System.Guid CorrelationId);
             """));
-        _project = new DotNetProjectCompilation { Name = "Banking", Compilation = compilation };
+        _project = new DotNetProjectCompilation
+        {
+            Name = "Banking",
+            Compilation = compilation,
+            AuthoredSyntaxTrees = compilation.SyntaxTrees.ToHashSet()
+        };
         _orderId = TypeNamed(compilation, "Banking.OrderId");
         _properties = DotNetTypeShapes.PropertiesOf(
             TypeNamed(compilation, "Banking.OrderPlaced"),
