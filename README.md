@@ -9,7 +9,7 @@ Framework-neutral source adapter SDK for generating verified [Cratis Screenplay]
 | `Cratis.Screenplay.Generation.Contracts` | Typed semantic facts, evidence, provenance, and diagnostics contributed by source adapters |
 | `Cratis.Screenplay.Generation` | Deterministic fact resolution, Screenplay lowering, canonical printing, and compiler verification |
 | `Cratis.Screenplay.Generation.DotNet` | Reusable Roslyn compilation, symbol, authored-source, and type-shape APIs for .NET adapter authors |
-| `Cratis.Screenplay.Generation.DotNet.Vogen` | Authored-source Vogen value-object discovery as neutral concept and primitive-representation facts |
+| `Cratis.Screenplay.Generation.DotNet.Vogen` | Authored-source Vogen value-object discovery as neutral concept, primitive-representation, and named validation-rule facts |
 
 Framework adapters remain owned by their source ecosystems:
 
@@ -60,7 +60,9 @@ var definition = new ScreenplayDefinitionGenerator().Generate(
     new ScreenplayGenerationOptions { Domain = "Ordering" });
 ```
 
-The Vogen contribution establishes only authored concepts and supported primitive representations. It never infers identity or validation, never treats generated members as primary evidence, and reports `VOG0001` instead of inventing `String` for an unsupported backing type.
+The Vogen contribution establishes authored concepts, supported primitive representations, and one named validation rule only when the attribute-bearing declaration contains an authored static `Validate(TBacking)` method returning the exact `Vogen.Validation` type. The rule keeps the authored predicate and implementation file; a single semantically constant `Validation.Invalid("message")` return can also preserve its message. Arbitrary validation bodies are never translated into built-in rules.
+
+Generated members never provide primary evidence. The adapter never infers identity from `Guid` or `Id`, never treats normalization as validation, and never treats named instances as optional values or defaults. It reports stable loss diagnostics instead: `VOG0001` for unsupported backing representations, `VOG0002` for authored `NormalizeInput(TBacking)` behavior, and `VOG0003` for authored `Vogen.InstanceAttribute` declarations.
 
 ## Concepts
 

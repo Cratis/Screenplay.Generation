@@ -36,9 +36,9 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 
 - GitHub repository created: <https://github.com/Cratis/Screenplay.Generation>
 - Local repository: `/Volumes/sourcecode/repos/cratis/Screenplay.Generation`
-- This groundwork is based on the `v0.4.0` `main` baseline.
-- Current feature branch: `feat/package-validation`.
-- Latest baseline release: [`v0.4.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.4.0).
+- This groundwork is rebased on current `main` after the `v0.6.0` package-validation release.
+- Current feature branch: `feat/vogen-validation-hooks`.
+- Latest baseline release: [`v0.6.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.6.0).
 - NuGet publication is available. Contracts, Generation, and DotNet use their initial `0.1.0` packages as compatibility baselines; DotNet.Vogen uses its first correctly sourced listed version, `0.5.0`. Mispublished historical 0.2.0-0.4.0 packages are tracked for unlisting in issue #13 and must not be compatibility baselines.
 
 ## Projects transferred
@@ -64,7 +64,9 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 - Authoritative authored-tree, declaration, attribute, partial, and attribute-evidence helpers for reusable .NET adapters.
 - A separate Vogen adapter that recognizes exact generic/non-generic value-object attributes and assembly defaults by Roslyn metadata name.
 - Vogen concept and supported primitive-representation facts with stable `VOG0001` diagnostics for representation loss.
-- Vogen generated members remain corroboration only; identity and validation discovery are intentionally deferred to separate capabilities.
+- Exact authored Vogen `Validate(TBacking) -> Vogen.Validation` methods contribute neutral named-predicate validation facts with stable rule identity, predicate, implementation file, and conservatively proven constant invalid messages.
+- Exact authored normalization and named-instance evidence produces stable `VOG0002`/`VOG0003` semantic-loss warnings; neither behavior is misclassified as validation, optionality, or defaults.
+- Vogen generated members remain corroboration only, and identity is never inferred from `Guid` backing or `Id` naming.
 
 ## Verified before repository split
 
@@ -97,18 +99,21 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 
 - Generation specs: 93 passing.
 - Generation.DotNet specs: 28 passing.
-- Generation.DotNet.Vogen specs: 48 passing.
+- Generation.DotNet.Vogen specs: 82 passing.
 - Debug net10 and Release net8/net9/net10 builds: zero warnings/errors.
 - Concept output compiles and remains stable through print/compile/print.
 - Primitive, enum, missing/conflicting representation, named attributes, exact subject references, duplicate/conflicting validation rules, invalid predicate omission, and shuffled-order cases are covered.
 - Package validation is enabled for all four packable projects and resolves its baselines from public NuGet: `0.1.0` for Contracts, Generation, and DotNet, and `0.5.0` for DotNet.Vogen.
 - Pull-request packing retains sentinel version `9999.0.0` on both the Release build and no-build pack so assembly and package versions agree during validation.
-- A repository-local clean consumer smoke compiles core consumers against `0.1.0` and a Vogen consumer against `0.5.0`, then runs those unchanged binaries with the current packages. It exercises public record construction and copying, positional-record analysis, `IDotNetScreenplayAdapter`, `ScreenplayDefinitionGenerator`, current compatible additions, and Vogen concept generation.
+- A repository-local clean consumer smoke runs baseline-compiled binaries against current packages.
+- All four packages pack with sentinel version 9999.0.0, including `Cratis.Screenplay.Generation.DotNet.Vogen`.
+- An isolated empty-cache consumer composed Vogen with an external `IDotNetScreenplayAdapter`, emitted `CustomerCode` with its named `Validate` rule, implementation file, and constant invalid message, and compiler-verified the resulting Screenplay.
 
 ## Immediate next actions
 
-1. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
-2. Keep each package-validation baseline on the first published compatible line until an intentional major release resets the compatibility contract.
+1. Release exact authored Vogen validation hooks and loss diagnostics through [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
+2. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25); no Critter Stack semantics belong in this adapter.
+3. Keep each package-validation baseline on the first correctly sourced listed compatible line until an intentional major release resets the contract.
 
 ## Safety
 
