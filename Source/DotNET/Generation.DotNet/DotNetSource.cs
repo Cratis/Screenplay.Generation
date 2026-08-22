@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Cratis.Screenplay.Generation.DotNet;
 
@@ -53,6 +55,50 @@ public static class DotNetGeneratedSource
 public static class DotNetSource
 {
     /// <summary>
+    /// Gets authored declarations of a symbol in deterministic source order.
+    /// </summary>
+    /// <param name="symbol">The symbol whose declarations should be inspected.</param>
+    /// <returns>The authored declaration references.</returns>
+    public static IReadOnlyList<SyntaxReference> AuthoredDeclarationsOf(ISymbol symbol) =>
+    [
+        .. symbol.DeclaringSyntaxReferences
+            .Where(_ => !DotNetGeneratedSource.IsGenerated(_.SyntaxTree))
+            .OrderBy(_ => _.SyntaxTree.FilePath, StringComparer.Ordinal)
+            .ThenBy(_ => _.Span.Start)
+    ];
+
+    /// <summary>
+    /// Gets whether a symbol has at least one authored declaration.
+    /// </summary>
+    /// <param name="symbol">The symbol to inspect.</param>
+    /// <returns><see langword="true"/> when an authored declaration exists; otherwise, <see langword="false"/>.</returns>
+    public static bool HasAuthoredDeclaration(ISymbol symbol) => AuthoredDeclarationsOf(symbol).Count > 0;
+
+    /// <summary>
+    /// Gets whether a named type has an authored partial declaration.
+    /// </summary>
+    /// <param name="type">The named type to inspect.</param>
+    /// <returns><see langword="true"/> when an authored declaration is partial; otherwise, <see langword="false"/>.</returns>
+    public static bool HasAuthoredPartialDeclaration(INamedTypeSymbol type) =>
+        AuthoredDeclarationsOf(type)
+            .Select(_ => _.GetSyntax())
+            .OfType<TypeDeclarationSyntax>()
+            .Any(_ => _.Modifiers.Any(SyntaxKind.PartialKeyword));
+
+    /// <summary>
+    /// Gets attributes whose applications occur in authored source, in deterministic source order.
+    /// </summary>
+    /// <param name="symbol">The attributed symbol.</param>
+    /// <returns>The authored attribute data.</returns>
+    public static IReadOnlyList<AttributeData> AuthoredAttributesOf(ISymbol symbol) =>
+    [
+        .. symbol.GetAttributes()
+            .Where(_ => _.ApplicationSyntaxReference is not null && !DotNetGeneratedSource.IsGenerated(_.ApplicationSyntaxReference.SyntaxTree))
+            .OrderBy(_ => _.ApplicationSyntaxReference!.SyntaxTree.FilePath, StringComparer.Ordinal)
+            .ThenBy(_ => _.ApplicationSyntaxReference!.Span.Start)
+    ];
+
+    /// <summary>
     /// Gets a portable source range for a Roslyn location.
     /// </summary>
     /// <param name="location">The source location.</param>
@@ -92,20 +138,49 @@ public static class DotNetSource
         string? sourceRoot,
         string? explanation = null)
     {
-        var location = symbol.Locations
-            .Where(_ => _.IsInSource && _.SourceTree is not null && !DotNetGeneratedSource.IsGenerated(_.SourceTree))
-            .OrderBy(_ => _.SourceTree!.FilePath, StringComparer.Ordinal)
-            .ThenBy(_ => _.SourceSpan.Start)
+        var location = AuthoredDeclarationsOf(symbol)
+            .Select(_ => _.GetSyntax().GetLocation())
             .FirstOrDefault();
 
-        return new()
-        {
-            Adapter = adapter,
-            Strength = strength,
-            Source = location is null ? null : Range(location, sourceRoot),
-            Explanation = explanation
-        };
+        return EvidenceFor(location, adapter, strength, sourceRoot, explanation);
     }
+
+    /// <summary>
+    /// Gets deterministic evidence anchored at an authored attribute application.
+    /// </summary>
+    /// <param name="attribute">The authored attribute data.</param>
+    /// <param name="adapter">The adapter producing the evidence.</param>
+    /// <param name="strength">The evidence strength.</param>
+    /// <param name="sourceRoot">The workspace root used to make paths relative.</param>
+    /// <param name="explanation">An optional explanation of the evidence.</param>
+    /// <returns>The evidence.</returns>
+    public static Evidence EvidenceFor(
+        AttributeData attribute,
+        AdapterIdentity adapter,
+        EvidenceStrength strength,
+        string? sourceRoot,
+        string? explanation = null)
+    {
+        var reference = attribute.ApplicationSyntaxReference;
+        var location = reference is not null && !DotNetGeneratedSource.IsGenerated(reference.SyntaxTree)
+            ? reference.GetSyntax().GetLocation()
+            : null;
+
+        return EvidenceFor(location, adapter, strength, sourceRoot, explanation);
+    }
+
+    static Evidence EvidenceFor(
+        Location? location,
+        AdapterIdentity adapter,
+        EvidenceStrength strength,
+        string? sourceRoot,
+        string? explanation) => new()
+    {
+        Adapter = adapter,
+        Strength = strength,
+        Source = location is null ? null : Range(location, sourceRoot),
+        Explanation = explanation
+    };
 
     static string RelativePath(string path, string? sourceRoot)
     {

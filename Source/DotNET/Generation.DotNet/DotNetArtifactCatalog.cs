@@ -58,6 +58,14 @@ public sealed class DotNetArtifactCatalog(Compilation compilation)
             .Where(_ => _.Locations.Any(location => location.IsInSource))
             .OrderBy(DotNetSubjectIds.MetadataName, StringComparer.Ordinal)
     ];
+
+    /// <summary>
+    /// Gets every type with at least one authored declaration in canonical metadata-name order.
+    /// </summary>
+    public IReadOnlyList<INamedTypeSymbol> AuthoredTypes =>
+    [
+        .. Types.Where(DotNetSource.HasAuthoredDeclaration)
+    ];
 }
 
 static class DotNetTypeDiscovery
