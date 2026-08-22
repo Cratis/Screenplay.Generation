@@ -10,6 +10,8 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
     ConceptValidationRuleFact _quantityRule = null!;
     ConceptValidationRuleFact _dynamicCodeRule = null!;
     ConceptValidationRuleFact _ambiguousMessageRule = null!;
+    ConceptValidationRuleFact _wrappedMessageRule = null!;
+    ConceptValidationRuleFact _localMessageRule = null!;
 
     void Because()
     {
@@ -47,6 +49,21 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
                         ? Vogen.Validation.Invalid("A")
                         : Vogen.Validation.Invalid("B");
                 }
+                [Vogen.ValueObject<string>]
+                public partial struct WrappedMessage
+                {
+                    private static Vogen.Validation Validate(string value) =>
+                        Vogen.Validation.Invalid("Wrapped").WithData("value", value);
+                }
+                [Vogen.ValueObject<string>]
+                public partial struct LocalMessage
+                {
+                    private static Vogen.Validation Validate(string value)
+                    {
+                        Vogen.Validation Build() => Vogen.Validation.Invalid("Nested");
+                        return Build();
+                    }
+                }
                 """));
 
         _contribution = Analyze(Project("Concepts.Project", compilation));
@@ -54,9 +71,11 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
         _quantityRule = RuleFor("Quantity");
         _dynamicCodeRule = RuleFor("DynamicCode");
         _ambiguousMessageRule = RuleFor("AmbiguousMessage");
+        _wrappedMessageRule = RuleFor("WrappedMessage");
+        _localMessageRule = RuleFor("LocalMessage");
     }
 
-    [Fact] void should_emit_one_named_rule_for_each_exact_authored_hook() => _contribution.Facts.OfType<ConceptValidationRuleFact>().Count().ShouldEqual(4);
+    [Fact] void should_emit_one_named_rule_for_each_exact_authored_hook() => _contribution.Facts.OfType<ConceptValidationRuleFact>().Count().ShouldEqual(6);
     [Fact] void should_use_a_stable_rule_identity() => _contribution.Facts.OfType<ConceptValidationRuleFact>().All(_ => _.Definition.RuleIdentity == "vogen.validate").ShouldBeTrue();
     [Fact] void should_point_to_the_authored_predicate() => _contribution.Facts.OfType<ConceptValidationRuleFact>().All(_ => _.Definition.Kind == ConceptValidationRuleKind.NamedPredicate && _.Definition.Predicate == "Validate").ShouldBeTrue();
     [Fact] void should_use_a_stable_fact_identity() => _customerCodeRule.Id.Value.ShouldEqual($"vogen:concept-validation:vogen.validate:{_customerCodeRule.Subject.Value}");
@@ -67,6 +86,8 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
     [Fact] void should_preserve_a_semantically_constant_invalid_message_from_a_return_expression() => _quantityRule.Definition.Message.ShouldEqual("Quantity must be positive");
     [Fact] void should_not_infer_a_dynamic_message() => _dynamicCodeRule.Definition.Message.ShouldBeNull();
     [Fact] void should_not_choose_between_multiple_invalid_messages() => _ambiguousMessageRule.Definition.Message.ShouldBeNull();
+    [Fact] void should_not_preserve_a_message_from_a_wrapped_invalid_invocation() => _wrappedMessageRule.Definition.Message.ShouldBeNull();
+    [Fact] void should_not_preserve_a_message_returned_by_a_local_function() => _localMessageRule.Definition.Message.ShouldBeNull();
     [Fact] void should_not_emit_loss_diagnostics_for_represented_validation() => _contribution.Diagnostics.ShouldBeEmpty();
 
     ConceptValidationRuleFact RuleFor(string conceptName)

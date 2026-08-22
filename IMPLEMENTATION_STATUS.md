@@ -99,7 +99,7 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 
 - Generation specs: 93 passing.
 - Generation.DotNet specs: 28 passing.
-- Generation.DotNet.Vogen specs: 82 passing.
+- Generation.DotNet.Vogen specs: 84 passing.
 - Debug net10 and Release net8/net9/net10 builds: zero warnings/errors.
 - Concept output compiles and remains stable through print/compile/print.
 - Primitive, enum, missing/conflicting representation, named attributes, exact subject references, duplicate/conflicting validation rules, invalid predicate omission, and shuffled-order cases are covered.

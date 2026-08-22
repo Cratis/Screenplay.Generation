@@ -332,7 +332,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
                 invocation.TargetMethod.IsStatic &&
                 invocation.TargetMethod.ContainingType is { } containingType &&
                 string.Equals(DotNetSubjectIds.MetadataName(containingType), VogenMetadataNames.Validation, StringComparison.Ordinal) &&
-                IsReturnedFromValidation(invocation))
+                IsDirectlyReturnedFromValidation(invocation))
             .ToArray();
         if (invalidInvocations is not [var invalid])
         {
@@ -359,22 +359,28 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         }
     }
 
-    static bool IsReturnedFromValidation(IOperation operation)
+    static bool IsDirectlyReturnedFromValidation(IOperation operation)
     {
-        for (var parent = operation.Parent; parent is not null; parent = parent.Parent)
+        var parent = operation.Parent;
+        while (parent is IConditionalOperation or IConversionOperation)
+        {
+            parent = parent.Parent;
+        }
+
+        if (parent is not IReturnOperation returned)
+        {
+            return false;
+        }
+
+        for (parent = returned.Parent; parent is not null; parent = parent.Parent)
         {
             if (parent is IAnonymousFunctionOperation or ILocalFunctionOperation)
             {
                 return false;
             }
-
-            if (parent is IReturnOperation)
-            {
-                return true;
-            }
         }
 
-        return false;
+        return true;
     }
 
     static string? MetadataName(AttributeData attribute) =>
