@@ -103,7 +103,7 @@ public static class DotNetSource
     /// </summary>
     /// <param name="location">The source location.</param>
     /// <param name="sourceRoot">The workspace root used to make the path relative.</param>
-    /// <returns>The portable source range, or <c>null</c> when the location is not in source.</returns>
+    /// <returns>The portable source range, or <see langword="null"/> when the location is not in source.</returns>
     public static SourceRange? Range(Location location, string? sourceRoot)
     {
         if (!location.IsInSource || location.SourceTree is null)
@@ -175,12 +175,12 @@ public static class DotNetSource
         EvidenceStrength strength,
         string? sourceRoot,
         string? explanation) => new()
-    {
-        Adapter = adapter,
-        Strength = strength,
-        Source = location is null ? null : Range(location, sourceRoot),
-        Explanation = explanation
-    };
+        {
+            Adapter = adapter,
+            Strength = strength,
+            Source = location is null ? null : Range(location, sourceRoot),
+            Explanation = explanation
+        };
 
     static string RelativePath(string path, string? sourceRoot)
     {

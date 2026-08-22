@@ -7,7 +7,7 @@ public class a_vogen_compilation : Specification
 {
     static readonly IReadOnlyList<MetadataReference> _references =
     [
-        .. ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+        .. ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))
             .Split(Path.PathSeparator)
             .Append(typeof(global::Vogen.ValueObjectAttribute).Assembly.Location)
             .Distinct(StringComparer.Ordinal)
@@ -31,11 +31,11 @@ public class a_vogen_compilation : Specification
         string name,
         CSharpCompilation compilation,
         string sourceRoot = "/workspace") => new()
-    {
-        Name = name,
-        Compilation = compilation,
-        SourceRoot = sourceRoot
-    };
+        {
+            Name = name,
+            Compilation = compilation,
+            SourceRoot = sourceRoot
+        };
 
     protected static ArtifactFact ConceptNamed(AdapterContribution contribution, string name) =>
         contribution.Facts.OfType<ArtifactFact>().Single(_ => _.Definition.Name == name);
