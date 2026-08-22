@@ -37,9 +37,9 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 - GitHub repository created: <https://github.com/Cratis/Screenplay.Generation>
 - Local repository: `/Volumes/sourcecode/repos/cratis/Screenplay.Generation`
 - This groundwork is based on the `v0.4.0` `main` baseline.
-- Current feature branch: `feat/vogen-concept-interpreter-clean`.
+- Current feature branch: `feat/package-validation`.
 - Latest baseline release: [`v0.4.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.4.0).
-- NuGet publication remains blocked by [issue #2](https://github.com/Cratis/Screenplay.Generation/issues/2); verified packages are attached to the release and available through the local feed.
+- NuGet publication is available. Contracts, Generation, and DotNet use their initial `0.1.0` packages as compatibility baselines; DotNet.Vogen uses its first published version, `0.2.0`.
 
 ## Projects transferred
 
@@ -101,14 +101,14 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 - Debug net10 and Release net8/net9/net10 builds: zero warnings/errors.
 - Concept output compiles and remains stable through print/compile/print.
 - Primitive, enum, missing/conflicting representation, named attributes, exact subject references, duplicate/conflicting validation rules, invalid predicate omission, and shuffled-order cases are covered.
-- All four packages pack with sentinel version 9999.0.0, including `Cratis.Screenplay.Generation.DotNet.Vogen`.
-- An isolated scratch consumer restored the sentinel Generation and Vogen adapter packages, composed Vogen with an external `IDotNetScreenplayAdapter`, emitted `OrderId` as a `Uuid` concept through the public API, and compiler-verified the resulting Screenplay.
+- Package validation is enabled for all four packable projects and resolves its baselines from public NuGet: `0.1.0` for Contracts, Generation, and DotNet, and `0.2.0` for DotNet.Vogen.
+- Pull-request packing retains sentinel version `9999.0.0` on both the Release build and no-build pack so assembly and package versions agree during validation.
+- A repository-local clean consumer smoke compiles core consumers against `0.1.0` and a Vogen consumer against `0.2.0`, then runs those unchanged binaries with the current packages. It exercises public record construction and copying, positional-record analysis, `IDotNetScreenplayAdapter`, `ScreenplayDefinitionGenerator`, current compatible additions, and Vogen concept generation.
 
 ## Immediate next actions
 
-1. Release the authored-source helpers and Vogen interpreter package to complete [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
-2. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
-3. Enable package validation after trusted publication through issue #3.
+1. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
+2. Keep each package-validation baseline on the first published compatible line until an intentional major release resets the compatibility contract.
 
 ## Safety
 

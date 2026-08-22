@@ -101,9 +101,12 @@ See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the current imple
 
 ```shell
 dotnet test Screenplay.Generation.slnx --configuration Debug
-dotnet build Screenplay.Generation.slnx --configuration Release
-dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Artifacts/NuGet
+dotnet build Screenplay.Generation.slnx --configuration Release -p:Version=9999.0.0
+dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Artifacts/NuGet -p:Version=9999.0.0
+./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
+
+Package validation runs during pack against the first public package for each assembly: `0.1.0` for Contracts, Generation, and DotNet, and `0.2.0` for DotNet.Vogen. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke compiles clean binaries against those public baselines, then runs them unchanged with the current packages to cover record, positional-record analysis, generator, adapter, and Vogen APIs.
 
 All builds require zero errors and zero warnings. Generated Screenplay output must compile and remain stable through print/compile/print.
 
