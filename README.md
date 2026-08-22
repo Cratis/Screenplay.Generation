@@ -37,6 +37,8 @@ Adapters contribute semantic facts; they do not construct syntax nodes or concat
 
 `Cratis.Screenplay.Generation.DotNet.Vogen` recognizes the exact Roslyn metadata names `Vogen.ValueObjectAttribute`, ``Vogen.ValueObjectAttribute`1``, and `Vogen.VogenDefaultsAttribute`. It has no Vogen package or runtime dependency. Vogen is pinned only in the adapter's semantic spec project so production consumers remain decoupled from the source generator.
 
+Each `DotNetProjectCompilation` requires the workspace host's authoritative `AuthoredSyntaxTrees`. Build this set from project documents before source generators update the compilation. Generated filenames and headers remain useful conventions, but they are not trusted as proof of authored origin.
+
 A clean consumer composes Vogen with any external ecosystem adapter by keeping contributions separate until neutral resolution:
 
 ```csharp
