@@ -129,7 +129,9 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
 
     static AttributeData? ValueObjectAttribute(INamedTypeSymbol type) =>
         DotNetSource.AuthoredAttributesOf(type)
-            .FirstOrDefault(_ => MetadataName(_) is VogenMetadataNames.ValueObjectAttribute or VogenMetadataNames.GenericValueObjectAttribute);
+            .FirstOrDefault(_ =>
+                string.Equals(MetadataName(_), VogenMetadataNames.ValueObjectAttribute, StringComparison.Ordinal) ||
+                string.Equals(MetadataName(_), VogenMetadataNames.GenericValueObjectAttribute, StringComparison.Ordinal));
 
     static AttributeData? AuthoredAttribute(ISymbol symbol, string metadataName) =>
         DotNetSource.AuthoredAttributesOf(symbol)
