@@ -2,9 +2,10 @@
 # Copyright (c) Cratis. All rights reserved.
 # Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-# Compiles consumers against the first public package baselines, then runs those unchanged
-# binaries beside the packages being validated. This catches binary breaks in records,
-# source-analysis APIs, generator entry points, and the Vogen adapter that a source rebuild hides.
+# Compiles consumers against the compatibility ancestry, then runs those unchanged binaries
+# beside the packages being validated. A separate source consumer compiles only against the
+# current candidate packages and exercises the public 0.7+ composition surface. Together these
+# catch binary breaks that a source rebuild hides and ensure the current package set is usable.
 #
 # Usage: verify-package-consumers.sh [current-version] [local-package-feed]
 #   current-version      version of the current packages; defaults to the PR sentinel
@@ -54,8 +55,9 @@ CONFIG
 
 CORE_DIR="$WORK_DIR/CoreBaseline"
 VOGEN_DIR="$WORK_DIR/VogenBaseline"
+CURRENT_SOURCE_DIR="$WORK_DIR/CurrentSourceConsumer"
 RUNNER_DIR="$WORK_DIR/CurrentRunner"
-mkdir -p "$CORE_DIR" "$VOGEN_DIR" "$RUNNER_DIR"
+mkdir -p "$CORE_DIR" "$VOGEN_DIR" "$CURRENT_SOURCE_DIR" "$RUNNER_DIR"
 
 cat > "$CORE_DIR/CoreBaseline.csproj" <<'PROJECT'
 <Project Sdk="Microsoft.NET.Sdk">
@@ -284,6 +286,350 @@ public static class BaselineVogenConsumer
 }
 CSHARP
 
+cat > "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" <<PROJECT
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Cratis.Screenplay.Generation.Contracts" Version="$CURRENT_VERSION" />
+    <PackageReference Include="Cratis.Screenplay.Generation" Version="$CURRENT_VERSION" />
+    <PackageReference Include="Cratis.Screenplay.Generation.DotNet" Version="$CURRENT_VERSION" />
+    <PackageReference Include="Cratis.Screenplay.Generation.DotNet.Vogen" Version="$CURRENT_VERSION" />
+  </ItemGroup>
+</Project>
+PROJECT
+
+cat > "$CURRENT_SOURCE_DIR/Program.cs" <<'CSHARP'
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using Cratis.Screenplay.Generation;
+using Cratis.Screenplay.Generation.DotNet;
+using Cratis.Screenplay.Generation.DotNet.Vogen;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+
+internal static class Program
+{
+    const string ExternalAdapterId = "external-smoke";
+    const string VogenAdapterId = "vogen";
+
+    static int Main()
+    {
+        try
+        {
+            ExerciseCurrentPackages();
+            Console.WriteLine("Current-source 0.7+ consumer compiled, composed, resolved, and compiler-verified deterministically.");
+            return 0;
+        }
+        catch (CurrentSourceConsumerFailure exception)
+        {
+            Console.Error.WriteLine($"Current-source consumer failed [{exception.Code}]: {exception.Message}");
+            return 1;
+        }
+    }
+
+    static void ExerciseCurrentPackages()
+    {
+        Require(
+            VogenGenerationDiagnosticCodes.UnsupportedBackingType == "VOG0001" &&
+            VogenGenerationDiagnosticCodes.InputNormalizationNotRepresented == "VOG0002" &&
+            VogenGenerationDiagnosticCodes.NamedInstanceNotRepresented == "VOG0003",
+            "CSC0001",
+            "The stable Vogen diagnostic-code API changed.");
+
+        var authoredTree = CSharpSyntaxTree.ParseText(
+            """
+            namespace Vogen
+            {
+                [System.AttributeUsage(System.AttributeTargets.Struct)]
+                public sealed class ValueObjectAttribute<T> : System.Attribute
+                {
+                }
+
+                public sealed class Validation
+                {
+                    public static Validation Ok { get; } = new();
+
+                    public static Validation Invalid(string message)
+                    {
+                        _ = message;
+                        return new();
+                    }
+                }
+            }
+
+            namespace Ordering
+            {
+                [Vogen.ValueObject<string>]
+                public readonly partial record struct CustomerCode
+                {
+                    private const string InvalidMessage = "Customer codes cannot be blank";
+
+                    private static Vogen.Validation Validate(string value) =>
+                        string.IsNullOrWhiteSpace(value)
+                            ? Vogen.Validation.Invalid(InvalidMessage)
+                            : Vogen.Validation.Ok;
+                }
+
+                public sealed record CustomerRegistered(CustomerCode CustomerCode);
+            }
+            """,
+            path: "/consumer/Concepts/CustomerCode.cs");
+        var generatedLookalikeTree = CSharpSyntaxTree.ParseText(
+            """
+            namespace Ordering;
+
+            [Vogen.ValueObject<int>]
+            public readonly partial record struct GeneratedOnlyCode;
+            """,
+            path: "/consumer/obj/GeneratedOnlyCode.g.cs");
+        var compilation = CSharpCompilation.Create(
+            "Ordering",
+            [authoredTree, generatedLookalikeTree],
+            TrustedPlatformReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var compilationErrors = compilation.GetDiagnostics()
+            .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .Select(diagnostic => diagnostic.ToString())
+            .ToArray();
+        Require(
+            compilationErrors.Length == 0,
+            "CSC0002",
+            $"The fake authored Vogen compilation was invalid: {string.Join(" | ", compilationErrors)}");
+
+        var project = new DotNetProjectCompilation
+        {
+            Name = "Ordering.Project",
+            Compilation = compilation,
+            SourceRoot = "/consumer",
+            AuthoredSyntaxTrees = new HashSet<SyntaxTree> { authoredTree }
+        };
+        var context = new DotNetAnalysisContext([project]);
+        IDotNetScreenplayAdapter[] adapters =
+        [
+            new VogenConceptScreenplayAdapter(),
+            new ExternalCustomerAdapter()
+        ];
+        var contributions = adapters
+            .Where(adapter => adapter.CanAnalyze(context))
+            .Select(adapter => adapter.Analyze(context, new DotNetAdapterOptions()))
+            .ToArray();
+
+        Require(contributions.Length == 2, "CSC0003", "Both the Vogen and external adapters must contribute.");
+        Require(
+            contributions.Select(contribution => contribution.Adapter.Id).ToHashSet(StringComparer.Ordinal)
+                .SetEquals([VogenAdapterId, ExternalAdapterId]),
+            "CSC0004",
+            "The composed contributions did not preserve both adapter identities.");
+
+        var vogenContribution = contributions.Single(contribution => contribution.Adapter.Id == VogenAdapterId);
+        Require(
+            vogenContribution.Facts.OfType<ArtifactFact>().All(fact => fact.Definition.Name != "GeneratedOnlyCode"),
+            "CSC0005",
+            "A syntax tree outside authoritative AuthoredSyntaxTrees originated a Vogen concept.");
+        var concept = vogenContribution.Facts.OfType<ArtifactFact>()
+            .Single(fact => fact.Definition.Name == "CustomerCode");
+        var representation = vogenContribution.Facts.OfType<ConceptRepresentationFact>()
+            .Single(fact => fact.Subject == concept.Subject);
+        Require(
+            representation.Definition.Kind == ConceptRepresentationKind.Primitive &&
+            representation.Definition.Primitive == GenerationPrimitiveKind.Text,
+            "CSC0006",
+            "Vogen did not contribute the neutral text concept representation.");
+        var validation = vogenContribution.Facts.OfType<ConceptValidationRuleFact>()
+            .Single(fact => fact.Subject == concept.Subject);
+        Require(
+            validation.Definition.RuleIdentity == "vogen.validate" &&
+            validation.Definition.Kind == ConceptValidationRuleKind.NamedPredicate &&
+            validation.Definition.Predicate == "Validate" &&
+            validation.Definition.Message == "Customer codes cannot be blank" &&
+            validation.Definition.ImplementationFile == "Concepts/CustomerCode.cs",
+            "CSC0007",
+            "The exact authored Vogen validation hook was not preserved as a named validation fact.");
+        Require(vogenContribution.Diagnostics.Count == 0, "CSC0008", "Representable Vogen source reported semantic loss.");
+
+        var externalContribution = contributions.Single(contribution => contribution.Adapter.Id == ExternalAdapterId);
+        var eventFact = externalContribution.Facts.OfType<ArtifactFact>().Single();
+        var eventType = eventFact.Definition.Properties.Single().Type;
+        Require(
+            eventType.Name == "UnresolvedCustomerCode" && eventType.Subject == concept.Subject,
+            "CSC0009",
+            "The external adapter did not bind TypeReferenceDefinition.Subject to the exact concept subject.");
+
+        var generated = new ScreenplayDefinitionGenerator().Generate(
+            contributions,
+            new ScreenplayGenerationOptions { Domain = "Ordering" });
+        var generatedFromReversedContributions = new ScreenplayDefinitionGenerator().Generate(
+            contributions.Reverse(),
+            new ScreenplayGenerationOptions { Domain = "Ordering" });
+        Require(generated.IsSuccess, "CSC0010", "The composed Screenplay did not pass compiler verification.");
+        Require(
+            generated.Diagnostics.Count == 0 &&
+            !generated.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == GenerationDiagnosticCodes.DocumentDidNotCompile ||
+                diagnostic.Code == GenerationDiagnosticCodes.UnstableRoundTrip),
+            "CSC0011",
+            "Composition introduced adapter, resolution, lowering, compile, or round-trip verification loss.");
+        Require(
+            generated.Source == generatedFromReversedContributions.Source && generatedFromReversedContributions.IsSuccess,
+            "CSC0012",
+            "Generated source changed when adapter contribution order changed.");
+        Require(
+            generated.Source.Contains("concept CustomerCode : String", StringComparison.Ordinal) &&
+            generated.Source.Contains("rule Validate", StringComparison.Ordinal) &&
+            generated.Source.Contains("message \"Customer codes cannot be blank\"", StringComparison.Ordinal) &&
+            generated.Source.Contains("file Concepts/CustomerCode.cs", StringComparison.Ordinal) &&
+            generated.Source.Contains("customerCode CustomerCode", StringComparison.Ordinal) &&
+            !generated.Source.Contains("UnresolvedCustomerCode", StringComparison.Ordinal),
+            "CSC0013",
+            "The deterministic source lost the concept representation, validation, implementation file, or exact type binding.");
+        var graphAdapterIds = generated.Graph.Artifacts
+            .SelectMany(artifact => artifact.Variants)
+            .SelectMany(variant => variant.Evidence)
+            .Select(evidence => evidence.Adapter.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        Require(
+            graphAdapterIds.SetEquals([VogenAdapterId, ExternalAdapterId]),
+            "CSC0014",
+            "The resolved successful graph lost adapter provenance.");
+
+        var conflictingRepresentation = new ConceptRepresentationFact
+        {
+            Id = new FactId { Value = "external-smoke:representation-conflict" },
+            Subject = concept.Subject,
+            Definition = new ConceptRepresentationDefinition
+            {
+                Concept = concept.Subject,
+                Kind = ConceptRepresentationKind.Primitive,
+                Primitive = GenerationPrimitiveKind.Uuid
+            },
+            Evidence = new Evidence
+            {
+                Adapter = new AdapterIdentity { Id = ExternalAdapterId, Version = "0.7.0" },
+                Strength = EvidenceStrength.Exact
+            }
+        };
+        var conflictGraph = new GenerationResolver().Resolve(
+        [
+            vogenContribution,
+            new AdapterContribution
+            {
+                Adapter = new AdapterIdentity { Id = ExternalAdapterId, Version = "0.7.0" },
+                Facts = [conflictingRepresentation]
+            }
+        ]);
+        var conflicted = conflictGraph.ConceptRepresentations.Single();
+        Require(
+            conflicted.IsConflicted && conflicted.Variants.Count == 2 &&
+            conflictGraph.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == GenerationDiagnosticCodes.ConflictingConceptRepresentation),
+            "CSC0015",
+            "The resolver did not expose both incompatible concept representation variants.");
+        Require(
+            conflicted.Variants
+                .SelectMany(variant => variant.Evidence)
+                .Select(evidence => evidence.Adapter.Id)
+                .ToHashSet(StringComparer.Ordinal)
+                .SetEquals([VogenAdapterId, ExternalAdapterId]),
+            "CSC0016",
+            "Conflict visibility lost one adapter identity.");
+    }
+
+    static IReadOnlyList<MetadataReference> TrustedPlatformReferences() =>
+        ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+            .Split(Path.PathSeparator)
+            .Select(path => MetadataReference.CreateFromFile(path))
+            .ToArray();
+
+    static void Require(bool condition, string code, string message)
+    {
+        if (!condition)
+        {
+            throw new CurrentSourceConsumerFailure(code, message);
+        }
+    }
+
+    sealed class ExternalCustomerAdapter : IDotNetScreenplayAdapter
+    {
+        public AdapterIdentity Identity { get; } = new() { Id = ExternalAdapterId, Version = "0.7.0" };
+
+        public bool CanAnalyze(DotNetAnalysisContext context) =>
+            context.Projects.Any(project =>
+                project.Compilation.GetTypeByMetadataName("Ordering.CustomerRegistered") is not null);
+
+        public AdapterContribution Analyze(DotNetAnalysisContext context, DotNetAdapterOptions options)
+        {
+            _ = options;
+            var project = context.Projects.Single();
+            var conceptType = project.Compilation.GetTypeByMetadataName("Ordering.CustomerCode");
+            var eventType = project.Compilation.GetTypeByMetadataName("Ordering.CustomerRegistered");
+            Require(conceptType is not null, "CSC0017", "The external adapter could not resolve CustomerCode.");
+            Require(eventType is not null, "CSC0018", "The external adapter could not resolve CustomerRegistered.");
+            var conceptSubject = project.SubjectForType(conceptType!);
+            var eventSubject = project.SubjectForType(eventType!);
+            var eventKey = new ArtifactKey { Subject = eventSubject, Kind = ArtifactKind.Event };
+            var evidence = new Evidence { Adapter = Identity, Strength = EvidenceStrength.Exact };
+
+            return new AdapterContribution
+            {
+                Adapter = Identity,
+                Facts =
+                [
+                    new ArtifactFact
+                    {
+                        Id = new FactId { Value = "external-smoke:event:customer-registered" },
+                        Subject = eventSubject,
+                        Evidence = evidence,
+                        Definition = new ArtifactDefinition
+                        {
+                            Key = eventKey,
+                            Name = "CustomerRegistered",
+                            File = "Customers/Register/CustomerRegistered.cs",
+                            Properties =
+                            [
+                                new PropertyDefinition
+                                {
+                                    Name = "customerCode",
+                                    Type = new TypeReferenceDefinition
+                                    {
+                                        Name = "UnresolvedCustomerCode",
+                                        Subject = conceptSubject
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    new ArtifactPlacementFact
+                    {
+                        Id = new FactId { Value = "external-smoke:placement:customer-registered" },
+                        Subject = eventSubject,
+                        Evidence = evidence,
+                        Artifact = eventKey,
+                        Placement = new ArtifactPlacement
+                        {
+                            Module = "Customers",
+                            Features = ["Registration"],
+                            Slice = "Register",
+                            SliceKind = GenerationSliceKind.StateChange
+                        }
+                    }
+                ]
+            };
+        }
+    }
+
+    sealed class CurrentSourceConsumerFailure(string code, string message) : Exception(message)
+    {
+        public string Code { get; } = code;
+    }
+}
+CSHARP
+
 export NUGET_PACKAGES="$WORK_DIR/.nuget/packages"
 echo "Compiling the core consumer against public package baseline 0.1.0..."
 dotnet restore "$CORE_DIR/CoreBaseline.csproj" --configfile "$WORK_DIR/nuget.config" --nologo
@@ -292,6 +638,11 @@ dotnet build "$CORE_DIR/CoreBaseline.csproj" --no-restore --configuration Releas
 echo "Compiling the Vogen consumer against its first correctly sourced public package baseline 0.5.0..."
 dotnet restore "$VOGEN_DIR/VogenBaseline.csproj" --configfile "$WORK_DIR/nuget.config" --nologo
 dotnet build "$VOGEN_DIR/VogenBaseline.csproj" --no-restore --configuration Release --nologo
+
+echo "Compiling the current-source consumer only against candidate package version $CURRENT_VERSION..."
+dotnet restore "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --configfile "$WORK_DIR/nuget.config" --nologo
+dotnet build "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --no-restore --configuration Release --nologo
+dotnet run --project "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --no-build --no-restore --configuration Release
 
 cat > "$RUNNER_DIR/CurrentRunner.csproj" <<PROJECT
 <Project Sdk="Microsoft.NET.Sdk">
