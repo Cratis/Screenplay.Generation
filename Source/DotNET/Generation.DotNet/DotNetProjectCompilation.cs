@@ -79,6 +79,23 @@ public sealed class DotNetAnalysisContext(IEnumerable<DotNetProjectCompilation> 
         return Projects.FirstOrDefault(_ => _.Compilation.SyntaxTrees.Contains(tree)) ??
                throw new SyntaxTreeNotInAnalysis(tree.FilePath);
     }
+
+    /// <summary>
+    /// Gets the project-qualified subject for a source-declared named type when exactly one analyzed project owns it.
+    /// </summary>
+    /// <param name="type">The type reference to resolve.</param>
+    /// <returns>The exact source subject, or <see langword="null"/> when the type is external, missing, or ambiguous.</returns>
+    public SubjectId? SubjectForType(INamedTypeSymbol type)
+    {
+        var metadataName = DotNetSubjectIds.MetadataName(type);
+        var candidates = Projects
+            .Select(project => new { Project = project, Type = project.Compilation.GetTypeByMetadataName(metadataName) })
+            .Where(_ => _.Type?.Locations.Any(location => location.IsInSource) == true)
+            .Select(_ => _.Project.SubjectForType(_.Type!))
+            .Distinct()
+            .ToArray();
+        return candidates.Length == 1 ? candidates[0] : null;
+    }
 }
 
 /// <summary>

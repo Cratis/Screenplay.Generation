@@ -14,6 +14,7 @@ static class Canonical
             definition.Properties.Select(_ => Join(
                 _.Name,
                 _.Type.Name,
+                _.Type.Subject?.Value,
                 _.Type.IsCollection.ToString(),
                 _.Type.IsOptional.ToString(),
                 _.IsIdentifier.ToString())));
@@ -27,6 +28,13 @@ static class Canonical
     }
 
     public static string ArtifactKey(ArtifactKey key) => Join(key.Subject.Value, key.Kind.ToString());
+
+    public static string ConceptRepresentation(ConceptRepresentationDefinition definition) =>
+        Join(
+            definition.Concept.Value,
+            definition.Kind.ToString(),
+            definition.Primitive?.ToString(),
+            string.Concat(definition.EnumerationValues.Select(_ => $"{_.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{_}")));
 
     public static string Placement(ArtifactPlacement placement) =>
         Join(

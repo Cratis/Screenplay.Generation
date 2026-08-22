@@ -52,4 +52,34 @@ public static class GenerationDiagnosticCodes
     /// The generated document changed after compile and canonical reprint.
     /// </summary>
     public const string UnstableRoundTrip = "GEN0010";
+
+    /// <summary>
+    /// Incompatible representations were asserted for one concept subject.
+    /// </summary>
+    public const string ConflictingConceptRepresentation = "GEN0011";
+
+    /// <summary>
+    /// A concept artifact has no proven representation and cannot be emitted.
+    /// </summary>
+    public const string MissingConceptRepresentation = "GEN0012";
+
+    /// <summary>
+    /// A concept representation is internally invalid or unsupported by Screenplay.
+    /// </summary>
+    public const string UnsupportedConceptRepresentation = "GEN0013";
+
+    /// <summary>
+    /// Distinct concept subjects require the same Screenplay declaration name.
+    /// </summary>
+    public const string ConflictingConceptName = "GEN0015";
+
+    /// <summary>
+    /// A subject-aware type reference targets a concept that could not be emitted.
+    /// </summary>
+    public const string MissingConceptReference = "GEN0016";
+
+    /// <summary>
+    /// A concept fact's subject does not match the concept subject in its definition.
+    /// </summary>
+    public const string InvalidConceptFact = "GEN0017";
 }

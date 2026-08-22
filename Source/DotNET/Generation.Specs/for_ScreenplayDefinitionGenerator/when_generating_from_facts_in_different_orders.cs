@@ -10,18 +10,20 @@ public class when_generating_from_facts_in_different_orders : given.a_generator
 
     void Because()
     {
-        var opened = Event("AccountOpened", "Open", Property("accountId", "Uuid"));
+        var accountId = Concept("AccountId", GenerationPrimitiveKind.Uuid);
+        var opened = Event("AccountOpened", "Open", Property("accountId", "AccountId", accountId.Subject));
         var deposited = Event("FundsDeposited", "Deposit", Property("amount", "Decimal"));
         var options = new ScreenplayGenerationOptions { Domain = "Banking" };
 
-        _first = Generator.Generate([Contribution([.. opened, .. deposited])], options);
-        _second = Generator.Generate([Contribution([.. deposited, .. opened])], options);
+        _first = Generator.Generate([Contribution([.. accountId.Facts, .. opened, .. deposited])], options);
+        _second = Generator.Generate([Contribution([.. deposited, .. opened, .. accountId.Facts.OrderByDescending(_ => _.Id.Value, StringComparer.Ordinal)])], options);
     }
 
     [Fact] void should_succeed_in_the_first_order() => _first.IsSuccess.ShouldBeTrue();
     [Fact] void should_succeed_in_the_second_order() => _second.IsSuccess.ShouldBeTrue();
     [Fact] void should_generate_identical_source() => _second.Source.ShouldEqual(_first.Source);
     [Fact] void should_include_the_domain() => _first.Source.ShouldContain("domain Banking");
+    [Fact] void should_include_the_concept() => _first.Source.ShouldContain("concept AccountId : Uuid");
     [Fact] void should_include_the_opened_event() => _first.Source.ShouldContain("event AccountOpened");
     [Fact] void should_include_the_deposited_event() => _first.Source.ShouldContain("event FundsDeposited");
     [Fact] void should_keep_repository_relative_file_references() => _first.Source.ShouldContain("file Accounts/Open/AccountOpened.cs");

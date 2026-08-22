@@ -35,10 +35,10 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 
 - GitHub repository created: <https://github.com/Cratis/Screenplay.Generation>
 - Local repository: `/Volumes/sourcecode/repos/cratis/Screenplay.Generation`
-- Working branch: `feat/generation-sdk`
-- Initial GitHub commit: `7552d89`
-- The uncommitted SDK project trees were moved here before their first source commit.
-- No secrets, local `.pi` data, `bin`, or `obj` artifacts were transferred.
+- `main` is synchronized with `origin/main` through the initial `v0.1.0` SDK release and repository maintenance.
+- Current feature branch: `feat/neutral-concept-representations`.
+- Latest GitHub release: [`v0.1.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.1.0).
+- NuGet publication remains blocked by [issue #2](https://github.com/Cratis/Screenplay.Generation/issues/2); verified packages are attached to the release and available through the local feed.
 
 ## Projects transferred
 
@@ -51,10 +51,12 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 ## Functionality already implemented locally
 
 - Typed adapter identity, subject identity, fact identity, evidence, source range, and diagnostics.
-- Artifact, placement, and relationship facts.
+- Artifact, placement, relationship, and concept-representation facts.
+- Subject-aware type references for exact concept binding across projects and namespaces.
 - Deterministic fact resolution with duplicate collapse and conflict diagnostics.
 - Evidence-strength-aware placement resolution.
-- Lowering for events, read models, reducers, commands, and queries.
+- Lowering for concepts, events, read models, reducers, commands, and queries.
+- Primitive and enumeration concept lowering without module placement, with explicit missing/conflicting/unsupported diagnostics and no `String` fallback.
 - Canonical Screenplay printing and compiler verification.
 - Reusable Roslyn compilation context, artifact catalog, symbol IDs, generated-source recognition, source ranges, type-shape conversion, and adapter interface.
 - Dedicated specs for deterministic generation, conflicts, evidence-strength placement, unplaced artifacts, source cataloging, generated source, type shapes, and provenance.
@@ -88,20 +90,21 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 
 ## Current verification
 
-- Generation specs: 24 passing.
-- Generation.DotNet specs: 19 passing.
-- Debug tests: green.
-- Release net8/net9/net10 build: zero warnings/errors.
-- Three NuGet packages created successfully.
-- Scratch package consumer generated and printed a valid Screenplay document.
+- Generation specs: 54 passing.
+- Generation.DotNet specs: 22 passing.
+- Debug and Release net8/net9/net10 builds: zero warnings/errors.
+- Concept output compiles and remains stable through print/compile/print.
+- Primitive, enum, missing representation, conflicting representation, same-name subject, exact reference, and shuffled-order cases are covered.
+- All three packages pack with sentinel version 9999.0.0.
+- A scratch consumer restored the sentinel Generation package, emitted a concept through the public API, and compiled the resulting Screenplay.
 
 ## Immediate next actions
 
-1. Commit this status update and open the SDK pull request.
-2. Add the `minor` release label and monitor CI to green.
-3. Merge and verify the three 1.0 packages are published.
-4. Use the published SDK versions in `Screenplay.CritterStack`.
-5. Derive Critter Stack adapter identity/version from assembly informational version.
+1. Complete and release neutral concept representation/resolution/lowering in [issue #6](https://github.com/Cratis/Screenplay.Generation/issues/6).
+2. Add concept attributes and validation facts/lowering without conflating them with representation or identity.
+3. Add authored-source helpers and the Vogen interpreter package in [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
+4. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
+5. Enable package validation after trusted publication through issue #3.
 
 ## Safety
 

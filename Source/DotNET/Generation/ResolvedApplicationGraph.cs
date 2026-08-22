@@ -122,6 +122,43 @@ public sealed record ResolvedRelationship
 }
 
 /// <summary>
+/// Represents one distinct concept representation and all evidence establishing it.
+/// </summary>
+public sealed record ResolvedConceptRepresentationVariant
+{
+    /// <summary>
+    /// Gets the asserted concept representation.
+    /// </summary>
+    public required ConceptRepresentationDefinition Definition { get; init; }
+
+    /// <summary>
+    /// Gets the ordered evidence supporting the representation.
+    /// </summary>
+    public IReadOnlyList<Evidence> Evidence { get; init; } = [];
+}
+
+/// <summary>
+/// Represents every distinct representation asserted for one concept subject.
+/// </summary>
+public sealed record ResolvedConceptRepresentation
+{
+    /// <summary>
+    /// Gets the concept subject.
+    /// </summary>
+    public required SubjectId Concept { get; init; }
+
+    /// <summary>
+    /// Gets the distinct representations in deterministic order.
+    /// </summary>
+    public IReadOnlyList<ResolvedConceptRepresentationVariant> Variants { get; init; } = [];
+
+    /// <summary>
+    /// Gets whether incompatible representations were asserted for the concept.
+    /// </summary>
+    public bool IsConflicted => Variants.Count > 1;
+}
+
+/// <summary>
 /// Represents the deterministic semantic graph resolved from all adapter contributions.
 /// </summary>
 public sealed record ResolvedApplicationGraph
@@ -130,6 +167,11 @@ public sealed record ResolvedApplicationGraph
     /// Gets the resolved artifacts in canonical order.
     /// </summary>
     public IReadOnlyList<ResolvedArtifact> Artifacts { get; init; } = [];
+
+    /// <summary>
+    /// Gets resolved concept representations in canonical subject order.
+    /// </summary>
+    public IReadOnlyList<ResolvedConceptRepresentation> ConceptRepresentations { get; init; } = [];
 
     /// <summary>
     /// Gets the resolved artifact placements in canonical order.

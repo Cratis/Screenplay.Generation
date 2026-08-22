@@ -38,7 +38,6 @@ public sealed class ScreenplayLowerer
     public ScreenplayLoweringResult Lower(ResolvedApplicationGraph graph, string domain)
     {
         var diagnostics = new List<GenerationDiagnostic>();
-        var context = new LoweringContext(graph);
         var placements = graph.Placements
             .Where(_ => !_.IsConflicted)
             .ToDictionary(_ => Canonical.ArtifactKey(_.Artifact), _ => _.EffectiveVariants.Single().Placement, StringComparer.Ordinal);
@@ -46,6 +45,9 @@ public sealed class ScreenplayLowerer
             .Where(_ => !_.IsConflicted)
             .Select(_ => _.Variants.Single().Definition)
             .ToArray();
+        var (concepts, conceptNames) = BuildConcepts(graph, definitions, diagnostics);
+        var artifactsWithMissingConceptReferences = ReportMissingConceptReferences(definitions, conceptNames, diagnostics);
+        var context = new LoweringContext(graph, conceptNames);
         foreach (var unplaced in definitions.Where(_ => CanLower(_.Key.Kind) && !placements.ContainsKey(Canonical.ArtifactKey(_.Key))))
         {
             diagnostics.Add(new GenerationDiagnostic
@@ -58,7 +60,8 @@ public sealed class ScreenplayLowerer
         }
 
         var artifacts = definitions
-            .Where(_ => placements.ContainsKey(Canonical.ArtifactKey(_.Key)))
+            .Where(_ => placements.ContainsKey(Canonical.ArtifactKey(_.Key)) &&
+                        !artifactsWithMissingConceptReferences.Contains(Canonical.ArtifactKey(_.Key)))
             .Select(_ => new PlacedArtifact(_, placements[Canonical.ArtifactKey(_.Key)]))
             .OrderBy(_ => Canonical.Artifact(_.Definition), StringComparer.Ordinal)
             .ToArray();
@@ -87,7 +90,7 @@ public sealed class ScreenplayLowerer
         {
             Application = new ApplicationSyntax(
                 [],
-                [],
+                concepts,
                 [],
                 modules,
                 _generated,
@@ -95,6 +98,145 @@ public sealed class ScreenplayLowerer
             Diagnostics = [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]
         };
     }
+
+    static (ConceptSyntax[] Concepts, IReadOnlyDictionary<string, string> Names) BuildConcepts(
+        ResolvedApplicationGraph graph,
+        IReadOnlyList<ArtifactDefinition> definitions,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        var conceptDefinitions = definitions.Where(_ => _.Key.Kind == ArtifactKind.Concept).ToArray();
+        var conflictingNames = conceptDefinitions
+            .GroupBy(_ => _.Name, StringComparer.Ordinal)
+            .Where(_ => _.Select(definition => definition.Key.Subject.Value).Distinct(StringComparer.Ordinal).Count() > 1)
+            .ToDictionary(_ => _.Key, _ => _.ToArray(), StringComparer.Ordinal);
+        foreach (var conflict in conflictingNames.OrderBy(_ => _.Key, StringComparer.Ordinal))
+        {
+            diagnostics.Add(new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.ConflictingConceptName,
+                Severity = GenerationDiagnosticSeverity.Error,
+                Message = $"Concept name '{conflict.Key}' is required by {conflict.Value.Length} distinct source subjects",
+                Subject = conflict.Value.OrderBy(_ => _.Key.Subject.Value, StringComparer.Ordinal).First().Key.Subject
+            });
+        }
+
+        var concepts = new List<ConceptSyntax>();
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var definition in conceptDefinitions
+                     .Where(_ => !conflictingNames.ContainsKey(_.Name))
+                     .OrderBy(_ => _.Name, StringComparer.Ordinal)
+                     .ThenBy(_ => _.Key.Subject.Value, StringComparer.Ordinal))
+        {
+            var resolved = graph.ConceptRepresentations.FirstOrDefault(_ => _.Concept == definition.Key.Subject);
+            if (resolved is null)
+            {
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.MissingConceptRepresentation,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Message = $"Concept '{definition.Name}' has no proven representation and was omitted",
+                    Subject = definition.Key.Subject
+                });
+                continue;
+            }
+
+            if (resolved.IsConflicted)
+            {
+                continue;
+            }
+
+            var representation = resolved.Variants.Single().Definition;
+            if (TypeOf(representation) is not { } type)
+            {
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.UnsupportedConceptRepresentation,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Message = $"Concept '{definition.Name}' has an invalid or unsupported {representation.Kind} representation and was omitted",
+                    Subject = definition.Key.Subject
+                });
+                continue;
+            }
+
+            IReadOnlyList<string> values = representation.Kind == ConceptRepresentationKind.Enumeration
+                ? [.. representation.EnumerationValues.Select(EnumValue)]
+                : [];
+            if (values.Any(_ => !IsEnumValue(_)) || values.Distinct(StringComparer.Ordinal).Count() != values.Count)
+            {
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.UnsupportedConceptRepresentation,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Message = $"Concept '{definition.Name}' has empty or duplicate enumeration values after Screenplay naming and was omitted",
+                    Subject = definition.Key.Subject
+                });
+                continue;
+            }
+
+            concepts.Add(new ConceptSyntax(definition.Name, type, [], values, _generated)
+            {
+                File = FileFrom(definition.File)
+            });
+            names[definition.Key.Subject.Value] = definition.Name;
+        }
+
+        return ([.. concepts], names);
+    }
+
+    static HashSet<string> ReportMissingConceptReferences(
+        IEnumerable<ArtifactDefinition> definitions,
+        IReadOnlyDictionary<string, string> conceptNames,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        var missing = definitions
+            .SelectMany(definition => definition.Properties
+                .Where(property => property.Type.Subject is not null && !conceptNames.ContainsKey(property.Type.Subject.Value))
+                .Select(property => new { Artifact = definition.Key, property.Type }))
+            .ToArray();
+        foreach (var type in missing
+                     .GroupBy(_ => _.Type.Subject!.Value, StringComparer.Ordinal)
+                     .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                     .Select(_ => _.First().Type))
+        {
+            diagnostics.Add(new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.MissingConceptReference,
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Message = $"Type reference '{type.Name}' targets concept '{type.Subject!.Value}', which could not be emitted",
+                Subject = type.Subject
+            });
+        }
+
+        return [.. missing.Select(_ => Canonical.ArtifactKey(_.Artifact))];
+    }
+
+    static string EnumValue(string value) => value.Length == 0
+        ? value
+        : $"{char.ToLowerInvariant(value[0])}{value[1..]}";
+
+    static bool IsEnumValue(string value) =>
+        value.Length > 0 &&
+        (value[0] == '_' || char.IsLower(value[0])) &&
+        value.Skip(1).All(_ => _ == '_' || char.IsLetterOrDigit(_)) &&
+        !string.Equals(value, "file", StringComparison.Ordinal) &&
+        !string.Equals(value, "validate", StringComparison.Ordinal);
+
+    static string? TypeOf(ConceptRepresentationDefinition representation) => representation.Kind switch
+    {
+        ConceptRepresentationKind.Primitive when representation.Primitive is not null && representation.EnumerationValues.Count == 0 => representation.Primitive.Value switch
+        {
+            GenerationPrimitiveKind.Uuid => "Uuid",
+            GenerationPrimitiveKind.Text => "String",
+            GenerationPrimitiveKind.WholeNumber => "Int",
+            GenerationPrimitiveKind.Number => "Decimal",
+            GenerationPrimitiveKind.Boolean => "Bool",
+            GenerationPrimitiveKind.Date => "Date",
+            GenerationPrimitiveKind.DateTime => "DateTime",
+            _ => null
+        },
+        ConceptRepresentationKind.Enumeration when representation.Primitive is null && representation.EnumerationValues.Count > 0 => "Enum",
+        _ => null
+    };
 
     static bool CanLower(ArtifactKind kind) => kind is ArtifactKind.Command or ArtifactKind.Event or ArtifactKind.Query or ArtifactKind.ReadModel or ArtifactKind.Reducer;
 
@@ -139,7 +281,7 @@ public sealed class ScreenplayLowerer
             .Select(_ => _.Definition)
             .Where(_ => _.Key.Kind == ArtifactKind.Event)
             .OrderBy(_ => _.Name, StringComparer.Ordinal)
-            .Select(BuildEvent)
+            .Select(_ => BuildEvent(_, context))
             .ToArray();
         var queries = artifacts
             .Select(_ => _.Definition)
@@ -153,7 +295,7 @@ public sealed class ScreenplayLowerer
             .Select(_ => _.Definition)
             .Where(_ => _.Key.Kind == ArtifactKind.ReadModel)
             .OrderBy(_ => _.Name, StringComparer.Ordinal)
-            .Select(BuildReadModel)
+            .Select(_ => BuildReadModel(_, context))
             .ToArray();
         var reducers = artifacts
             .Select(_ => _.Definition)
@@ -209,7 +351,7 @@ public sealed class ScreenplayLowerer
 
         return new(
             definition.Name,
-            definition.Properties.Select(BuildProperty),
+            definition.Properties.Select(_ => BuildProperty(_, context)),
             null,
             [],
             produces,
@@ -243,10 +385,10 @@ public sealed class ScreenplayLowerer
         var identifyingProperty = definition.Properties.FirstOrDefault(_ => _.IsIdentifier);
         var by = identifyingProperty is null
             ? null
-            : new QueryParameterSyntax(identifyingProperty.Name, BuildType(identifyingProperty.Type), _generated);
+            : new QueryParameterSyntax(identifyingProperty.Name, BuildType(identifyingProperty.Type, context), _generated);
         var filters = definition.Properties
             .Where(_ => _ != identifyingProperty)
-            .Select(_ => new QueryParameterSyntax(_.Name, BuildType(_.Type), _generated))
+            .Select(_ => new QueryParameterSyntax(_.Name, BuildType(_.Type, context), _generated))
             .ToArray();
         var relationship = returns[0];
 
@@ -261,17 +403,17 @@ public sealed class ScreenplayLowerer
             definition.File is null ? null : new PerformerSyntax(FileFrom(definition.File), null, _generated));
     }
 
-    static EventSyntax BuildEvent(ArtifactDefinition definition) => new(
+    static EventSyntax BuildEvent(ArtifactDefinition definition, LoweringContext context) => new(
         definition.Name,
-        definition.Properties.Select(BuildProperty),
+        definition.Properties.Select(_ => BuildProperty(_, context)),
         _generated)
     {
         File = FileFrom(definition.File)
     };
 
-    static ReadModelSyntax BuildReadModel(ArtifactDefinition definition) => new(
+    static ReadModelSyntax BuildReadModel(ArtifactDefinition definition, LoweringContext context) => new(
         definition.Name,
-        definition.Properties.Select(BuildProperty),
+        definition.Properties.Select(_ => BuildProperty(_, context)),
         _generated,
         definition.Description)
     {
@@ -323,14 +465,14 @@ public sealed class ScreenplayLowerer
         return new(definition.Name, readModel, rules, _generated, definition.Description);
     }
 
-    static PropertySyntax BuildProperty(PropertyDefinition property) => new(
+    static PropertySyntax BuildProperty(PropertyDefinition property, LoweringContext context) => new(
         property.Name,
-        BuildType(property.Type),
+        BuildType(property.Type, context),
         _generated,
         property.IsIdentifier);
 
-    static TypeRefSyntax BuildType(TypeReferenceDefinition type) => new(
-        type.Name,
+    static TypeRefSyntax BuildType(TypeReferenceDefinition type, LoweringContext context) => new(
+        context.TypeName(type),
         type.IsCollection,
         type.IsOptional,
         _generated);
@@ -347,7 +489,9 @@ public sealed class ScreenplayLowerer
         _ => SliceType.StateChange
     };
 
-    sealed class LoweringContext(ResolvedApplicationGraph graph)
+    sealed class LoweringContext(
+        ResolvedApplicationGraph graph,
+        IReadOnlyDictionary<string, string> conceptNames)
     {
         readonly IReadOnlyList<RelationshipDefinition> _relationships =
         [
@@ -371,6 +515,11 @@ public sealed class ScreenplayLowerer
 
         public string? ArtifactName(SubjectId subject, ArtifactKind kind) =>
             _artifacts.FirstOrDefault(_ => _.Key.Subject == subject && _.Key.Kind == kind)?.Name;
+
+        public string TypeName(TypeReferenceDefinition type) =>
+            type.Subject is not null && conceptNames.TryGetValue(type.Subject.Value, out var conceptName)
+                ? conceptName
+                : type.Name;
     }
 
     sealed record PlacedArtifact(ArtifactDefinition Definition, ArtifactPlacement Placement);

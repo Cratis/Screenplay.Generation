@@ -173,6 +173,11 @@ public sealed record TypeReferenceDefinition
     public required string Name { get; init; }
 
     /// <summary>
+    /// Gets the exact source-level type subject when the reference targets a discovered artifact.
+    /// </summary>
+    public SubjectId? Subject { get; init; }
+
+    /// <summary>
     /// Gets whether the value is a collection.
     /// </summary>
     public bool IsCollection { get; init; }
