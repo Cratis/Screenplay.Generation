@@ -51,12 +51,12 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 ## Functionality already implemented locally
 
 - Typed adapter identity, subject identity, fact identity, evidence, source range, and diagnostics.
-- Artifact, placement, relationship, and concept-representation facts.
+- Artifact, placement, relationship, concept-representation, and concept-attribute facts.
 - Subject-aware type references for exact concept binding across projects and namespaces.
 - Deterministic fact resolution with duplicate collapse and conflict diagnostics.
 - Evidence-strength-aware placement resolution.
 - Lowering for concepts, events, read models, reducers, commands, and queries.
-- Primitive and enumeration concept lowering without module placement, with explicit missing/conflicting/unsupported diagnostics and no `String` fallback.
+- Primitive/enumeration concept and named attribute lowering without module placement, with explicit missing/conflicting/unsupported diagnostics and no `String` fallback.
 - Canonical Screenplay printing and compiler verification.
 - Reusable Roslyn compilation context, artifact catalog, symbol IDs, generated-source recognition, source ranges, type-shape conversion, and adapter interface.
 - Dedicated specs for deterministic generation, conflicts, evidence-strength placement, unplaced artifacts, source cataloging, generated source, type shapes, and provenance.
@@ -90,7 +90,7 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 
 ## Current verification
 
-- Generation specs: 54 passing.
+- Generation specs: 64 passing.
 - Generation.DotNet specs: 22 passing.
 - Debug and Release net8/net9/net10 builds: zero warnings/errors.
 - Concept output compiles and remains stable through print/compile/print.
@@ -101,7 +101,7 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 ## Immediate next actions
 
 1. Complete and release neutral concept representation/resolution/lowering in [issue #6](https://github.com/Cratis/Screenplay.Generation/issues/6).
-2. Add concept attributes and validation facts/lowering without conflating them with representation or identity.
+2. Add concept validation facts/resolution/lowering without conflating validation with representation, attributes, or identity.
 3. Add authored-source helpers and the Vogen interpreter package in [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
 4. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
 5. Enable package validation after trusted publication through issue #3.
