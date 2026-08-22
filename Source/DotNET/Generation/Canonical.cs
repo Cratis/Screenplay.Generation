@@ -42,6 +42,18 @@ static class Canonical
     public static string ConceptAttributeKey(ConceptAttributeDefinition definition) =>
         Join(definition.Concept.Value, Encode(definition.Name));
 
+    public static string ConceptValidationRule(ConceptValidationRuleDefinition definition) =>
+        Join(
+            definition.Concept.Value,
+            Encode(definition.RuleIdentity),
+            definition.Kind.ToString(),
+            Encode(definition.Predicate),
+            Encode(definition.Message),
+            Encode(definition.ImplementationFile));
+
+    public static string ConceptValidationRuleKey(ConceptValidationRuleDefinition definition) =>
+        Join(definition.Concept.Value, Encode(definition.RuleIdentity));
+
     public static string Placement(ArtifactPlacement placement) =>
         Join(
             placement.Module,

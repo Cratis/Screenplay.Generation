@@ -35,9 +35,9 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 
 - GitHub repository created: <https://github.com/Cratis/Screenplay.Generation>
 - Local repository: `/Volumes/sourcecode/repos/cratis/Screenplay.Generation`
-- `main` is synchronized with `origin/main` through the initial `v0.1.0` SDK release and repository maintenance.
-- Current feature branch: `feat/neutral-concept-representations`.
-- Latest GitHub release: [`v0.1.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.1.0).
+- `main` is synchronized with `origin/main` through the `v0.3.0` neutral concept SDK release.
+- Current feature branch: `feat/named-concept-validation`.
+- Latest GitHub release: [`v0.3.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.3.0).
 - NuGet publication remains blocked by [issue #2](https://github.com/Cratis/Screenplay.Generation/issues/2); verified packages are attached to the release and available through the local feed.
 
 ## Projects transferred
@@ -51,12 +51,12 @@ This mirrors the current Arc architecture: Arc publishes `Cratis.Arc.Screenplay`
 ## Functionality already implemented locally
 
 - Typed adapter identity, subject identity, fact identity, evidence, source range, and diagnostics.
-- Artifact, placement, relationship, concept-representation, and concept-attribute facts.
+- Artifact, placement, relationship, concept-representation, concept-attribute, and concept-validation-rule facts.
 - Subject-aware type references for exact concept binding across projects and namespaces.
 - Deterministic fact resolution with duplicate collapse and conflict diagnostics.
 - Evidence-strength-aware placement resolution.
 - Lowering for concepts, events, read models, reducers, commands, and queries.
-- Primitive/enumeration concept and named attribute lowering without module placement, with explicit missing/conflicting/unsupported diagnostics and no `String` fallback.
+- Primitive/enumeration concept, named attribute, and named external predicate validation lowering without module placement, with explicit missing/conflicting/unsupported diagnostics and no `String` fallback.
 - Canonical Screenplay printing and compiler verification.
 - Reusable Roslyn compilation context, artifact catalog, symbol IDs, generated-source recognition, source ranges, type-shape conversion, and adapter interface.
 - Dedicated specs for deterministic generation, conflicts, evidence-strength placement, unplaced artifacts, source cataloging, generated source, type shapes, and provenance.
@@ -90,21 +90,20 @@ The Critter Stack source and fixture specs now live in the separate `Screenplay.
 
 ## Current verification
 
-- Generation specs: 64 passing.
+- Generation specs: 93 passing.
 - Generation.DotNet specs: 22 passing.
 - Debug and Release net8/net9/net10 builds: zero warnings/errors.
 - Concept output compiles and remains stable through print/compile/print.
-- Primitive, enum, missing representation, conflicting representation, same-name subject, exact reference, and shuffled-order cases are covered.
+- Primitive, enum, missing/conflicting representation, named attributes, exact subject references, duplicate/conflicting validation rules, invalid predicate omission, and shuffled-order cases are covered.
 - All three packages pack with sentinel version 9999.0.0.
-- A scratch consumer restored the sentinel Generation package, emitted a concept through the public API, and compiled the resulting Screenplay.
+- A scratch consumer restored the sentinel Generation package, emitted a concept with a named validation rule through the public API, and compiled the resulting Screenplay.
 
 ## Immediate next actions
 
-1. Complete and release neutral concept representation/resolution/lowering in [issue #6](https://github.com/Cratis/Screenplay.Generation/issues/6).
-2. Add concept validation facts/resolution/lowering without conflating validation with representation, attributes, or identity.
-3. Add authored-source helpers and the Vogen interpreter package in [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
-4. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
-5. Enable package validation after trusted publication through issue #3.
+1. Release named external concept validation rules to complete [issue #6](https://github.com/Cratis/Screenplay.Generation/issues/6).
+2. Add authored-source helpers and the Vogen interpreter package in [issue #7](https://github.com/Cratis/Screenplay.Generation/issues/7).
+3. Compose Vogen contributions with Critter Stack through its pinned canonical fixture in [`Cratis/Screenplay.CritterStack#25`](https://github.com/Cratis/Screenplay.CritterStack/issues/25).
+4. Enable package validation after trusted publication through issue #3.
 
 ## Safety
 

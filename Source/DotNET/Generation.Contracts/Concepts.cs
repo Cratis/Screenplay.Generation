@@ -61,6 +61,17 @@ public enum GenerationPrimitiveKind
 }
 
 /// <summary>
+/// Defines the framework-neutral kinds of validation rules that can be asserted for a concept.
+/// </summary>
+public enum ConceptValidationRuleKind
+{
+    /// <summary>
+    /// The concept value must satisfy a named predicate implemented outside the generated document.
+    /// </summary>
+    NamedPredicate = 0
+}
+
+/// <summary>
 /// Describes the independently proven representation of a concept.
 /// </summary>
 public sealed record ConceptRepresentationDefinition
@@ -127,4 +138,55 @@ public sealed record ConceptAttributeFact : GenerationFact
     /// Gets the asserted concept attribute.
     /// </summary>
     public required ConceptAttributeDefinition Definition { get; init; }
+}
+
+/// <summary>
+/// Describes one validation rule applied to a concept independently of its representation and target syntax.
+/// </summary>
+public sealed record ConceptValidationRuleDefinition
+{
+    /// <summary>
+    /// Gets the exact source-level concept subject.
+    /// </summary>
+    public required SubjectId Concept { get; init; }
+
+    /// <summary>
+    /// Gets the stable adapter-authored identity used to resolve assertions about this rule.
+    /// </summary>
+    public required string RuleIdentity { get; init; }
+
+    /// <summary>
+    /// Gets the kind of validation rule.
+    /// </summary>
+    public required ConceptValidationRuleKind Kind { get; init; }
+
+    /// <summary>
+    /// Gets the named predicate used as the operand for <see cref="ConceptValidationRuleKind.NamedPredicate"/>.
+    /// </summary>
+    /// <remarks>
+    /// The predicate is required for named-predicate rules. It remains nullable in the transport shape so later rule kinds
+    /// can add typed operands without requiring adapters to supply an unrelated string value.
+    /// </remarks>
+    public string? Predicate { get; init; }
+
+    /// <summary>
+    /// Gets the optional message shown when validation fails.
+    /// </summary>
+    public string? Message { get; init; }
+
+    /// <summary>
+    /// Gets the optional authored file containing the predicate implementation.
+    /// </summary>
+    public string? ImplementationFile { get; init; }
+}
+
+/// <summary>
+/// Asserts one concept validation rule with its source evidence.
+/// </summary>
+public sealed record ConceptValidationRuleFact : GenerationFact
+{
+    /// <summary>
+    /// Gets the asserted concept validation rule.
+    /// </summary>
+    public required ConceptValidationRuleDefinition Definition { get; init; }
 }

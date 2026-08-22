@@ -1,0 +1,36 @@
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+namespace Cratis.Screenplay.Generation.for_GenerationResolver;
+
+public class when_resolving_a_concept_validation_rule_with_a_different_subject : given.facts
+{
+    ResolvedApplicationGraph _result = null!;
+
+    void Because()
+    {
+        var asserted = new SubjectId { Value = "dotnet://Banking/Concepts.Asserted" };
+        var defined = new SubjectId { Value = "dotnet://Banking/Concepts.Defined" };
+        _result = new GenerationResolver().Resolve(
+        [
+            Contribution(
+                FirstAdapter,
+                new ConceptValidationRuleFact
+                {
+                    Id = new FactId { Value = "validation" },
+                    Subject = asserted,
+                    Definition = new ConceptValidationRuleDefinition
+                    {
+                        Concept = defined,
+                        RuleIdentity = "format",
+                        Kind = ConceptValidationRuleKind.NamedPredicate,
+                        Predicate = "BeValid"
+                    },
+                    Evidence = new Evidence { Adapter = FirstAdapter, Strength = EvidenceStrength.Exact }
+                })
+        ]);
+    }
+
+    [Fact] void should_reject_the_validation_rule() => _result.ConceptValidationRules.ShouldBeEmpty();
+    [Fact] void should_report_the_invalid_fact() => _result.Diagnostics.Select(_ => _.Code).ShouldContain(GenerationDiagnosticCodes.InvalidConceptFact);
+}
