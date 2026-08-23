@@ -4,6 +4,27 @@
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>
+/// Defines the typed semantic outcome associated with a generation diagnostic.
+/// </summary>
+public enum GenerationDiagnosticOutcome
+{
+    /// <summary>
+    /// The input or required semantic role is unknown and was not guessed.
+    /// </summary>
+    Unknown = -1,
+
+    /// <summary>
+    /// Incompatible assertions were retained without choosing a winner.
+    /// </summary>
+    Conflict = 0,
+
+    /// <summary>
+    /// The input or recognized behavior cannot be represented safely.
+    /// </summary>
+    Unsupported = 1
+}
+
+/// <summary>
 /// Defines the severity of a generation diagnostic.
 /// </summary>
 public enum GenerationDiagnosticSeverity
@@ -43,6 +64,11 @@ public sealed record GenerationDiagnostic
     /// Gets the human-readable diagnostic message.
     /// </summary>
     public required string Message { get; init; }
+
+    /// <summary>
+    /// Gets the typed semantic outcome, when the diagnostic describes an unknown, conflict, or unsupported result.
+    /// </summary>
+    public GenerationDiagnosticOutcome? Outcome { get; init; }
 
     /// <summary>
     /// Gets the source range associated with the diagnostic, when available.

@@ -115,6 +115,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
             {
                 Code = VogenGenerationDiagnosticCodes.UnsupportedBackingType,
                 Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Vogen concept '{type.Name}' uses unsupported backing type '{DisplayName(backing.Type)}'; no concept representation was contributed",
                 Source = DotNetSource.EvidenceFor(
                     backing.Evidence,
@@ -206,6 +207,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         {
             Code = VogenGenerationDiagnosticCodes.InputNormalizationNotRepresented,
             Severity = GenerationDiagnosticSeverity.Warning,
+            Outcome = GenerationDiagnosticOutcome.Unsupported,
             Message = $"Vogen concept '{type.Name}' normalizes input with authored method 'NormalizeInput'; Screenplay concept validation cannot preserve normalization and no validation fact was contributed for it",
             Source = EvidenceFor(project, normalization, identity).Source,
             Subject = subject
@@ -228,6 +230,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
             {
                 Code = VogenGenerationDiagnosticCodes.NamedInstanceNotRepresented,
                 Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Vogen concept '{type.Name}' declares {displayName}; Screenplay generation does not treat named instances as optional values or defaults and no concept fact was contributed for it",
                 Source = DotNetSource.EvidenceFor(
                     attribute,

@@ -9,6 +9,11 @@ namespace Cratis.Screenplay.Generation;
 public enum ArtifactKind
 {
     /// <summary>
+    /// The adapter could not determine a supported artifact role.
+    /// </summary>
+    Unknown = -1,
+
+    /// <summary>
     /// A deployable application host.
     /// </summary>
     ApplicationHost = 0,
@@ -99,6 +104,11 @@ public enum ArtifactKind
 /// </summary>
 public enum GenerationSliceKind
 {
+    /// <summary>
+    /// The adapter could not determine a supported slice role.
+    /// </summary>
+    Unknown = -1,
+
     /// <summary>
     /// A command that changes state.
     /// </summary>

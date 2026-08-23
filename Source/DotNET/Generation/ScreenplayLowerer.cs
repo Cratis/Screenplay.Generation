@@ -38,6 +38,7 @@ public sealed class ScreenplayLowerer
     public ScreenplayLoweringResult Lower(ResolvedApplicationGraph graph, string domain)
     {
         var diagnostics = new List<GenerationDiagnostic>();
+        ReportUnsupportedRelationships(graph, diagnostics);
         var placements = graph.Placements
             .Where(_ => !_.IsConflicted)
             .ToDictionary(_ => Canonical.ArtifactKey(_.Artifact), _ => _.EffectiveVariants.Single().Placement, StringComparer.Ordinal);
@@ -48,31 +49,39 @@ public sealed class ScreenplayLowerer
         var (concepts, conceptNames) = BuildConcepts(graph, definitions, diagnostics);
         var artifactsWithMissingConceptReferences = ReportMissingConceptReferences(definitions, conceptNames, diagnostics);
         var context = new LoweringContext(graph, conceptNames);
-        foreach (var unplaced in definitions.Where(_ => CanLower(_.Key.Kind) && !placements.ContainsKey(Canonical.ArtifactKey(_.Key))))
+        foreach (var unplaced in definitions.Where(_ =>
+                     _.Key.Kind != ArtifactKind.Concept &&
+                     !placements.ContainsKey(Canonical.ArtifactKey(_.Key))))
         {
-            diagnostics.Add(new GenerationDiagnostic
-            {
-                Code = GenerationDiagnosticCodes.IncompleteArtifact,
-                Severity = GenerationDiagnosticSeverity.Warning,
-                Message = $"The recognized {unplaced.Key.Kind} artifact '{unplaced.Name}' has no Screenplay placement and was omitted",
-                Subject = unplaced.Key.Subject
-            });
+            diagnostics.Add(UnplacedArtifactDiagnostic(unplaced, SourceForArtifact(graph, unplaced.Key)));
         }
 
         var artifacts = definitions
             .Where(_ => placements.ContainsKey(Canonical.ArtifactKey(_.Key)) &&
                         !artifactsWithMissingConceptReferences.Contains(Canonical.ArtifactKey(_.Key)))
-            .Select(_ => new PlacedArtifact(_, placements[Canonical.ArtifactKey(_.Key)]))
+            .Select(_ => new PlacedArtifact(
+                _,
+                placements[Canonical.ArtifactKey(_.Key)],
+                SourceForPlacement(graph, _.Key)))
             .OrderBy(_ => Canonical.Artifact(_.Definition), StringComparer.Ordinal)
             .ToArray();
 
-        foreach (var unsupported in artifacts.Where(_ => !CanLower(_.Definition.Key.Kind)))
+        foreach (var unsupported in artifacts.Where(_ =>
+                     _.Definition.Key.Kind != ArtifactKind.Concept &&
+                     !CanLower(_.Definition.Key.Kind)))
         {
+            var isKnownKind = IsKnownArtifactKind(unsupported.Definition.Key.Kind);
             diagnostics.Add(new GenerationDiagnostic
             {
-                Code = GenerationDiagnosticCodes.UnsupportedArtifact,
+                Code = isKnownKind ? GenerationDiagnosticCodes.UnsupportedArtifact : GenerationDiagnosticCodes.UnsupportedArtifactKind,
                 Severity = GenerationDiagnosticSeverity.Warning,
-                Message = $"The recognized {unsupported.Definition.Key.Kind} artifact '{unsupported.Definition.Name}' cannot yet be represented by the Screenplay lowerer and was omitted",
+                Outcome = isKnownKind
+                    ? GenerationDiagnosticOutcome.Unsupported
+                    : OutcomeFor(unsupported.Definition.Key.Kind, ArtifactKind.Unknown),
+                Message = isKnownKind
+                    ? $"The recognized {unsupported.Definition.Key.Kind} artifact '{unsupported.Definition.Name}' cannot yet be represented by the Screenplay lowerer and was omitted"
+                    : $"Artifact '{unsupported.Definition.Name}' uses unknown or undefined ArtifactKind value '{(int)unsupported.Definition.Key.Kind}' and was omitted",
+                Source = SourceForArtifact(graph, unsupported.Definition.Key),
                 Subject = unsupported.Definition.Key.Subject
             });
         }
@@ -115,6 +124,7 @@ public sealed class ScreenplayLowerer
             {
                 Code = GenerationDiagnosticCodes.ConflictingConceptName,
                 Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = GenerationDiagnosticOutcome.Conflict,
                 Message = $"Concept name '{conflict.Key}' is required by {conflict.Value.Length} distinct source subjects",
                 Subject = conflict.Value.OrderBy(_ => _.Key.Subject.Value, StringComparer.Ordinal).First().Key.Subject
             });
@@ -134,6 +144,7 @@ public sealed class ScreenplayLowerer
                 {
                     Code = GenerationDiagnosticCodes.MissingConceptRepresentation,
                     Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = GenerationDiagnosticOutcome.Unknown,
                     Message = $"Concept '{definition.Name}' has no proven representation and was omitted",
                     Subject = definition.Key.Subject
                 });
@@ -145,14 +156,46 @@ public sealed class ScreenplayLowerer
                 continue;
             }
 
-            var representation = resolved.Variants.Single().Definition;
+            var representationVariant = resolved.Variants.Single();
+            var representation = representationVariant.Definition;
+            if (representation.Kind == ConceptRepresentationKind.Unknown || !Enum.IsDefined(representation.Kind))
+            {
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.UnsupportedConceptRepresentationKind,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = OutcomeFor(representation.Kind, ConceptRepresentationKind.Unknown),
+                    Message = $"Concept '{definition.Name}' uses unknown or undefined ConceptRepresentationKind value '{(int)representation.Kind}' and was omitted",
+                    Source = FirstSource(representationVariant.Evidence),
+                    Subject = definition.Key.Subject
+                });
+                continue;
+            }
+
+            if (representation.Primitive is { } primitive &&
+                (primitive == GenerationPrimitiveKind.Unknown || !Enum.IsDefined(primitive)))
+            {
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.UnsupportedPrimitiveKind,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = OutcomeFor(primitive, GenerationPrimitiveKind.Unknown),
+                    Message = $"Concept '{definition.Name}' uses unknown or undefined GenerationPrimitiveKind value '{(int)primitive}' and was omitted",
+                    Source = FirstSource(representationVariant.Evidence),
+                    Subject = definition.Key.Subject
+                });
+                continue;
+            }
+
             if (TypeOf(representation) is not { } type)
             {
                 diagnostics.Add(new GenerationDiagnostic
                 {
                     Code = GenerationDiagnosticCodes.UnsupportedConceptRepresentation,
                     Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = GenerationDiagnosticOutcome.Unsupported,
                     Message = $"Concept '{definition.Name}' has an invalid or unsupported {representation.Kind} representation and was omitted",
+                    Source = FirstSource(representationVariant.Evidence),
                     Subject = definition.Key.Subject
                 });
                 continue;
@@ -167,7 +210,9 @@ public sealed class ScreenplayLowerer
                 {
                     Code = GenerationDiagnosticCodes.UnsupportedConceptRepresentation,
                     Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = GenerationDiagnosticOutcome.Unsupported,
                     Message = $"Concept '{definition.Name}' has empty or duplicate enumeration values after Screenplay naming and was omitted",
+                    Source = FirstSource(representationVariant.Evidence),
                     Subject = definition.Key.Subject
                 });
                 continue;
@@ -196,13 +241,29 @@ public sealed class ScreenplayLowerer
                      .OrderBy(_ => _.Name, StringComparer.Ordinal))
         {
             var definition = resolved.Variants.Single().Definition;
+            if (definition.Kind != ConceptAttributeKind.Named)
+            {
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.UnsupportedConceptAttributeKind,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = OutcomeFor(definition.Kind, ConceptAttributeKind.Unknown),
+                    Message = $"Concept '{concept.Name}' has unknown or undefined ConceptAttributeKind value '{(int)definition.Kind}', which was omitted",
+                    Source = FirstSource(resolved.Variants.Single().Evidence),
+                    Subject = concept.Key.Subject
+                });
+                continue;
+            }
+
             if (!IsIdentifier(definition.Name))
             {
                 diagnostics.Add(new GenerationDiagnostic
                 {
                     Code = GenerationDiagnosticCodes.UnsupportedConceptAttribute,
                     Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = GenerationDiagnosticOutcome.Unsupported,
                     Message = $"Concept '{concept.Name}' has invalid attribute name '{definition.Name}', which was omitted",
+                    Source = FirstSource(resolved.Variants.Single().Evidence),
                     Subject = concept.Key.Subject
                 });
                 continue;
@@ -226,7 +287,12 @@ public sealed class ScreenplayLowerer
         {
             if (string.IsNullOrWhiteSpace(resolved.RuleIdentity))
             {
-                ReportUnsupportedValidation(concept, resolved.RuleIdentity, "has no rule identity", diagnostics);
+                ReportUnsupportedValidation(
+                    concept,
+                    resolved.RuleIdentity,
+                    "has no rule identity",
+                    FirstSource(resolved.Variants.SelectMany(_ => _.Evidence)),
+                    diagnostics);
                 continue;
             }
 
@@ -235,13 +301,33 @@ public sealed class ScreenplayLowerer
                 continue;
             }
 
-            var definition = resolved.Variants.Single().Definition;
+            var validationVariant = resolved.Variants.Single();
+            var definition = validationVariant.Definition;
+            if (definition.Kind == ConceptValidationRuleKind.Unknown || !Enum.IsDefined(definition.Kind))
+            {
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.UnsupportedConceptValidationRuleKind,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = OutcomeFor(definition.Kind, ConceptValidationRuleKind.Unknown),
+                    Message = $"Concept '{concept.Name}' validation rule '{definition.RuleIdentity}' uses unknown or undefined ConceptValidationRuleKind value '{(int)definition.Kind}' and was omitted",
+                    Source = FirstSource(validationVariant.Evidence),
+                    Subject = concept.Key.Subject
+                });
+                continue;
+            }
+
             if (definition.Kind != ConceptValidationRuleKind.NamedPredicate ||
                 definition.Predicate is not { } predicate ||
                 !IsRuleIdentifier(predicate) ||
                 !IsValidImplementationFile(definition.ImplementationFile))
             {
-                ReportUnsupportedValidation(concept, definition.RuleIdentity, "has invalid or missing required data", diagnostics);
+                ReportUnsupportedValidation(
+                    concept,
+                    definition.RuleIdentity,
+                    "has invalid or missing required data",
+                    FirstSource(validationVariant.Evidence),
+                    diagnostics);
                 continue;
             }
 
@@ -263,12 +349,15 @@ public sealed class ScreenplayLowerer
         ArtifactDefinition concept,
         string? ruleIdentity,
         string reason,
+        SourceRange? source,
         List<GenerationDiagnostic> diagnostics) =>
         diagnostics.Add(new GenerationDiagnostic
         {
             Code = GenerationDiagnosticCodes.UnsupportedConceptValidationRule,
             Severity = GenerationDiagnosticSeverity.Warning,
+            Outcome = GenerationDiagnosticOutcome.Unsupported,
             Message = $"Concept '{concept.Name}' validation rule '{ruleIdentity ?? string.Empty}' {reason} and was omitted",
+            Source = source,
             Subject = concept.Key.Subject
         });
 
@@ -291,6 +380,7 @@ public sealed class ScreenplayLowerer
             {
                 Code = GenerationDiagnosticCodes.MissingConceptReference,
                 Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = GenerationDiagnosticOutcome.Unknown,
                 Message = $"Type reference '{type.Name}' targets concept '{type.Subject!.Value}', which could not be emitted",
                 Subject = type.Subject
             });
@@ -343,7 +433,93 @@ public sealed class ScreenplayLowerer
         _ => null
     };
 
+    static void ReportUnsupportedRelationships(
+        ResolvedApplicationGraph graph,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        foreach (var relationship in graph.Relationships.Where(_ =>
+                     _.Key.Kind == RelationshipKind.Unknown ||
+                     !Enum.IsDefined(_.Key.Kind)))
+        {
+            diagnostics.Add(new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.UnsupportedRelationshipKind,
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = OutcomeFor(relationship.Key.Kind, RelationshipKind.Unknown),
+                Message = $"Relationship from '{relationship.Key.Source.Value}' to '{relationship.Key.Target.Value}' uses unknown or undefined RelationshipKind value '{(int)relationship.Key.Kind}' and was omitted",
+                Source = FirstSource(relationship.Evidence),
+                Subject = relationship.Key.Source
+            });
+        }
+    }
+
+    static GenerationDiagnostic UnplacedArtifactDiagnostic(ArtifactDefinition artifact, SourceRange? source)
+    {
+        if (!IsKnownArtifactKind(artifact.Key.Kind))
+        {
+            return new()
+            {
+                Code = GenerationDiagnosticCodes.UnsupportedArtifactKind,
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = OutcomeFor(artifact.Key.Kind, ArtifactKind.Unknown),
+                Message = $"Artifact '{artifact.Name}' uses unknown or undefined ArtifactKind value '{(int)artifact.Key.Kind}' and was omitted",
+                Source = source,
+                Subject = artifact.Key.Subject
+            };
+        }
+
+        if (!CanLower(artifact.Key.Kind))
+        {
+            return new()
+            {
+                Code = GenerationDiagnosticCodes.UnsupportedArtifact,
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
+                Message = $"The recognized {artifact.Key.Kind} artifact '{artifact.Name}' cannot yet be represented by the Screenplay lowerer and was omitted",
+                Source = source,
+                Subject = artifact.Key.Subject
+            };
+        }
+
+        return new()
+        {
+            Code = GenerationDiagnosticCodes.IncompleteArtifact,
+            Severity = GenerationDiagnosticSeverity.Warning,
+            Outcome = GenerationDiagnosticOutcome.Unknown,
+            Message = $"The recognized {artifact.Key.Kind} artifact '{artifact.Name}' has no Screenplay placement and was omitted",
+            Source = source,
+            Subject = artifact.Key.Subject
+        };
+    }
+
+    static SourceRange? SourceForArtifact(ResolvedApplicationGraph graph, ArtifactKey key) =>
+        FirstSource(graph.Artifacts
+            .Where(_ => Canonical.ArtifactKey(_.Key) == Canonical.ArtifactKey(key))
+            .SelectMany(_ => _.Variants)
+            .SelectMany(_ => _.Evidence));
+
+    static SourceRange? SourceForPlacement(ResolvedApplicationGraph graph, ArtifactKey key) =>
+        FirstSource(graph.Placements
+            .Where(_ => Canonical.ArtifactKey(_.Artifact) == Canonical.ArtifactKey(key))
+            .SelectMany(_ => _.EffectiveVariants)
+            .SelectMany(_ => _.Evidence));
+
+    static SourceRange? FirstSource(IEnumerable<Evidence> evidence) =>
+        evidence
+            .Where(_ => _.Source is not null)
+            .OrderBy(Canonical.Evidence, StringComparer.Ordinal)
+            .Select(_ => _.Source)
+            .FirstOrDefault();
+
+    static bool IsKnownArtifactKind(ArtifactKind kind) => Enum.IsDefined(kind) && kind != ArtifactKind.Unknown;
+
     static bool CanLower(ArtifactKind kind) => kind is ArtifactKind.Command or ArtifactKind.Event or ArtifactKind.Query or ArtifactKind.ReadModel or ArtifactKind.Reducer;
+
+    static GenerationDiagnosticOutcome OutcomeFor<TEnum>(TEnum value, TEnum unknown)
+        where TEnum : struct, Enum =>
+        EqualityComparer<TEnum>.Default.Equals(value, unknown)
+            ? GenerationDiagnosticOutcome.Unknown
+            : GenerationDiagnosticOutcome.Unsupported;
 
     static ModuleSyntax BuildModule(
         string name,
@@ -366,7 +542,7 @@ public sealed class ScreenplayLowerer
             feature.Add(artifact);
         }
 
-        return new(name, [], root.Children.Values.Select(_ => _.Build(context, diagnostics)), _generated);
+        return new(name, [], [.. root.Children.Values.Select(_ => _.Build(context, diagnostics))], _generated);
     }
 
     static SliceSyntax BuildSlice(
@@ -481,6 +657,7 @@ public sealed class ScreenplayLowerer
             {
                 Code = GenerationDiagnosticCodes.IncompleteArtifact,
                 Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = GenerationDiagnosticOutcome.Unknown,
                 Message = $"Query '{definition.Name}' was omitted because it does not return exactly one known read model",
                 Subject = definition.Key.Subject
             });
@@ -541,6 +718,7 @@ public sealed class ScreenplayLowerer
             {
                 Code = GenerationDiagnosticCodes.IncompleteArtifact,
                 Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = GenerationDiagnosticOutcome.Unknown,
                 Message = $"Reducer '{definition.Name}' was omitted because it does not identify exactly one read model and at least one consumed event",
                 Subject = definition.Key.Subject
             });
@@ -561,6 +739,7 @@ public sealed class ScreenplayLowerer
             {
                 Code = GenerationDiagnosticCodes.IncompleteArtifact,
                 Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = GenerationDiagnosticOutcome.Unknown,
                 Message = $"Reducer '{definition.Name}' was omitted because none of its consumed event subjects resolve to event artifacts",
                 Subject = definition.Key.Subject
             });
@@ -591,7 +770,7 @@ public sealed class ScreenplayLowerer
         GenerationSliceKind.StateView => SliceType.StateView,
         GenerationSliceKind.Automation => SliceType.Automation,
         GenerationSliceKind.Translate => SliceType.Translate,
-        _ => SliceType.StateChange
+        _ => throw new InvalidOperationException("Slice kinds must be validated before lowering")
     };
 
     sealed class LoweringContext(
@@ -601,7 +780,9 @@ public sealed class ScreenplayLowerer
         readonly IReadOnlyList<RelationshipDefinition> _relationships =
         [
             .. graph.Relationships
-                .Where(_ => !_.IsConflicted)
+                .Where(_ => !_.IsConflicted &&
+                            _.Key.Kind != RelationshipKind.Unknown &&
+                            Enum.IsDefined(_.Key.Kind))
                 .Select(_ => _.Definitions.Single())
         ];
         readonly IReadOnlyList<ArtifactDefinition> _artifacts =
@@ -627,7 +808,10 @@ public sealed class ScreenplayLowerer
                 : type.Name;
     }
 
-    sealed record PlacedArtifact(ArtifactDefinition Definition, ArtifactPlacement Placement);
+    sealed record PlacedArtifact(
+        ArtifactDefinition Definition,
+        ArtifactPlacement Placement,
+        SourceRange? Source);
 
     sealed class FeatureNode(string name)
     {
@@ -664,16 +848,18 @@ public sealed class ScreenplayLowerer
             var slices = _slices
                 .OrderBy(_ => _.Key, StringComparer.Ordinal)
                 .Select(_ => BuildSliceGroup(_.Key, _.Value, context, diagnostics))
+                .Where(_ => _ is not null)
+                .Cast<SliceSyntax>()
                 .ToArray();
 
             return new(
                 Name,
-                Children.Values.Select(_ => _.Build(context, diagnostics)),
+                [.. Children.Values.Select(_ => _.Build(context, diagnostics))],
                 slices,
                 _generated);
         }
 
-        static SliceSyntax BuildSliceGroup(
+        static SliceSyntax? BuildSliceGroup(
             string name,
             IReadOnlyList<PlacedArtifact> artifacts,
             LoweringContext context,
@@ -684,14 +870,39 @@ public sealed class ScreenplayLowerer
                 .Distinct()
                 .Order()
                 .ToArray();
+            var unsupportedKind = kinds.FirstOrDefault(_ => _ == GenerationSliceKind.Unknown || !Enum.IsDefined(_));
+            if (unsupportedKind == GenerationSliceKind.Unknown || !Enum.IsDefined(unsupportedKind))
+            {
+                var firstArtifact = artifacts
+                    .OrderBy(_ => Canonical.Artifact(_.Definition), StringComparer.Ordinal)
+                    .First();
+                diagnostics.Add(new GenerationDiagnostic
+                {
+                    Code = GenerationDiagnosticCodes.UnsupportedSliceKind,
+                    Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = OutcomeFor(unsupportedKind, GenerationSliceKind.Unknown),
+                    Message = $"Slice '{name}' uses unknown or undefined GenerationSliceKind value '{(int)unsupportedKind}' and was omitted",
+                    Source = firstArtifact.Source,
+                    Subject = firstArtifact.Definition.Key.Subject
+                });
+                return null;
+            }
+
             if (kinds.Length > 1)
             {
+                var firstArtifact = artifacts
+                    .OrderBy(_ => Canonical.Artifact(_.Definition), StringComparer.Ordinal)
+                    .First();
                 diagnostics.Add(new GenerationDiagnostic
                 {
                     Code = GenerationDiagnosticCodes.ConflictingSliceKind,
                     Severity = GenerationDiagnosticSeverity.Error,
-                    Message = $"Slice '{name}' was assigned incompatible kinds: {string.Join(", ", kinds)}"
+                    Outcome = GenerationDiagnosticOutcome.Conflict,
+                    Message = $"Slice '{name}' was assigned incompatible kinds: {string.Join(", ", kinds)}",
+                    Source = firstArtifact.Source,
+                    Subject = firstArtifact.Definition.Key.Subject
                 });
+                return null;
             }
 
             return BuildSlice(name, kinds[0], artifacts, context, diagnostics);

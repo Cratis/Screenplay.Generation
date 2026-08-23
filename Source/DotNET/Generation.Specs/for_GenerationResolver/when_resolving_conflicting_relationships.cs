@@ -16,4 +16,5 @@ public class when_resolving_conflicting_relationships : given.facts
     [Fact] void should_retain_both_definitions() => _result.Relationships.Single().Definitions.Count.ShouldEqual(2);
     [Fact] void should_mark_the_relationship_as_conflicted() => _result.Relationships.Single().IsConflicted.ShouldBeTrue();
     [Fact] void should_report_the_conflict() => _result.Diagnostics.Single().Code.ShouldEqual(GenerationDiagnosticCodes.ConflictingRelationship);
+    [Fact] void should_type_the_conflict_outcome() => _result.Diagnostics.Single().Outcome.ShouldEqual(GenerationDiagnosticOutcome.Conflict);
 }

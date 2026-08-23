@@ -10,7 +10,19 @@ public class when_generating_invalid_enumeration_values : given.a_generator
     void Because()
     {
         var subject = new SubjectId { Value = "dotnet://Banking/Concepts.Status" };
-        var evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact };
+        var evidence = new Evidence
+        {
+            Adapter = Adapter,
+            Strength = EvidenceStrength.Exact,
+            Source = new SourceRange
+            {
+                Path = "Concepts/Status.cs",
+                StartLine = 3,
+                StartColumn = 1,
+                EndLine = 3,
+                EndColumn = 30
+            }
+        };
         _result = Generator.Generate(
         [
             Contribution(
@@ -34,5 +46,6 @@ public class when_generating_invalid_enumeration_values : given.a_generator
     }
 
     [Fact] void should_report_the_unsupported_representation() => _result.Diagnostics.Select(_ => _.Code).ShouldContain(GenerationDiagnosticCodes.UnsupportedConceptRepresentation);
+    [Fact] void should_preserve_the_representation_source() => _result.Diagnostics.Single().Source!.Path.ShouldEqual("Concepts/Status.cs");
     [Fact] void should_not_emit_the_invalid_enumeration() => _result.Source.ShouldNotContain("concept Status");
 }

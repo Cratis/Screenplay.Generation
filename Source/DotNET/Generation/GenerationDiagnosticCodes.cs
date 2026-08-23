@@ -102,4 +102,44 @@ public static class GenerationDiagnosticCodes
     /// A concept validation rule cannot be represented safely by Screenplay.
     /// </summary>
     public const string UnsupportedConceptValidationRule = "GEN0021";
+
+    /// <summary>
+    /// An artifact fact or placement uses an unknown or undefined artifact kind.
+    /// </summary>
+    public const string UnsupportedArtifactKind = "GEN0022";
+
+    /// <summary>
+    /// An artifact placement uses an unknown or undefined slice kind.
+    /// </summary>
+    public const string UnsupportedSliceKind = "GEN0023";
+
+    /// <summary>
+    /// A relationship fact uses an unknown or undefined relationship kind.
+    /// </summary>
+    public const string UnsupportedRelationshipKind = "GEN0024";
+
+    /// <summary>
+    /// A concept representation fact uses an unknown or undefined representation kind.
+    /// </summary>
+    public const string UnsupportedConceptRepresentationKind = "GEN0025";
+
+    /// <summary>
+    /// A concept representation fact uses an unknown or undefined primitive kind.
+    /// </summary>
+    public const string UnsupportedPrimitiveKind = "GEN0026";
+
+    /// <summary>
+    /// A concept attribute fact uses an unknown or undefined attribute kind.
+    /// </summary>
+    public const string UnsupportedConceptAttributeKind = "GEN0027";
+
+    /// <summary>
+    /// A concept validation fact uses an unknown or undefined validation rule kind.
+    /// </summary>
+    public const string UnsupportedConceptValidationRuleKind = "GEN0028";
+
+    /// <summary>
+    /// A fact uses an unknown or undefined evidence strength.
+    /// </summary>
+    public const string UnsupportedEvidenceStrength = "GEN0029";
 }

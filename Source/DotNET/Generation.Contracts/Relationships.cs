@@ -9,6 +9,11 @@ namespace Cratis.Screenplay.Generation;
 public enum RelationshipKind
 {
     /// <summary>
+    /// The adapter could not determine a supported relationship role.
+    /// </summary>
+    Unknown = -1,
+
+    /// <summary>
     /// A handler handles a message or command.
     /// </summary>
     Handles = 0,

@@ -19,8 +19,11 @@ public sealed class GenerationResolver
             .OrderBy(_ => _.Adapter.Id, StringComparer.Ordinal)
             .ThenBy(_ => _.Adapter.Version, StringComparer.Ordinal)
             .ToArray();
-        var facts = orderedContributions.SelectMany(_ => _.Facts).ToArray();
+        var contributedFacts = orderedContributions.SelectMany(_ => _.Facts).ToArray();
         var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics).ToList();
+        var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(contributedFacts);
+        var facts = discriminatorValidation.Facts;
+        diagnostics.AddRange(discriminatorValidation.Diagnostics);
 
         diagnostics.AddRange(ConflictingFactIdentityDiagnostics(facts));
 
@@ -260,6 +263,7 @@ public sealed class GenerationResolver
             {
                 Code = GenerationDiagnosticCodes.InvalidConceptFact,
                 Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept representation fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
                 Source = _.Evidence.Source,
                 Subject = _.Subject
@@ -272,6 +276,7 @@ public sealed class GenerationResolver
             {
                 Code = GenerationDiagnosticCodes.InvalidConceptFact,
                 Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept attribute fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
                 Source = _.Evidence.Source,
                 Subject = _.Subject
@@ -284,6 +289,7 @@ public sealed class GenerationResolver
             {
                 Code = GenerationDiagnosticCodes.InvalidConceptFact,
                 Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept validation rule fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
                 Source = _.Evidence.Source,
                 Subject = _.Subject
@@ -309,6 +315,7 @@ public sealed class GenerationResolver
             {
                 Code = GenerationDiagnosticCodes.ConflictingFactIdentity,
                 Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = GenerationDiagnosticOutcome.Conflict,
                 Message = $"Fact identity '{_.Id}' was reused for {_.Definitions.Length} different semantic assertions",
                 Source = FirstSource(_.Facts.Select(fact => fact.Evidence)),
                 Subject = _.Facts.OrderBy(fact => fact.Subject.Value, StringComparer.Ordinal).First().Subject
@@ -329,6 +336,7 @@ public sealed class GenerationResolver
     {
         Code = GenerationDiagnosticCodes.ConflictingArtifact,
         Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Conflict,
         Message = $"Artifact '{artifact.Key.Subject.Value}' has {artifact.Variants.Count} incompatible {artifact.Key.Kind} definitions",
         Source = FirstSource(artifact.Variants.SelectMany(_ => _.Evidence)),
         Subject = artifact.Key.Subject
@@ -338,6 +346,7 @@ public sealed class GenerationResolver
     {
         Code = GenerationDiagnosticCodes.ConflictingConceptRepresentation,
         Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Conflict,
         Message = $"Concept '{representation.Concept.Value}' has {representation.Variants.Count} incompatible representations",
         Source = FirstSource(representation.Variants.SelectMany(_ => _.Evidence)),
         Subject = representation.Concept
@@ -347,6 +356,7 @@ public sealed class GenerationResolver
     {
         Code = GenerationDiagnosticCodes.ConflictingConceptAttribute,
         Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Conflict,
         Message = $"Concept '{attribute.Concept.Value}' has {attribute.Variants.Count} incompatible '{attribute.Name}' attribute definitions",
         Source = FirstSource(attribute.Variants.SelectMany(_ => _.Evidence)),
         Subject = attribute.Concept
@@ -356,6 +366,7 @@ public sealed class GenerationResolver
     {
         Code = GenerationDiagnosticCodes.ConflictingConceptValidationRule,
         Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Conflict,
         Message = $"Concept '{rule.Concept.Value}' has {rule.Variants.Count} incompatible validation definitions for rule identity '{rule.RuleIdentity}'",
         Source = FirstSource(rule.Variants.SelectMany(_ => _.Evidence)),
         Subject = rule.Concept
@@ -365,6 +376,7 @@ public sealed class GenerationResolver
     {
         Code = GenerationDiagnosticCodes.ConflictingPlacement,
         Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Conflict,
         Message = $"Artifact '{placement.Artifact.Subject.Value}' has {placement.EffectiveVariants.Count} equally strong incompatible {placement.Artifact.Kind} placements",
         Source = FirstSource(placement.EffectiveVariants.SelectMany(_ => _.Evidence)),
         Subject = placement.Artifact.Subject
@@ -374,6 +386,7 @@ public sealed class GenerationResolver
     {
         Code = GenerationDiagnosticCodes.ConflictingRelationship,
         Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Conflict,
         Message = $"Relationship '{relationship.Key.Kind}' from '{relationship.Key.Source.Value}' to '{relationship.Key.Target.Value}' has {relationship.Definitions.Count} incompatible definitions",
         Source = FirstSource(relationship.Evidence),
         Subject = relationship.Key.Source
