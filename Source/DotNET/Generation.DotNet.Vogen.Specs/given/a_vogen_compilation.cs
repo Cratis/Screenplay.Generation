@@ -31,11 +31,13 @@ public class a_vogen_compilation : Specification
         string name,
         CSharpCompilation compilation,
         string sourceRoot = "/workspace",
-        IEnumerable<SyntaxTree>? authoredSyntaxTrees = null) => new()
+        IEnumerable<SyntaxTree>? authoredSyntaxTrees = null,
+        DotNetProjectSourceContext? sourceContext = null) => new()
         {
             Name = name,
             Compilation = compilation,
             SourceRoot = sourceRoot,
+            SourceContext = sourceContext,
             AuthoredSyntaxTrees = (authoredSyntaxTrees ?? compilation.SyntaxTrees.Where(_ => !DotNetGeneratedSource.IsGenerated(_))).ToHashSet()
         };
 
