@@ -9,6 +9,11 @@ namespace Cratis.Screenplay.Generation;
 public enum EvidenceStrength
 {
     /// <summary>
+    /// The adapter could not determine a supported evidence strength.
+    /// </summary>
+    Unknown = -1,
+
+    /// <summary>
     /// The source directly and unambiguously declares or performs the fact.
     /// </summary>
     Exact = 0,

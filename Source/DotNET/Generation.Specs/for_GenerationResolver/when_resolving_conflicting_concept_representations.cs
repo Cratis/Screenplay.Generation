@@ -20,6 +20,7 @@ public class when_resolving_conflicting_concept_representations : given.facts
     [Fact] void should_retain_both_representations() => _result.ConceptRepresentations.Single().Variants.Count.ShouldEqual(2);
     [Fact] void should_mark_the_representation_as_conflicted() => _result.ConceptRepresentations.Single().IsConflicted.ShouldBeTrue();
     [Fact] void should_report_the_conflict() => _result.Diagnostics.Select(_ => _.Code).ShouldContain(GenerationDiagnosticCodes.ConflictingConceptRepresentation);
+    [Fact] void should_type_the_conflict_outcome() => _result.Diagnostics.Single().Outcome.ShouldEqual(GenerationDiagnosticOutcome.Conflict);
 
     static ConceptRepresentationFact Representation(
         string id,

@@ -9,6 +9,11 @@ namespace Cratis.Screenplay.Generation;
 public enum ConceptRepresentationKind
 {
     /// <summary>
+    /// The adapter could not determine a supported representation category.
+    /// </summary>
+    Unknown = -1,
+
+    /// <summary>
     /// The concept wraps one supported primitive value.
     /// </summary>
     Primitive = 0,
@@ -24,6 +29,11 @@ public enum ConceptRepresentationKind
 /// </summary>
 public enum GenerationPrimitiveKind
 {
+    /// <summary>
+    /// The adapter could not determine a supported primitive representation.
+    /// </summary>
+    Unknown = -1,
+
     /// <summary>
     /// A universally unique identifier.
     /// </summary>
@@ -61,10 +71,31 @@ public enum GenerationPrimitiveKind
 }
 
 /// <summary>
+/// Defines framework-neutral concept attribute representations.
+/// </summary>
+public enum ConceptAttributeKind
+{
+    /// <summary>
+    /// The adapter could not determine a supported concept attribute representation.
+    /// </summary>
+    Unknown = -1,
+
+    /// <summary>
+    /// A named Screenplay concept attribute.
+    /// </summary>
+    Named = 0
+}
+
+/// <summary>
 /// Defines the framework-neutral kinds of validation rules that can be asserted for a concept.
 /// </summary>
 public enum ConceptValidationRuleKind
 {
+    /// <summary>
+    /// The adapter could not determine a supported validation rule.
+    /// </summary>
+    Unknown = -1,
+
     /// <summary>
     /// The concept value must satisfy a named predicate implemented outside the generated document.
     /// </summary>
@@ -117,6 +148,11 @@ public sealed record ConceptAttributeDefinition
     /// Gets the source-level concept subject.
     /// </summary>
     public required SubjectId Concept { get; init; }
+
+    /// <summary>
+    /// Gets the attribute representation.
+    /// </summary>
+    public ConceptAttributeKind Kind { get; init; } = ConceptAttributeKind.Named;
 
     /// <summary>
     /// Gets the attribute name without its target-language marker.

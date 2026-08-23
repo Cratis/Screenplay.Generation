@@ -37,10 +37,10 @@ static class Canonical
             string.Concat(definition.EnumerationValues.Select(_ => $"{_.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{_}")));
 
     public static string ConceptAttribute(ConceptAttributeDefinition definition) =>
-        Join(definition.Concept.Value, Encode(definition.Name), Encode(definition.Reason));
+        Join(definition.Concept.Value, definition.Kind.ToString(), Encode(definition.Name), Encode(definition.Reason));
 
     public static string ConceptAttributeKey(ConceptAttributeDefinition definition) =>
-        Join(definition.Concept.Value, Encode(definition.Name));
+        Join(definition.Concept.Value, definition.Kind.ToString(), Encode(definition.Name));
 
     public static string ConceptValidationRule(ConceptValidationRuleDefinition definition) =>
         Join(
@@ -91,8 +91,13 @@ static class Canonical
             diagnostic.Source?.Path,
             diagnostic.Source?.StartLine.ToString(),
             diagnostic.Source?.StartColumn.ToString(),
+            diagnostic.Source?.EndLine.ToString(),
+            diagnostic.Source?.EndColumn.ToString(),
             diagnostic.Subject?.Value,
-            diagnostic.Message);
+            diagnostic.Message,
+            diagnostic.Outcome is null
+                ? null
+                : ((int)diagnostic.Outcome.Value).ToString(System.Globalization.CultureInfo.InvariantCulture));
 
     static string Encode(string? value) => value is null
         ? "-1:"

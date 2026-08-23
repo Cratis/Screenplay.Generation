@@ -91,6 +91,7 @@ public sealed class ScreenplayDefinitionGenerator(
             {
                 Code = GenerationDiagnosticCodes.UnstableRoundTrip,
                 Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = "The generated Screenplay document changed after compile and canonical reprint"
             });
         }
@@ -125,6 +126,7 @@ public sealed class ScreenplayDefinitionGenerator(
             {
                 Code = GenerationDiagnosticCodes.DocumentDidNotCompile,
                 Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = first is null
                     ? "The generated Screenplay document did not compile"
                     : $"The generated Screenplay document did not compile: {first.Code} {first.Message}",

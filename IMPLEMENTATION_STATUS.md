@@ -33,9 +33,9 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 ## Current Generation release
 
 - Repository: <https://github.com/Cratis/Screenplay.Generation>
-- Current public release: [`v0.7.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.7.0) at `d9ff40966b637b25126160629d567719ce218a01`.
+- Current public release: [`v0.7.1`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.7.1) at `23de3154445ffc7b1987494db717679847503934`.
 - The four packages release in lockstep: Contracts, Generation, DotNet, and DotNet.Vogen.
-- `0.7.0` is the public compatibility floor protected by package validation. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
+- `0.7.0` is the minimum public compatibility floor; package validation now compares the complete public surface against published `0.7.1`. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
 - Unchanged legacy binaries compiled against the `0.1.0` core packages and the first correctly sourced `0.5.0` Vogen package remain the compatibility-ancestry smoke.
 - Historical `Cratis.Screenplay.Generation.DotNet.Vogen` versions `0.2.0` through `0.4.0` were incorrectly sourced. Manual unlisting remains tracked in [issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13); OIDC publication credentials cannot delete or unlist them.
 - The normative lifecycle and compatibility contract is in [`COMPATIBILITY.md`](COMPATIBILITY.md).
@@ -46,6 +46,7 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 - Artifact, placement, relationship, concept-representation, concept-attribute, and named concept-validation facts.
 - Exact `TypeReferenceDefinition.Subject` binding across projects and namespaces without display-name fallback.
 - Deterministic duplicate collapse, conflict diagnostics, and public visibility of every incompatible resolved variant.
+- Additive typed `Unknown`/`Conflict`/`Unsupported` diagnostic outcomes and `Unknown = -1` public fact discriminators. Malformed or future undefined values fail closed before resolution, omit only the affected semantic unit, preserve source/subject evidence, and never map to another role.
 - Evidence-strength-aware placement resolution that retains weaker provenance while stronger exact/configured evidence determines the effective placement.
 - Lowering for concepts, events, read models, reducers, commands, queries, attributes, and named external validation predicates.
 - Canonical printing, Screenplay compiler verification, and print/compile/print stability checking.
@@ -59,7 +60,7 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 - Generation specs: 93 passing.
 - Generation.DotNet specs: 28 passing.
 - Generation.DotNet.Vogen specs: 84 passing.
-- Total Debug specs: **205 passing**.
+- Total Debug specs: **230 passing**.
 - Debug `net10.0` and Release `net8.0`, `net9.0`, and `net10.0`: zero warnings and zero errors.
 - All four sentinel `9999.0.0` packages pack with package validation against published `0.7.0`.
 - The isolated package cache starts empty for consumer verification.
@@ -69,12 +70,12 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 ## Coordinated repository state
 
 - Critter Stack is released as [`v0.15.0`](https://github.com/Cratis/Screenplay.CritterStack/releases/tag/v0.15.0) at `a0df0c22f112b98b353ca6a84072761de119c7ba`. Its facade composes independent Vogen and Marten/Wolverine contributions through Generation `0.7.0`; the low-level Critter Stack adapter remains Vogen-independent. The release gate passed 352 specs and seven canonical fixtures while preserving the six pre-existing outputs.
-- CLI `v2.14.0` is the coordinated CLI checkpoint. It owns workspace evaluation, explicit multi-target-framework selection, provider/host selection, package and assembly provenance, compatibility admission, and output. It consumes Generation `0.6.1` plus Critter Stack `0.13.1`; updating to Generation `0.7.0` plus Critter Stack `0.15.0` remains active CLI work.
+- CLI `v2.15.1` is the coordinated CLI checkpoint. It owns workspace evaluation, explicit multi-target-framework selection, provider/host selection, package and assembly provenance, compatibility admission, and output. It consumes all four Generation packages at `0.7.1` plus Critter Stack `0.17.0`; atomic adapter roster/profile migration remains tracked in Generation #17 and CLI #95.
 
 ## Immediate next actions
 
-1. Continue [Generation issue #5](https://github.com/Cratis/Screenplay.Generation/issues/5) after this compatibility-floor increment. Typed `Unknown` representation and disposition hardening remain outstanding; **issue #5 is not closed by this increment**.
-2. Continue [CLI issue #87](https://github.com/Cratis/cli/issues/87), including the Generation `0.7.0` / Critter Stack `0.15.0` update and the remaining fail-closed workspace behavior.
+1. Complete and release the typed fail-closed outcome increment, then close [Generation issue #5](https://github.com/Cratis/Screenplay.Generation/issues/5) after exact package verification confirms both current Cratis consumers.
+2. Continue atomic adapter orchestration under [issue #17](https://github.com/Cratis/Screenplay.Generation/issues/17), with reusable evidence/type-use/validation/path contracts in #18-#21.
 3. Leave [Generation issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13) open until a NuGet owner manually unlists the identified incorrectly sourced Vogen packages.
 
 ## Safety boundaries

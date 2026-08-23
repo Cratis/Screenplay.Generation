@@ -10,12 +10,12 @@
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
         <!--
-            Compare every packable assembly with the current public compatibility floor, 0.7.0. The 0.1.0 core and
+            Compare every packable assembly with the current public compatibility floor, 0.7.1. The 0.1.0 core and
             0.5.0 Vogen ancestry remain covered by unchanged legacy consumer binaries. Package validation protects
             the current public floor while those binaries prove that older compatible entry points still execute.
         -->
         <EnablePackageValidation>true</EnablePackageValidation>
-        <PackageValidationBaselineVersion>0.7.0</PackageValidationBaselineVersion>
+        <PackageValidationBaselineVersion>0.7.1</PackageValidationBaselineVersion>
         <!-- Compatible additions are intentional; removals and signature changes remain errors. -->
         <EnableStrictModeForBaselineValidation>false</EnableStrictModeForBaselineValidation>
 

@@ -99,6 +99,12 @@ var validation = new ConceptValidationRuleFact
 
 Multiple adapters can assert the same definition with separate evidence. Incompatible definitions with the same `(Concept, RuleIdentity)` remain visible as a conflict without erasing the concept's representation or attributes. The nullable kind-specific `Predicate` keeps the transport record additive: named-predicate rules require it today, while later rule kinds can add typed operands without forcing unrelated placeholder values.
 
+## Typed fail-closed outcomes
+
+Every public fact discriminator has an explicit `Unknown = -1` sentinel without changing any existing numeric value. Unknown or undefined artifact, placement, slice, relationship, evidence, representation, primitive, attribute, or validation-rule values are diagnosed before resolution and only the affected fact is omitted. They never fall through to another semantic role or disappear silently.
+
+`GenerationDiagnostic.Outcome` independently classifies `Unknown`, `Conflict`, and `Unsupported` results while preserving stable codes, severity, source range, subject, and all incompatible resolver variants. The nullable additive property keeps older producers and consumers binary compatible. Valid unrelated facts continue to generate deterministic compiler-verified Screenplay output.
+
 See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the current implementation checkpoint and pre-release decisions.
 
 ## Build and test
@@ -110,7 +116,7 @@ dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Art
 ./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
 
-Package validation runs during pack against the current public compatibility floor, `0.7.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
+Package validation runs during pack against the current published API baseline, `0.7.1`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
 
 All builds require zero errors and zero warnings. Generated Screenplay output must compile and remain stable through print/compile/print.
 

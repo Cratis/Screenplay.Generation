@@ -20,6 +20,7 @@ public class when_resolving_conflicting_concept_validation_rules : given.facts
     [Fact] void should_retain_both_rule_definitions() => _result.ConceptValidationRules.Single().Variants.Count.ShouldEqual(2);
     [Fact] void should_mark_the_rule_as_conflicted() => _result.ConceptValidationRules.Single().IsConflicted.ShouldBeTrue();
     [Fact] void should_report_the_conflict() => _result.Diagnostics.Select(_ => _.Code).ShouldContain(GenerationDiagnosticCodes.ConflictingConceptValidationRule);
+    [Fact] void should_type_the_conflict_outcome() => _result.Diagnostics.Single().Outcome.ShouldEqual(GenerationDiagnosticOutcome.Conflict);
 
     static ConceptValidationRuleFact Rule(string id, AdapterIdentity adapter, SubjectId subject, string predicate) => new()
     {

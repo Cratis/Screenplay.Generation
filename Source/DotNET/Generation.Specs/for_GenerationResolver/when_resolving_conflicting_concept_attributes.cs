@@ -20,6 +20,7 @@ public class when_resolving_conflicting_concept_attributes : given.facts
     [Fact] void should_retain_both_attribute_definitions() => _result.ConceptAttributes.Single().Variants.Count.ShouldEqual(2);
     [Fact] void should_mark_the_attribute_as_conflicted() => _result.ConceptAttributes.Single().IsConflicted.ShouldBeTrue();
     [Fact] void should_report_the_conflict() => _result.Diagnostics.Select(_ => _.Code).ShouldContain(GenerationDiagnosticCodes.ConflictingConceptAttribute);
+    [Fact] void should_type_the_conflict_outcome() => _result.Diagnostics.Single().Outcome.ShouldEqual(GenerationDiagnosticOutcome.Conflict);
 
     static ConceptAttributeFact Attribute(string id, AdapterIdentity adapter, SubjectId subject, string reason) => new()
     {
