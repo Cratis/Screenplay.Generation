@@ -341,6 +341,25 @@ internal static class Program
             VogenGenerationDiagnosticCodes.NamedInstanceNotRepresented == "VOG0003",
             "CSC0001",
             "The stable Vogen diagnostic-code API changed.");
+        Require(
+            (int)ArtifactKind.Unknown == -1 &&
+            (int)RelationshipKind.Unknown == -1 &&
+            (int)GenerationSliceKind.Unknown == -1 &&
+            (int)ConceptRepresentationKind.Unknown == -1 &&
+            (int)GenerationPrimitiveKind.Unknown == -1 &&
+            (int)ConceptAttributeKind.Unknown == -1 &&
+            (int)ConceptValidationRuleKind.Unknown == -1 &&
+            (int)EvidenceStrength.Unknown == -1,
+            "CSC0019",
+            "The additive public Unknown discriminator values are unavailable or were renumbered.");
+        Require(
+            new ConceptAttributeDefinition
+            {
+                Concept = new SubjectId { Value = "dotnet://Compatibility/Concept" },
+                Name = "compatibility"
+            }.Kind == ConceptAttributeKind.Named,
+            "CSC0020",
+            "The additive concept attribute discriminator did not preserve the legacy named default.");
 
         var authoredTree = CSharpSyntaxTree.ParseText(
             """
@@ -527,7 +546,8 @@ internal static class Program
         Require(
             conflicted.IsConflicted && conflicted.Variants.Count == 2 &&
             conflictGraph.Diagnostics.Any(diagnostic =>
-                diagnostic.Code == GenerationDiagnosticCodes.ConflictingConceptRepresentation),
+                diagnostic.Code == GenerationDiagnosticCodes.ConflictingConceptRepresentation &&
+                diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict),
             "CSC0015",
             "The resolver did not expose both incompatible concept representation variants.");
         Require(
@@ -538,6 +558,42 @@ internal static class Program
                 .SetEquals([VogenAdapterId, ExternalAdapterId]),
             "CSC0016",
             "Conflict visibility lost one adapter identity.");
+
+        var unknownSubject = new SubjectId { Value = "dotnet://Compatibility/UnknownArtifact" };
+        var unknownGraph = new GenerationResolver().Resolve(
+        [
+            new AdapterContribution
+            {
+                Adapter = new AdapterIdentity { Id = ExternalAdapterId, Version = "0.7.0" },
+                Facts =
+                [
+                    new ArtifactFact
+                    {
+                        Id = new FactId { Value = "external-smoke:unknown-artifact" },
+                        Subject = unknownSubject,
+                        Evidence = new Evidence
+                        {
+                            Adapter = new AdapterIdentity { Id = ExternalAdapterId, Version = "0.7.0" },
+                            Strength = EvidenceStrength.Exact
+                        },
+                        Definition = new ArtifactDefinition
+                        {
+                            Key = new ArtifactKey { Subject = unknownSubject, Kind = ArtifactKind.Unknown },
+                            Name = "UnknownArtifact"
+                        }
+                    }
+                ]
+            }
+        ]);
+        var unknownDiagnostic = unknownGraph.Diagnostics.Single();
+        Require(
+            unknownGraph.Artifacts.Count == 0 &&
+            unknownDiagnostic.Code == GenerationDiagnosticCodes.UnsupportedArtifactKind &&
+            unknownDiagnostic.Outcome == GenerationDiagnosticOutcome.Unknown &&
+            unknownDiagnostic.Subject == unknownSubject &&
+            unknownDiagnostic.Source is null,
+            "CSC0021",
+            "The typed fail-closed Unknown outcome API did not omit and diagnose the affected fact exactly.");
     }
 
     static IReadOnlyList<MetadataReference> TrustedPlatformReferences() =>
