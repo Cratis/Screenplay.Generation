@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
+
 namespace Cratis.Screenplay.Generation;
 
 static class Canonical
@@ -72,36 +74,55 @@ static class Canonical
     public static string RelationshipKey(RelationshipKey key) =>
         Join(key.Kind.ToString(), key.Source.Value, key.Target.Value, key.Discriminator);
 
-    public static string Evidence(Evidence evidence) =>
-        Join(
+    public static string Evidence(Evidence evidence)
+    {
+        var identity = evidence.Source?.FileIdentity;
+
+        return Structural(
             evidence.Adapter.Id,
             evidence.Adapter.Version,
-            evidence.Strength.ToString(),
+            Invariant((int)evidence.Strength),
             evidence.Source?.Path,
-            evidence.Source?.StartLine.ToString(),
-            evidence.Source?.StartColumn.ToString(),
-            evidence.Source?.EndLine.ToString(),
-            evidence.Source?.EndColumn.ToString(),
-            evidence.Explanation);
+            Invariant(evidence.Source?.StartLine),
+            Invariant(evidence.Source?.StartColumn),
+            Invariant(evidence.Source?.EndLine),
+            Invariant(evidence.Source?.EndColumn),
+            evidence.Explanation,
+            identity is null ? "0" : "1",
+            identity?.Project,
+            identity?.Path);
+    }
 
-    public static string Diagnostic(GenerationDiagnostic diagnostic) =>
-        Join(
-            ((int)diagnostic.Severity).ToString("D2", System.Globalization.CultureInfo.InvariantCulture),
+    public static string Diagnostic(GenerationDiagnostic diagnostic)
+    {
+        var identity = diagnostic.Source?.FileIdentity;
+        int? outcome = diagnostic.Outcome is null ? null : (int)diagnostic.Outcome.Value;
+
+        return Structural(
+            Invariant((int)diagnostic.Severity, "D2"),
             diagnostic.Code,
             diagnostic.Source?.Path,
-            diagnostic.Source?.StartLine.ToString(),
-            diagnostic.Source?.StartColumn.ToString(),
-            diagnostic.Source?.EndLine.ToString(),
-            diagnostic.Source?.EndColumn.ToString(),
+            Invariant(diagnostic.Source?.StartLine),
+            Invariant(diagnostic.Source?.StartColumn),
+            Invariant(diagnostic.Source?.EndLine),
+            Invariant(diagnostic.Source?.EndColumn),
             diagnostic.Subject?.Value,
             diagnostic.Message,
-            diagnostic.Outcome is null
-                ? null
-                : ((int)diagnostic.Outcome.Value).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Invariant(outcome),
+            identity is null ? "0" : "1",
+            identity?.Project,
+            identity?.Path);
+    }
 
     static string Encode(string? value) => value is null
         ? "-1:"
-        : $"{value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{value}";
+        : $"{value.Length.ToString(CultureInfo.InvariantCulture)}:{value}";
+
+    static string Invariant(int value, string? format = null) => value.ToString(format, CultureInfo.InvariantCulture);
+
+    static string? Invariant(int? value, string? format = null) => value?.ToString(format, CultureInfo.InvariantCulture);
+
+    static string Structural(params string?[] values) => string.Join(Separator, values.Select(Encode));
 
     static string Join(params string?[] values) => string.Join(Separator, values.Select(_ => _ ?? string.Empty));
 }
