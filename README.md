@@ -41,6 +41,17 @@ Adapters contribute semantic facts; they do not construct syntax nodes or concat
 
 Each `DotNetProjectCompilation` requires the workspace host's authoritative `AuthoredSyntaxTrees`. Build this set from project documents before source generators update the compilation. Generated filenames and headers remain useful conventions, but they are not trusted as proof of authored origin.
 
+Hosts can additionally provide a `DotNetProjectSourceContext` created by `DotNetSourcePaths.Create(...)`. The context keeps stable source identity separate from the path displayed in generated output and diagnostics:
+
+- identity is the host-declared project identity plus normalized project-relative path;
+- `SourceRange.Path` is the host-declared display path, explicitly workspace-relative or project-relative;
+- `/` separators, Unicode NFC normalization, and the `Ordinal` or `InvariantLowercase` case policy are host-owned rather than inferred from the operating system; `InvariantLowercase` folds first and NFC-normalizes the folded identity;
+- the factory returns an immutable defensive snapshot whose project identity, policy, and file mappings cannot be replaced;
+- Roslyn `SyntaxTree.FilePath` can retain an absolute physical checkout path, but stable identity and display values never store a physical root;
+- duplicate identities and malformed, rooted, traversal, or unmapped authored paths fail with typed exceptions.
+
+Existing `SourceRoot` and evidence overloads remain supported. When no explicit context is supplied, they retain their current display-path behavior and do not add stable identity, preserving existing hosts and package consumers.
+
 A composition host references `Cratis.Screenplay.Generation` and `Cratis.Screenplay.Generation.DotNet.Vogen` directly, plus its external ecosystem adapter package. The Vogen adapter package brings `Cratis.Screenplay.Generation.DotNet` and `Cratis.Screenplay.Generation.Contracts` transitively; the analyzed application references Vogen itself.
 
 A clean consumer composes Vogen with any external ecosystem adapter by keeping contributions separate until neutral resolution:
@@ -116,7 +127,7 @@ dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Art
 ./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
 
-Package validation runs during pack against the current published API baseline, `0.7.1`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
+Package validation runs during pack against the latest released API baseline, `0.8.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
 
 All builds require zero errors and zero warnings. Generated Screenplay output must compile and remain stable through print/compile/print.
 

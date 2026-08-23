@@ -67,10 +67,9 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         var subject = project.SubjectForType(type);
         var conceptEvidence = DotNetSource.EvidenceFor(
             attribute,
-            project.AuthoredSyntaxTrees,
             identity,
+            project,
             EvidenceStrength.Exact,
-            project.SourceRoot,
             $"The authored type has the exact '{MetadataName(attribute)}' attribute");
         facts.Add(new ArtifactFact
         {
@@ -91,10 +90,9 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         {
             var representationEvidence = DotNetSource.EvidenceFor(
                 backing.Evidence,
-                project.AuthoredSyntaxTrees,
                 identity,
+                project,
                 EvidenceStrength.Exact,
-                project.SourceRoot,
                 $"Vogen configures '{DisplayName(backing.Type)}' as the backing type");
             facts.Add(new ConceptRepresentationFact
             {
@@ -119,10 +117,9 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
                 Message = $"Vogen concept '{type.Name}' uses unsupported backing type '{DisplayName(backing.Type)}'; no concept representation was contributed",
                 Source = DotNetSource.EvidenceFor(
                     backing.Evidence,
-                    project.AuthoredSyntaxTrees,
                     identity,
-                    EvidenceStrength.Exact,
-                    project.SourceRoot).Source,
+                    project,
+                    EvidenceStrength.Exact).Source,
                 Subject = subject
             });
         }
@@ -234,10 +231,9 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
                 Message = $"Vogen concept '{type.Name}' declares {displayName}; Screenplay generation does not treat named instances as optional values or defaults and no concept fact was contributed for it",
                 Source = DotNetSource.EvidenceFor(
                     attribute,
-                    project.AuthoredSyntaxTrees,
                     identity,
-                    EvidenceStrength.Exact,
-                    project.SourceRoot).Source,
+                    project,
+                    EvidenceStrength.Exact).Source,
                 Subject = subject
             });
         }
@@ -316,7 +312,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
         {
             Adapter = identity,
             Strength = EvidenceStrength.Exact,
-            Source = DotNetSource.Range(method.Reference.GetSyntax().GetLocation(), project.SourceRoot),
+            Source = DotNetSource.RangeForProject(method.Reference.GetSyntax().GetLocation(), project),
             Explanation = explanation
         };
 

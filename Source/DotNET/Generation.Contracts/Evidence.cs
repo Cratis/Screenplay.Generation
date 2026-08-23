@@ -35,14 +35,38 @@ public enum EvidenceStrength
 }
 
 /// <summary>
+/// Identifies an authored source file independently from its display path.
+/// </summary>
+public sealed record SourceFileIdentity
+{
+    /// <summary>
+    /// Gets the stable project identity that owns the source file.
+    /// </summary>
+    public required string Project { get; init; }
+
+    /// <summary>
+    /// Gets the normalized project-relative source path.
+    /// </summary>
+    public required string Path { get; init; }
+
+    /// <inheritdoc />
+    public override string ToString() => $"{Project}:{Path}";
+}
+
+/// <summary>
 /// Identifies a range in authored source.
 /// </summary>
 public sealed record SourceRange
 {
     /// <summary>
-    /// Gets the repository-relative source path using forward slashes.
+    /// Gets the host-declared display path using forward slashes.
     /// </summary>
     public required string Path { get; init; }
+
+    /// <summary>
+    /// Gets the stable source-file identity when the host supplied an explicit source-path policy.
+    /// </summary>
+    public SourceFileIdentity? FileIdentity { get; init; }
 
     /// <summary>
     /// Gets the 1-based starting line.

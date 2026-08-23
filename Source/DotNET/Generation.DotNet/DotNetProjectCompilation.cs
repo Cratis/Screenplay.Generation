@@ -26,6 +26,15 @@ public sealed record DotNetProjectCompilation
     public string? SourceRoot { get; init; }
 
     /// <summary>
+    /// Gets the explicit source-file identity and display mapping when supplied by the host.
+    /// </summary>
+    /// <remarks>
+    /// This context is the sole project source-identity authority. The compilation does not infer identity from its
+    /// logical name, project path, source root, or Roslyn syntax-tree paths.
+    /// </remarks>
+    public DotNetProjectSourceContext? SourceContext { get; init; }
+
+    /// <summary>
     /// Gets the Roslyn compilation.
     /// </summary>
     public required Compilation Compilation { get; init; }
@@ -50,6 +59,7 @@ public sealed record DotNetProjectCompilation
 /// <summary>
 /// Provides deterministic access to all project compilations analyzed together.
 /// </summary>
+/// <param name="projects"></param>
 public sealed class DotNetAnalysisContext(IEnumerable<DotNetProjectCompilation> projects)
 {
     /// <summary>

@@ -24,8 +24,7 @@ for package in \
     Cratis.Screenplay.Generation.Contracts \
     Cratis.Screenplay.Generation \
     Cratis.Screenplay.Generation.DotNet \
-    Cratis.Screenplay.Generation.DotNet.Vogen
-do
+    Cratis.Screenplay.Generation.DotNet.Vogen; do
     package_path="$LOCAL_FEED/$package.$CURRENT_VERSION.nupkg"
     if [ ! -f "$package_path" ]; then
         echo "Missing current package: $package_path" >&2
@@ -33,7 +32,7 @@ do
     fi
 done
 
-cat > "$WORK_DIR/Directory.Build.props" <<'PROPS'
+cat >"$WORK_DIR/Directory.Build.props" <<'PROPS'
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
@@ -42,7 +41,7 @@ cat > "$WORK_DIR/Directory.Build.props" <<'PROPS'
 </Project>
 PROPS
 
-cat > "$WORK_DIR/nuget.config" <<CONFIG
+cat >"$WORK_DIR/nuget.config" <<CONFIG
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
@@ -59,7 +58,7 @@ CURRENT_SOURCE_DIR="$WORK_DIR/CurrentSourceConsumer"
 RUNNER_DIR="$WORK_DIR/CurrentRunner"
 mkdir -p "$CORE_DIR" "$VOGEN_DIR" "$CURRENT_SOURCE_DIR" "$RUNNER_DIR"
 
-cat > "$CORE_DIR/CoreBaseline.csproj" <<'PROJECT'
+cat >"$CORE_DIR/CoreBaseline.csproj" <<'PROJECT'
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -74,7 +73,7 @@ cat > "$CORE_DIR/CoreBaseline.csproj" <<'PROJECT'
 </Project>
 PROJECT
 
-cat > "$CORE_DIR/BaselineCoreConsumer.cs" <<'CSHARP'
+cat >"$CORE_DIR/BaselineCoreConsumer.cs" <<'CSHARP'
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
@@ -200,7 +199,7 @@ public static class BaselineCoreConsumer
 }
 CSHARP
 
-cat > "$VOGEN_DIR/VogenBaseline.csproj" <<'PROJECT'
+cat >"$VOGEN_DIR/VogenBaseline.csproj" <<'PROJECT'
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -214,7 +213,7 @@ cat > "$VOGEN_DIR/VogenBaseline.csproj" <<'PROJECT'
 </Project>
 PROJECT
 
-cat > "$VOGEN_DIR/BaselineVogenConsumer.cs" <<'CSHARP'
+cat >"$VOGEN_DIR/BaselineVogenConsumer.cs" <<'CSHARP'
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
@@ -286,7 +285,7 @@ public static class BaselineVogenConsumer
 }
 CSHARP
 
-cat > "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" <<PROJECT
+cat >"$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" <<PROJECT
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -303,7 +302,7 @@ cat > "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" <<PROJECT
 </Project>
 PROJECT
 
-cat > "$CURRENT_SOURCE_DIR/Program.cs" <<'CSHARP'
+cat >"$CURRENT_SOURCE_DIR/Program.cs" <<'CSHARP'
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
@@ -323,7 +322,7 @@ internal static class Program
         try
         {
             ExerciseCurrentPackages();
-            Console.WriteLine("Current-source 0.7+ consumer compiled, composed, resolved, and compiler-verified deterministically.");
+            Console.WriteLine("Current-source consumer compiled, composed, resolved, and compiler-verified deterministically.");
             return 0;
         }
         catch (CurrentSourceConsumerFailure exception)
@@ -421,11 +420,46 @@ internal static class Program
             "CSC0002",
             $"The fake authored Vogen compilation was invalid: {string.Join(" | ", compilationErrors)}");
 
+        var legacySymbol = compilation.GetTypeByMetadataName("Ordering.CustomerCode")!;
+        var legacyAttribute = legacySymbol.GetAttributes().Single(attribute =>
+            attribute.AttributeClass?.MetadataName == "ValueObjectAttribute`1");
+        var legacyAuthoredTrees = new HashSet<SyntaxTree> { authoredTree };
+        var legacyAdapter = new AdapterIdentity { Id = "legacy-source", Version = "0.8.0" };
+        var legacyRange = DotNetSource.Range(authoredTree.GetRoot().GetLocation(), null);
+        var legacySymbolEvidence = DotNetSource.EvidenceFor(legacySymbol, legacyAdapter, EvidenceStrength.Exact, null);
+        _ = DotNetSource.EvidenceFor(legacySymbol, legacyAdapter, EvidenceStrength.Exact, null, "Legacy symbol evidence");
+        var legacyAttributeEvidence = DotNetSource.EvidenceFor(legacyAttribute, legacyAdapter, EvidenceStrength.Exact, null);
+        _ = DotNetSource.EvidenceFor(legacyAttribute, legacyAdapter, EvidenceStrength.Exact, null, "Legacy attribute evidence");
+        _ = DotNetSource.EvidenceFor(legacyAttribute, legacyAuthoredTrees, legacyAdapter, EvidenceStrength.Exact, null);
+        _ = DotNetSource.EvidenceFor(legacyAttribute, legacyAuthoredTrees, legacyAdapter, EvidenceStrength.Exact, null, "Legacy authored attribute evidence");
+        Require(
+            legacyRange?.FileIdentity is null &&
+            legacySymbolEvidence.Source?.FileIdentity is null &&
+            legacyAttributeEvidence.Source?.FileIdentity is null,
+            "CSC0023",
+            "Legacy positional-null source calls did not retain their no-identity behavior.");
+
+        var sourceContext = DotNetSourcePaths.Create(
+            "Ordering/Ordering",
+            new DotNetSourcePathPolicy
+            {
+                DisplayRoot = DotNetSourceDisplayRoot.Workspace,
+                CasePolicy = DotNetSourcePathCasePolicy.Ordinal
+            },
+            [
+                new DotNetSourceDocument
+                {
+                    SyntaxTree = authoredTree,
+                    ProjectRelativePath = "Concepts/CustomerCode.cs",
+                    WorkspaceRelativePath = "Concepts/CustomerCode.cs"
+                }
+            ]);
         var project = new DotNetProjectCompilation
         {
             Name = "Ordering.Project",
             Compilation = compilation,
             SourceRoot = "/consumer",
+            SourceContext = sourceContext,
             AuthoredSyntaxTrees = new HashSet<SyntaxTree> { authoredTree }
         };
         var context = new DotNetAnalysisContext([project]);
@@ -453,6 +487,15 @@ internal static class Program
             "A syntax tree outside authoritative AuthoredSyntaxTrees originated a Vogen concept.");
         var concept = vogenContribution.Facts.OfType<ArtifactFact>()
             .Single(fact => fact.Definition.Name == "CustomerCode");
+        Require(
+            concept.Definition.File == "Concepts/CustomerCode.cs" &&
+            concept.Evidence.Source?.FileIdentity == new SourceFileIdentity
+            {
+                Project = "Ordering/Ordering",
+                Path = "Concepts/CustomerCode.cs"
+            },
+            "CSC0022",
+            "The explicit source context did not keep display path and stable file identity separate.");
         var representation = vogenContribution.Facts.OfType<ConceptRepresentationFact>()
             .Single(fact => fact.Subject == concept.Subject);
         Require(
@@ -700,7 +743,7 @@ dotnet restore "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --configfile "
 dotnet build "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --no-restore --configuration Release --nologo
 dotnet run --project "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --no-build --no-restore --configuration Release
 
-cat > "$RUNNER_DIR/CurrentRunner.csproj" <<PROJECT
+cat >"$RUNNER_DIR/CurrentRunner.csproj" <<PROJECT
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -723,7 +766,7 @@ cat > "$RUNNER_DIR/CurrentRunner.csproj" <<PROJECT
 </Project>
 PROJECT
 
-cat > "$RUNNER_DIR/Program.cs" <<'CSHARP'
+cat >"$RUNNER_DIR/Program.cs" <<'CSHARP'
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 

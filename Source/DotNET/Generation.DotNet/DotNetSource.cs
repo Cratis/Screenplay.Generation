@@ -152,6 +152,44 @@ public static class DotNetSource
     }
 
     /// <summary>
+    /// Gets a portable source range using the host's authoritative source-file mapping.
+    /// </summary>
+    /// <param name="location">The source location.</param>
+    /// <param name="project">The owning project compilation.</param>
+    /// <returns>The mapped source range, or <see langword="null"/> when the location is not authored source.</returns>
+    /// <exception cref="DotNetSourceTreeNotMapped">The authored tree is missing from the explicit source context.</exception>
+    public static SourceRange? RangeForProject(Location location, DotNetProjectCompilation project)
+    {
+        if (!location.IsInSource ||
+            location.SourceTree is null ||
+            !project.AuthoredSyntaxTrees.Contains(location.SourceTree))
+        {
+            return null;
+        }
+
+        if (project.SourceContext is null)
+        {
+            return Range(location, project.SourceRoot);
+        }
+
+        if (!project.SourceContext.Files.TryGetValue(location.SourceTree, out var sourceFile))
+        {
+            throw new DotNetSourceTreeNotMapped(location.SourceTree.FilePath);
+        }
+
+        var span = location.GetLineSpan();
+        return new()
+        {
+            Path = sourceFile.DisplayPath,
+            FileIdentity = sourceFile.Identity,
+            StartLine = span.StartLinePosition.Line + 1,
+            StartColumn = span.StartLinePosition.Character + 1,
+            EndLine = span.EndLinePosition.Line + 1,
+            EndColumn = span.EndLinePosition.Character + 1
+        };
+    }
+
+    /// <summary>
     /// Gets deterministic evidence for a symbol's first authored declaration.
     /// </summary>
     /// <param name="symbol">The source symbol.</param>
@@ -172,6 +210,29 @@ public static class DotNetSource
             .FirstOrDefault();
 
         return EvidenceFor(location, adapter, strength, sourceRoot, explanation);
+    }
+
+    /// <summary>
+    /// Gets deterministic evidence for a symbol's first authoritative authored declaration.
+    /// </summary>
+    /// <param name="symbol">The source symbol.</param>
+    /// <param name="adapter">The adapter producing the evidence.</param>
+    /// <param name="project">The owning project compilation and source-path context.</param>
+    /// <param name="strength">The evidence strength.</param>
+    /// <param name="explanation">An optional explanation of the evidence.</param>
+    /// <returns>The evidence.</returns>
+    public static Evidence EvidenceFor(
+        ISymbol symbol,
+        AdapterIdentity adapter,
+        DotNetProjectCompilation project,
+        EvidenceStrength strength,
+        string? explanation = null)
+    {
+        var location = AuthoredDeclarationsOf(symbol, project.AuthoredSyntaxTrees)
+            .Select(_ => _.GetSyntax().GetLocation())
+            .FirstOrDefault();
+
+        return EvidenceFor(location, adapter, project, strength, explanation);
     }
 
     /// <summary>
@@ -215,6 +276,30 @@ public static class DotNetSource
         string? sourceRoot,
         string? explanation = null) =>
         EvidenceFor(attribute, authoredSyntaxTrees.Contains, adapter, strength, sourceRoot, explanation);
+
+    /// <summary>
+    /// Gets deterministic evidence anchored at an attribute application in the authoritative project source.
+    /// </summary>
+    /// <param name="attribute">The authored attribute data.</param>
+    /// <param name="adapter">The adapter producing the evidence.</param>
+    /// <param name="project">The owning project compilation and source-path context.</param>
+    /// <param name="strength">The evidence strength.</param>
+    /// <param name="explanation">An optional explanation of the evidence.</param>
+    /// <returns>The evidence.</returns>
+    public static Evidence EvidenceFor(
+        AttributeData attribute,
+        AdapterIdentity adapter,
+        DotNetProjectCompilation project,
+        EvidenceStrength strength,
+        string? explanation = null)
+    {
+        var reference = attribute.ApplicationSyntaxReference;
+        var location = reference is not null && project.AuthoredSyntaxTrees.Contains(reference.SyntaxTree)
+            ? reference.GetSyntax().GetLocation()
+            : null;
+
+        return EvidenceFor(location, adapter, project, strength, explanation);
+    }
 
     static IReadOnlyList<SyntaxReference> AuthoredDeclarationsOf(
         ISymbol symbol,
@@ -268,6 +353,19 @@ public static class DotNetSource
             Adapter = adapter,
             Strength = strength,
             Source = location is null ? null : Range(location, sourceRoot),
+            Explanation = explanation
+        };
+
+    static Evidence EvidenceFor(
+        Location? location,
+        AdapterIdentity adapter,
+        DotNetProjectCompilation project,
+        EvidenceStrength strength,
+        string? explanation) => new()
+        {
+            Adapter = adapter,
+            Strength = strength,
+            Source = location is null ? null : RangeForProject(location, project),
             Explanation = explanation
         };
 
