@@ -156,6 +156,21 @@ public static class DotNetSourceStructureDiagnosticCodes
     /// The declared namespace is malformed.
     /// </summary>
     public const string InvalidNamespace = "DOTNETSP0008";
+
+    /// <summary>
+    /// An analyzed project has no host-supplied source context.
+    /// </summary>
+    public const string MissingSourceContext = "DOTNETSP0009";
+
+    /// <summary>
+    /// An authored declaration is absent from the host-supplied source context.
+    /// </summary>
+    public const string MissingSourceMapping = "DOTNETSP0010";
+
+    /// <summary>
+    /// More than one analyzed project declares the same source subject.
+    /// </summary>
+    public const string DuplicateSourceSubject = "DOTNETSP0011";
 }
 
 /// <summary>

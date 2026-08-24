@@ -490,6 +490,15 @@ internal static class Program
             "The shared source-structure policy did not preserve project role and exact placement.");
 
         var context = new DotNetAnalysisContext([project]);
+        var sourceStructureSnapshot = DotNetSourceStructures.Create(context);
+        Require(
+            sourceStructureSnapshot.IsSuccess &&
+            sourceStructureSnapshot.Structures.Any(structure =>
+                structure.Namespace == "Ordering" &&
+                structure.ProjectRelativePaths.Contains("Concepts/CustomerCode.cs", StringComparer.Ordinal)),
+            "CSC0026",
+            "The fixed .NET source-structure snapshot did not retain mapped authored source.");
+
         IDotNetScreenplayAdapter[] adapters =
         [
             new VogenConceptScreenplayAdapter(),

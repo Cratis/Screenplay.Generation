@@ -58,6 +58,8 @@ Hosts declare whether each `DotNetProjectCompilation` contains application artif
 
 `DotNetSourceStructureResolver` applies one versioned, host-owned `DotNetSourceStructurePolicy` to fixed source evidence. By default, the first post-root folder or namespace segment is the module, the final segment is the slice, and intermediate segments are features. A host can declare a project-relative `FeatureRoot`, skip leading namespace segments, or explicitly collapse all roots into one module. The semantic slice kind is supplied independently; source layout never decides whether behavior is a state change, state view, automation, or translation.
 
+`DotNetSourceStructures.Create(...)` builds the fixed snapshot from authoritative authored trees and the host's stable project source contexts. It retains every project-relative path of a partial declaration, orders projects, subjects, paths, and diagnostics canonically, and never exposes physical checkout paths. Missing contexts or mappings and duplicate project-qualified subjects fail closed.
+
 Folder and namespace evidence must agree when both can establish placement. Rooted, traversing, malformed, missing-root, unknown-role, unknown-slice-kind, insufficient, and conflicting inputs return stable `DOTNETSP####` error diagnostics with the affected source subject; the resolver never chooses one structure heuristically.
 
 A composition host references `Cratis.Screenplay.Generation` and `Cratis.Screenplay.Generation.DotNet.Vogen` directly, plus its external ecosystem adapter package. The Vogen adapter package brings `Cratis.Screenplay.Generation.DotNet` and `Cratis.Screenplay.Generation.Contracts` transitively; the analyzed application references Vogen itself.
