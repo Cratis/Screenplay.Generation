@@ -74,6 +74,40 @@ static class Canonical
     public static string RelationshipKey(RelationshipKey key) =>
         Join(key.Kind.ToString(), key.Source.Value, key.Target.Value, key.Discriminator);
 
+    public static string SpecificationScenarioKey(SpecificationScenarioKey key) =>
+        Structural(key.Scenario.Value);
+
+    public static string SpecificationStepKey(SpecificationStepKey key) =>
+        Structural(SpecificationScenarioKey(key.Scenario), Invariant(key.Index));
+
+    public static string SpecificationValueKey(SpecificationValueKey key) =>
+        Structural(SpecificationStepKey(key.Step), Structural([.. key.Path]));
+
+    public static string SpecificationScenario(SpecificationScenarioDefinition definition) =>
+        Structural(
+            SpecificationScenarioKey(definition.Key),
+            definition.Name,
+            ArtifactKey(definition.TargetArtifact),
+            Structural([.. definition.Steps.Select(SpecificationStepKey)]));
+
+    public static string SpecificationStep(SpecificationStepDefinition definition) =>
+        Structural(
+            SpecificationStepKey(definition.Key),
+            Invariant((int)definition.Phase),
+            Invariant((int)definition.Kind),
+            definition.Artifact is null ? null : ArtifactKey(definition.Artifact),
+            definition.ErrorCode,
+            definition.ErrorMessage,
+            Structural([.. definition.Values.Select(SpecificationValueKey)]));
+
+    public static string SpecificationValue(SpecificationValueDefinition definition) =>
+        Structural(
+            SpecificationValueKey(definition.Key),
+            Invariant((int)definition.Kind),
+            TypeReference(definition.Type),
+            definition.Scalar,
+            Structural([.. definition.Children.Select(SpecificationValueKey)]));
+
     public static string Evidence(Evidence evidence)
     {
         var identity = evidence.Source?.FileIdentity;
@@ -113,6 +147,14 @@ static class Canonical
             identity?.Project,
             identity?.Path);
     }
+
+    static string? TypeReference(TypeReferenceDefinition? type) => type is null
+        ? null
+        : Structural(
+            type.Name,
+            type.Subject?.Value,
+            type.IsCollection.ToString(),
+            type.IsOptional.ToString());
 
     static string Encode(string? value) => value is null
         ? "-1:"

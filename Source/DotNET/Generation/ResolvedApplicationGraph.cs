@@ -278,6 +278,26 @@ public sealed record ResolvedApplicationGraph
     public IReadOnlyList<ResolvedRelationship> Relationships { get; init; } = [];
 
     /// <summary>
+    /// Gets resolved specification scenario assertions in canonical order.
+    /// </summary>
+    public IReadOnlyList<ResolvedSpecificationScenario> SpecificationScenarios { get; init; } = [];
+
+    /// <summary>
+    /// Gets resolved specification step assertions in canonical order.
+    /// </summary>
+    public IReadOnlyList<ResolvedSpecificationStep> SpecificationSteps { get; init; } = [];
+
+    /// <summary>
+    /// Gets resolved specification value assertions in canonical order.
+    /// </summary>
+    public IReadOnlyList<ResolvedSpecificationValue> SpecificationValues { get; init; } = [];
+
+    /// <summary>
+    /// Gets complete specification scenarios admitted atomically in canonical order.
+    /// </summary>
+    public IReadOnlyList<AdmittedSpecificationScenario> Specifications { get; init; } = [];
+
+    /// <summary>
     /// Gets adapter and resolution diagnostics in canonical order.
     /// </summary>
     public IReadOnlyList<GenerationDiagnostic> Diagnostics { get; init; } = [];

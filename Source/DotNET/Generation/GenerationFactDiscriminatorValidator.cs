@@ -40,6 +40,20 @@ static class GenerationFactDiscriminatorValidator
                 case ConceptValidationRuleFact validationRule:
                     ValidateConceptValidationRuleKind(fact, validationRule.Definition.Kind, diagnostics);
                     break;
+                case SpecificationScenarioFact scenario:
+                    ValidateArtifactKind(fact, scenario.Definition.TargetArtifact.Kind, diagnostics);
+                    break;
+                case SpecificationStepFact step:
+                    ValidateSpecificationStepPhase(fact, step.Definition.Phase, diagnostics);
+                    ValidateSpecificationStepKind(fact, step.Definition.Kind, diagnostics);
+                    if (step.Definition.Artifact is { } stepArtifact)
+                    {
+                        ValidateArtifactKind(fact, stepArtifact.Kind, diagnostics);
+                    }
+                    break;
+                case SpecificationValueFact value:
+                    ValidateSpecificationValueKind(fact, value.Definition.Kind, diagnostics);
+                    break;
             }
 
             if (diagnostics.Count == diagnosticCount)
@@ -145,6 +159,54 @@ static class GenerationFactDiscriminatorValidator
                 nameof(ConceptValidationRuleKind),
                 (int)kind,
                 kind == ConceptValidationRuleKind.Unknown));
+        }
+    }
+
+    static void ValidateSpecificationStepPhase(
+        GenerationFact fact,
+        SpecificationStepPhase phase,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        if (phase == SpecificationStepPhase.Unknown || !Enum.IsDefined(phase))
+        {
+            diagnostics.Add(Unsupported(
+                fact,
+                GenerationDiagnosticCodes.UnsupportedSpecificationStepPhase,
+                nameof(SpecificationStepPhase),
+                (int)phase,
+                phase == SpecificationStepPhase.Unknown));
+        }
+    }
+
+    static void ValidateSpecificationStepKind(
+        GenerationFact fact,
+        SpecificationStepKind kind,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        if (kind == SpecificationStepKind.Unknown || !Enum.IsDefined(kind))
+        {
+            diagnostics.Add(Unsupported(
+                fact,
+                GenerationDiagnosticCodes.UnsupportedSpecificationStepKind,
+                nameof(SpecificationStepKind),
+                (int)kind,
+                kind == SpecificationStepKind.Unknown));
+        }
+    }
+
+    static void ValidateSpecificationValueKind(
+        GenerationFact fact,
+        SpecificationValueKind kind,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        if (kind == SpecificationValueKind.Unknown || !Enum.IsDefined(kind))
+        {
+            diagnostics.Add(Unsupported(
+                fact,
+                GenerationDiagnosticCodes.UnsupportedSpecificationValueKind,
+                nameof(SpecificationValueKind),
+                (int)kind,
+                kind == SpecificationValueKind.Unknown));
         }
     }
 
