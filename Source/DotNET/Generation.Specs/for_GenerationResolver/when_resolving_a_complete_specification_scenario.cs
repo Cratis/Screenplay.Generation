@@ -21,9 +21,11 @@ public class when_resolving_a_complete_specification_scenario : given.specificat
             Value(0, "name", "Cratis"),
             Value(1, "name", "Cratis")
         ];
+        var reversedFacts = facts.ToArray();
+        Array.Reverse(reversedFacts);
         var resolver = new GenerationResolver();
         _forward = resolver.Resolve([Contribution(FirstAdapter, facts)]);
-        _reversed = resolver.Resolve([Contribution(FirstAdapter, [.. facts.Reverse()])]);
+        _reversed = resolver.Resolve([Contribution(FirstAdapter, reversedFacts)]);
     }
 
     [Fact] void should_have_no_diagnostics() => _forward.Diagnostics.ShouldBeEmpty();
