@@ -171,6 +171,21 @@ public static class DotNetSourceStructureDiagnosticCodes
     /// More than one analyzed project declares the same source subject.
     /// </summary>
     public const string DuplicateSourceSubject = "DOTNETSP0011";
+
+    /// <summary>
+    /// An artifact role and its source structure identify different subjects.
+    /// </summary>
+    public const string MismatchedPlacementSubject = "DOTNETSP0012";
+
+    /// <summary>
+    /// More than one distinct placement request targets the same artifact role.
+    /// </summary>
+    public const string ConflictingPlacementRequests = "DOTNETSP0013";
+
+    /// <summary>
+    /// A source placement request identifies an unknown or undefined artifact role.
+    /// </summary>
+    public const string UnsupportedPlacementArtifactKind = "DOTNETSP0014";
 }
 
 /// <summary>

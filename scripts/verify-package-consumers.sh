@@ -488,6 +488,30 @@ internal static class Program
             sourceStructure.Placement?.Slice == "Register",
             "CSC0025",
             "The shared source-structure policy did not preserve project role and exact placement.");
+        var placementSnapshot = DotNetSourcePlacementDerivation.Derive(
+        [
+            new DotNetSourcePlacementRequest
+            {
+                Artifact = new ArtifactKey
+                {
+                    Subject = sourceStructure.Structure.Subject,
+                    Kind = ArtifactKind.Command
+                },
+                Structure = sourceStructure.Structure,
+                SliceKind = GenerationSliceKind.StateChange,
+                Policy = new DotNetSourceStructurePolicy
+                {
+                    FeatureRoot = "Source",
+                    NamespaceSegmentsToSkip = 1
+                }
+            }
+        ]);
+        Require(
+            placementSnapshot.IsSuccess &&
+            placementSnapshot.Placements.Single().Placement.Module == sourceStructure.Placement?.Module &&
+            placementSnapshot.Placements.Single().Placement.Slice == sourceStructure.Placement?.Slice,
+            "CSC0027",
+            "The fixed-snapshot source placement derivation did not retain exact placement.");
 
         var context = new DotNetAnalysisContext([project]);
         var sourceStructureSnapshot = DotNetSourceStructures.Create(context);

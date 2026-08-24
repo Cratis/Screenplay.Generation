@@ -60,6 +60,8 @@ Hosts declare whether each `DotNetProjectCompilation` contains application artif
 
 `DotNetSourceStructures.Create(...)` builds the fixed snapshot from authoritative authored trees and the host's stable project source contexts. It retains every project-relative path of a partial declaration, orders projects, subjects, paths, and diagnostics canonically, and never exposes physical checkout paths. Missing contexts or mappings and duplicate project-qualified subjects fail closed.
 
+`DotNetSourcePlacementDerivation.Derive(...)` then combines exact artifact roles and independently established slice kinds with that fixed snapshot. Identical requests execute once, request order cannot change output, and mismatched subjects, unknown artifact kinds, or multiple distinct requests for one artifact role block that artifact rather than selecting a provider's answer.
+
 Folder and namespace evidence must agree when both can establish placement. Rooted, traversing, malformed, missing-root, unknown-role, unknown-slice-kind, insufficient, and conflicting inputs return stable `DOTNETSP####` error diagnostics with the affected source subject; the resolver never chooses one structure heuristically.
 
 A composition host references `Cratis.Screenplay.Generation` and `Cratis.Screenplay.Generation.DotNet.Vogen` directly, plus its external ecosystem adapter package. The Vogen adapter package brings `Cratis.Screenplay.Generation.DotNet` and `Cratis.Screenplay.Generation.Contracts` transitively; the analyzed application references Vogen itself.
