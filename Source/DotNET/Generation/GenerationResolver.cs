@@ -45,6 +45,16 @@ public sealed class GenerationResolver
             diagnostics);
         var placements = ResolvePlacements(facts.OfType<ArtifactPlacementFact>(), diagnostics);
         var relationships = ResolveRelationships(facts.OfType<RelationshipFact>(), diagnostics);
+        var specificationFacts = SpecificationFactResolver.Resolve(
+            facts.OfType<SpecificationScenarioFact>(),
+            facts.OfType<SpecificationStepFact>(),
+            facts.OfType<SpecificationValueFact>(),
+            diagnostics);
+        var specifications = SpecificationAdmission.Admit(
+            specificationFacts,
+            artifacts,
+            placements,
+            diagnostics);
 
         return new()
         {
@@ -54,6 +64,10 @@ public sealed class GenerationResolver
             ConceptValidationRules = conceptValidationRules,
             Placements = placements,
             Relationships = relationships,
+            SpecificationScenarios = specificationFacts.Scenarios,
+            SpecificationSteps = specificationFacts.Steps,
+            SpecificationValues = specificationFacts.Values,
+            Specifications = specifications,
             Diagnostics = [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]
         };
     }
@@ -329,6 +343,9 @@ public sealed class GenerationResolver
         ConceptValidationRuleFact validationRule => $"concept-validation-rule:{Canonical.ConceptValidationRule(validationRule.Definition)}",
         ArtifactPlacementFact placement => $"placement:{Canonical.ArtifactKey(placement.Artifact)}:{Canonical.Placement(placement.Placement)}",
         RelationshipFact relationship => $"relationship:{Canonical.Relationship(relationship.Definition)}",
+        SpecificationScenarioFact scenario => $"specification-scenario:{Canonical.SpecificationScenario(scenario.Definition)}",
+        SpecificationStepFact step => $"specification-step:{Canonical.SpecificationStep(step.Definition)}",
+        SpecificationValueFact value => $"specification-value:{Canonical.SpecificationValue(value.Definition)}",
         _ => fact.GetType().FullName ?? fact.GetType().Name
     };
 

@@ -142,4 +142,49 @@ public static class GenerationDiagnosticCodes
     /// A fact uses an unknown or undefined evidence strength.
     /// </summary>
     public const string UnsupportedEvidenceStrength = "GEN0029";
+
+    /// <summary>
+    /// A specification step fact uses an unknown or undefined authored phase.
+    /// </summary>
+    public const string UnsupportedSpecificationStepPhase = "GEN0030";
+
+    /// <summary>
+    /// A specification step fact uses an unknown or undefined behavior kind.
+    /// </summary>
+    public const string UnsupportedSpecificationStepKind = "GEN0031";
+
+    /// <summary>
+    /// A specification value fact uses an unknown or undefined value kind.
+    /// </summary>
+    public const string UnsupportedSpecificationValueKind = "GEN0032";
+
+    /// <summary>
+    /// Incompatible definitions were asserted for one specification scenario.
+    /// </summary>
+    public const string ConflictingSpecificationScenario = "GEN0033";
+
+    /// <summary>
+    /// Incompatible definitions were asserted for one ordered specification step.
+    /// </summary>
+    public const string ConflictingSpecificationStep = "GEN0034";
+
+    /// <summary>
+    /// Incompatible definitions were asserted for one specification value path.
+    /// </summary>
+    public const string ConflictingSpecificationValue = "GEN0035";
+
+    /// <summary>
+    /// A specification scenario, step, or value fact is internally invalid.
+    /// </summary>
+    public const string InvalidSpecificationFact = "GEN0036";
+
+    /// <summary>
+    /// A specification scenario cannot be admitted atomically because required steps, values, artifacts, or placements are missing or conflicted.
+    /// </summary>
+    public const string IncompleteSpecificationScenario = "GEN0037";
+
+    /// <summary>
+    /// A complete neutral specification uses behavior the current Screenplay syntax cannot represent exactly.
+    /// </summary>
+    public const string UnsupportedSpecificationLowering = "GEN0038";
 }

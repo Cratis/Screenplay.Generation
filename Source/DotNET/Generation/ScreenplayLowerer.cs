@@ -3,6 +3,7 @@
 
 using Cratis.Screenplay.Diagnostics;
 using Cratis.Screenplay.Syntax;
+using Cratis.Screenplay.Syntax.Specifications;
 
 namespace Cratis.Screenplay.Generation;
 
@@ -586,6 +587,7 @@ public sealed class ScreenplayLowerer
             .Where(_ => _ is not null)
             .Cast<ReducerSyntax>()
             .ToArray();
+        var specifications = context.SpecificationsFor(artifacts[0].Placement, diagnostics);
 
         return new SliceSyntax(
             SliceTypeFrom(kind),
@@ -598,7 +600,7 @@ public sealed class ScreenplayLowerer
             [],
             [],
             [],
-            [],
+            specifications,
             _generated,
             ReadModels: readModels,
             Reducers: reducers);
@@ -806,6 +808,15 @@ public sealed class ScreenplayLowerer
             type.Subject is not null && conceptNames.TryGetValue(type.Subject.Value, out var conceptName)
                 ? conceptName
                 : type.Name;
+
+        public SpecificationSyntax[] SpecificationsFor(
+            ArtifactPlacement placement,
+            ICollection<GenerationDiagnostic> diagnostics) =>
+            SpecificationSyntaxLowerer.Lower(
+                graph,
+                placement,
+                artifact => ArtifactName(artifact.Subject, artifact.Kind),
+                diagnostics);
     }
 
     sealed record PlacedArtifact(
