@@ -182,4 +182,9 @@ public static class GenerationDiagnosticCodes
     /// A specification scenario cannot be admitted atomically because required steps, values, artifacts, or placements are missing or conflicted.
     /// </summary>
     public const string IncompleteSpecificationScenario = "GEN0037";
+
+    /// <summary>
+    /// A complete neutral specification uses behavior the current Screenplay syntax cannot represent exactly.
+    /// </summary>
+    public const string UnsupportedSpecificationLowering = "GEN0038";
 }

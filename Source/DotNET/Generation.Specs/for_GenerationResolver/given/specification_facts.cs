@@ -95,11 +95,21 @@ public class specification_facts : facts
         Evidence = Exact(4)
     };
 
-    protected static ArtifactPlacementFact CommandPlacement() => new()
+    protected static ArtifactPlacementFact CommandPlacement() => Placement(
+        "command-placement",
+        CommandSubject,
+        CommandKey());
+
+    protected static ArtifactPlacementFact EventPlacement() => Placement(
+        "event-placement",
+        EventSubject,
+        EventKey());
+
+    static ArtifactPlacementFact Placement(string id, SubjectId subject, ArtifactKey artifact) => new()
     {
-        Id = new FactId { Value = "command-placement" },
-        Subject = CommandSubject,
-        Artifact = CommandKey(),
+        Id = new FactId { Value = id },
+        Subject = subject,
+        Artifact = artifact,
         Placement = new ArtifactPlacement
         {
             Module = "Accounts",
