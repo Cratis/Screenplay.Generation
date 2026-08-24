@@ -462,6 +462,33 @@ internal static class Program
             SourceContext = sourceContext,
             AuthoredSyntaxTrees = new HashSet<SyntaxTree> { authoredTree }
         };
+        Require(
+            project.Role == DotNetProjectRole.Application,
+            "CSC0024",
+            "The additive project role did not preserve the application default.");
+        var sourceStructure = DotNetSourceStructureResolver.Resolve(
+            new DotNetSourceStructure
+            {
+                Subject = new SubjectId { Value = "dotnet://Ordering/Ordering/Customers.Register.Register" },
+                Project = "Ordering/Ordering",
+                ProjectRole = DotNetProjectRole.Specifications,
+                Namespace = "Ordering.Customers.Register",
+                ProjectRelativePaths = ["Source/Customers/Register/Register.cs"]
+            },
+            GenerationSliceKind.StateChange,
+            new DotNetSourceStructurePolicy
+            {
+                FeatureRoot = "Source",
+                NamespaceSegmentsToSkip = 1
+            });
+        Require(
+            sourceStructure.IsSuccess &&
+            sourceStructure.Structure.ProjectRole == DotNetProjectRole.Specifications &&
+            sourceStructure.Placement?.Module == "Customers" &&
+            sourceStructure.Placement?.Slice == "Register",
+            "CSC0025",
+            "The shared source-structure policy did not preserve project role and exact placement.");
+
         var context = new DotNetAnalysisContext([project]);
         IDotNetScreenplayAdapter[] adapters =
         [
