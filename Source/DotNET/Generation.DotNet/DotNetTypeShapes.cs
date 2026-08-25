@@ -80,26 +80,8 @@ public static class DotNetTypeShapes
             })
     ];
 
-    static (ITypeSymbol Type, bool IsCollection) CollectionElementOf(ITypeSymbol type)
-    {
-        if (type is IArrayTypeSymbol array)
-        {
-            return (array.ElementType, true);
-        }
-
-        if (type.SpecialType == SpecialType.System_String || type is not INamedTypeSymbol named)
-        {
-            return (type, false);
-        }
-
-        var enumerable = named.AllInterfaces
-            .Concat([named])
-            .FirstOrDefault(_ =>
-                _.IsGenericType &&
-                _.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Collections.Generic.IEnumerable<T>");
-
-        return enumerable is null ? (type, false) : (enumerable.TypeArguments[0], true);
-    }
+    static (ITypeSymbol Type, bool IsCollection) CollectionElementOf(ITypeSymbol type) =>
+        DotNetSymbols.CollectionElementOf(type);
 
     static string TypeName(ITypeSymbol type) => type.SpecialType switch
     {
@@ -148,6 +130,98 @@ public static class DotNetTypeShapes
 public static class DotNetSymbols
 {
     /// <summary>
+    /// Gets the collection element type for an array or <see cref="IEnumerable{T}"/>-shaped type.
+    /// </summary>
+    /// <param name="type">The type to inspect.</param>
+    /// <returns>The collection element type, or <paramref name="type"/> when it is not a supported collection.</returns>
+    public static ITypeSymbol ElementTypeOf(ITypeSymbol type) => CollectionElementOf(type).Type;
+
+    /// <summary>
+    /// Tries to read a typed named argument from an attribute.
+    /// </summary>
+    /// <typeparam name="T">The expected runtime value type.</typeparam>
+    /// <param name="attribute">The attribute to inspect.</param>
+    /// <param name="name">The exact named argument.</param>
+    /// <param name="value">The typed value when present and compatible.</param>
+    /// <returns><see langword="true"/> when the named argument has the expected type; otherwise, <see langword="false"/>.</returns>
+    public static bool TryNamedArgument<T>(AttributeData attribute, string name, out T value)
+    {
+        foreach (var argument in attribute.NamedArguments)
+        {
+            if (!string.Equals(argument.Key, name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (argument.Value.Value is T typedValue)
+            {
+                value = typedValue;
+                return true;
+            }
+
+            if (argument.Value.IsNull && default(T) is null)
+            {
+                value = default!;
+                return true;
+            }
+
+            break;
+        }
+
+        value = default!;
+        return false;
+    }
+
+    /// <summary>
+    /// Reads an optional typed value named argument from an attribute.
+    /// </summary>
+    /// <typeparam name="T">The expected value type.</typeparam>
+    /// <param name="attribute">The attribute to inspect.</param>
+    /// <param name="name">The exact named argument.</param>
+    /// <returns>The typed value, or <see langword="null"/> when the argument is missing or has another type.</returns>
+    public static T? NamedArgument<T>(AttributeData attribute, string name)
+        where T : struct =>
+        TryNamedArgument(attribute, name, out T value) ? value : null;
+
+    /// <summary>
+    /// Reads a typed named argument from an attribute or returns an explicit fallback.
+    /// </summary>
+    /// <typeparam name="T">The expected runtime value type.</typeparam>
+    /// <param name="attribute">The attribute to inspect.</param>
+    /// <param name="name">The exact named argument.</param>
+    /// <param name="fallback">The value returned when the argument is missing or has another type.</param>
+    /// <returns>The typed named argument or <paramref name="fallback"/>.</returns>
+    public static T NamedArgument<T>(AttributeData attribute, string name, T fallback) =>
+        TryNamedArgument(attribute, name, out T value) ? value : fallback;
+
+    /// <summary>
+    /// Gets methods on one type whose names are allowlisted and whose first parameter is an exact request type.
+    /// </summary>
+    /// <param name="containingType">The type that must declare every companion method.</param>
+    /// <param name="requestType">The exact first-parameter request or message type.</param>
+    /// <param name="names">The explicit companion method name set.</param>
+    /// <returns>The matching methods in deterministic signature order.</returns>
+    public static IReadOnlyList<IMethodSymbol> CompanionMethodsFor(
+        INamedTypeSymbol containingType,
+        ITypeSymbol requestType,
+        IEnumerable<string> names)
+    {
+        var allowedNames = names.ToHashSet(StringComparer.Ordinal);
+        return
+        [
+            .. containingType.GetMembers()
+                .OfType<IMethodSymbol>()
+                .Where(_ =>
+                    _.MethodKind == MethodKind.Ordinary &&
+                    !_.IsImplicitlyDeclared &&
+                    allowedNames.Contains(_.Name) &&
+                    _.Parameters.Length > 0 &&
+                    SymbolEqualityComparer.Default.Equals(_.Parameters[0].Type, requestType))
+                .OrderBy(_ => _.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), StringComparer.Ordinal)
+        ];
+    }
+
+    /// <summary>
     /// Gets whether a symbol carries an attribute with the specified metadata name.
     /// </summary>
     /// <param name="symbol">The attributed symbol.</param>
@@ -192,4 +266,25 @@ public static class DotNetSymbols
     /// <returns><see langword="true"/> when the interface is implemented; otherwise, <see langword="false"/>.</returns>
     public static bool Implements(INamedTypeSymbol type, string metadataName) =>
         type.AllInterfaces.Any(_ => DotNetSubjectIds.MetadataName(_) == metadataName);
+
+    internal static (ITypeSymbol Type, bool IsCollection) CollectionElementOf(ITypeSymbol type)
+    {
+        if (type is IArrayTypeSymbol array)
+        {
+            return (array.ElementType, true);
+        }
+
+        if (type.SpecialType == SpecialType.System_String || type is not INamedTypeSymbol named)
+        {
+            return (type, false);
+        }
+
+        var enumerable = named.AllInterfaces
+            .Concat([named])
+            .FirstOrDefault(_ =>
+                _.IsGenericType &&
+                _.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Collections.Generic.IEnumerable<T>");
+
+        return enumerable is null ? (type, false) : (enumerable.TypeArguments[0], true);
+    }
 }
