@@ -16,6 +16,11 @@ public sealed record DotNetProjectCompilation
     public required string Name { get; init; }
 
     /// <summary>
+    /// Gets the role this project has in the analyzed application source set.
+    /// </summary>
+    public DotNetProjectRole Role { get; init; } = DotNetProjectRole.Application;
+
+    /// <summary>
     /// Gets the project file path when the project came from an MSBuild workspace.
     /// </summary>
     public string? ProjectPath { get; init; }

@@ -458,7 +458,7 @@ internal static class Program
             new DotNetSourcePathPolicy
             {
                 DisplayRoot = DotNetSourceDisplayRoot.Workspace,
-                CasePolicy = DotNetSourcePathCasePolicy.Ordinal
+                CasePolicy = DotNetSourcePathCasePolicy.InvariantLowercase
             },
             [
                 new DotNetSourceDocument
@@ -476,7 +476,64 @@ internal static class Program
             SourceContext = sourceContext,
             AuthoredSyntaxTrees = new HashSet<SyntaxTree> { authoredTree }
         };
+        Require(
+            project.Role == DotNetProjectRole.Application,
+            "CSC0024",
+            "The additive project role did not preserve the application default.");
+        var placementOptions = new DotNetAdapterOptions
+        {
+            FeatureRoot = "Source",
+            NamespaceSegmentsToSkip = 1
+        };
+        var sourceStructure = DotNetSourceStructureResolver.Resolve(
+            new DotNetSourceStructure
+            {
+                Subject = new SubjectId { Value = "dotnet://Ordering/Ordering/Customers.Register.Register" },
+                Project = "Ordering/Ordering",
+                ProjectRole = DotNetProjectRole.Specifications,
+                Namespace = "Ordering.Customers.Register",
+                ProjectRelativePaths = ["Source/Customers/Register/Register.cs"]
+            },
+            GenerationSliceKind.StateChange,
+            placementOptions.SourceStructurePolicy);
+        Require(
+            sourceStructure.IsSuccess &&
+            sourceStructure.Structure.ProjectRole == DotNetProjectRole.Specifications &&
+            sourceStructure.Placement?.Module == "Customers" &&
+            sourceStructure.Placement?.Slice == "Register",
+            "CSC0025",
+            "The shared source-structure policy did not preserve project role and exact placement.");
+        var placementSnapshot = DotNetSourcePlacementDerivation.Derive(
+        [
+            new DotNetSourcePlacementRequest
+            {
+                Artifact = new ArtifactKey
+                {
+                    Subject = sourceStructure.Structure.Subject,
+                    Kind = ArtifactKind.Command
+                },
+                Structure = sourceStructure.Structure,
+                SliceKind = GenerationSliceKind.StateChange,
+                Policy = placementOptions.SourceStructurePolicy
+            }
+        ]);
+        Require(
+            placementSnapshot.IsSuccess &&
+            placementSnapshot.Placements.Single().Placement.Module == sourceStructure.Placement?.Module &&
+            placementSnapshot.Placements.Single().Placement.Slice == sourceStructure.Placement?.Slice,
+            "CSC0027",
+            "The fixed-snapshot source placement derivation did not retain exact placement.");
+
         var context = new DotNetAnalysisContext([project]);
+        var sourceStructureSnapshot = DotNetSourceStructures.Create(context);
+        Require(
+            sourceStructureSnapshot.IsSuccess &&
+            sourceStructureSnapshot.Structures.Any(structure =>
+                structure.Namespace == "Ordering" &&
+                structure.ProjectRelativePaths.Contains("Concepts/CustomerCode.cs", StringComparer.Ordinal)),
+            "CSC0026",
+            "The fixed .NET source-structure snapshot did not retain mapped authored source.");
+
         var customerRegistered = compilation.GetTypeByMetadataName("Ordering.CustomerRegistered")!;
         var batchElement = DotNetSymbols.ElementTypeOf(compilation.GetTypeByMetadataName("Ordering.CustomerBatch")!);
         var endpointPolicy = customerRegistered.GetAttributes().Single();
@@ -488,7 +545,7 @@ internal static class Program
             SymbolEqualityComparer.Default.Equals(batchElement, customerRegistered) &&
             DotNetSymbols.NamedArgument<bool>(endpointPolicy, "Required") == true &&
             companions.Select(method => method.Name).SequenceEqual(["Load", "Validate"], StringComparer.Ordinal),
-            "CSC0024",
+            "CSC0028",
             "The shared .NET symbol helpers did not preserve collection, attribute, or companion-method semantics.");
 
         var configuredEvidence = DotNetSource.EvidenceFor(
@@ -506,7 +563,7 @@ internal static class Program
             nominatedConcept.OfType<ArtifactFact>().Single().Definition.Key.Kind == ArtifactKind.Concept &&
             nominatedConcept.OfType<ConceptRepresentationFact>().Single().Definition.Primitive == GenerationPrimitiveKind.Text &&
             nominatedConcept.All(fact => fact.Evidence.Strength == EvidenceStrength.Configured),
-            "CSC0025",
+            "CSC0029",
             "Declared concept nomination did not emit neutral concept and primitive facts with its own evidence.");
 
         IDotNetScreenplayAdapter[] adapters =
@@ -538,7 +595,7 @@ internal static class Program
             concept.Evidence.Source?.FileIdentity == new SourceFileIdentity
             {
                 Project = "Ordering/Ordering",
-                Path = "Concepts/CustomerCode.cs"
+                Path = "concepts/customercode.cs"
             },
             "CSC0022",
             "The explicit source context did not keep display path and stable file identity separate.");

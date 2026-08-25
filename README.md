@@ -48,6 +48,7 @@ Each `DotNetProjectCompilation` requires the workspace host's authoritative `Aut
 Hosts can additionally provide a `DotNetProjectSourceContext` created by `DotNetSourcePaths.Create(...)`. The context keeps stable source identity separate from the path displayed in generated output and diagnostics:
 
 - identity is the host-declared project identity plus normalized project-relative path;
+- `DotNetSourceFile.ProjectRelativePath` preserves authored casing for source-structure derivation independently from identity case folding;
 - `SourceRange.Path` is the host-declared display path, explicitly workspace-relative or project-relative;
 - `/` separators, Unicode NFC normalization, and the `Ordinal` or `InvariantLowercase` case policy are host-owned rather than inferred from the operating system; `InvariantLowercase` folds first and NFC-normalizes the folded identity;
 - the factory returns an immutable defensive snapshot whose project identity, policy, and file mappings cannot be replaced;
@@ -55,6 +56,18 @@ Hosts can additionally provide a `DotNetProjectSourceContext` created by `DotNet
 - duplicate identities and malformed, rooted, traversal, or unmapped authored paths fail with typed exceptions.
 
 Existing `SourceRoot` and evidence overloads remain supported. When no explicit context is supplied, they retain their current display-path behavior and do not add stable identity, preserving existing hosts and package consumers.
+
+### Shared .NET source structure
+
+Hosts declare whether each `DotNetProjectCompilation` contains application artifacts or specifications through `DotNetProjectRole`. The default remains `Application` for existing consumers.
+
+`DotNetSourceStructureResolver` applies one versioned, host-owned `DotNetSourceStructurePolicy` to fixed source evidence. By default, the first post-root folder or namespace segment is the module, the final segment is the slice, and intermediate segments are features. A host can declare a project-relative `FeatureRoot`, skip leading namespace segments, or explicitly collapse all roots into one module. Existing composition hosts can use `DotNetAdapterOptions.SourceStructurePolicy` to apply those options through the shared resolver without duplicating policy mapping. The semantic slice kind is supplied independently; source layout never decides whether behavior is a state change, state view, automation, or translation.
+
+`DotNetSourceStructures.Create(...)` builds the fixed snapshot from authoritative authored trees and the host's stable project source contexts. It retains every project-relative path of a partial declaration, orders projects, subjects, paths, and diagnostics canonically, and never exposes physical checkout paths. Missing contexts or mappings and duplicate project-qualified subjects fail closed.
+
+`DotNetSourcePlacementDerivation.Derive(...)` then combines exact artifact roles and independently established slice kinds with that fixed snapshot. Identical requests execute once, request order cannot change output, and mismatched subjects, unknown artifact kinds, or multiple distinct requests for one artifact role block that artifact rather than selecting a provider's answer.
+
+Folder and namespace evidence must agree when both can establish placement. Rooted, traversing, malformed, missing-root, unknown-role, unknown-slice-kind, insufficient, and conflicting inputs return stable `DOTNETSP####` error diagnostics with the affected source subject; the resolver never chooses one structure heuristically.
 
 A composition host references `Cratis.Screenplay.Generation` and `Cratis.Screenplay.Generation.DotNet.Vogen` directly, plus its external ecosystem adapter package. The Vogen adapter package brings `Cratis.Screenplay.Generation.DotNet` and `Cratis.Screenplay.Generation.Contracts` transitively; the analyzed application references Vogen itself.
 

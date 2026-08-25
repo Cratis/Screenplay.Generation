@@ -102,6 +102,11 @@ public sealed record DotNetSourceFile
     public required SourceFileIdentity Identity { get; init; }
 
     /// <summary>
+    /// Gets the casing-preserving source path relative to the owning project.
+    /// </summary>
+    public string ProjectRelativePath { get; init; } = string.Empty;
+
+    /// <summary>
     /// Gets the path presented in generated output and diagnostics.
     /// </summary>
     public required string DisplayPath { get; init; }
@@ -150,6 +155,7 @@ public static class DotNetSourcePaths
             var sourceFile = new DotNetSourceFile
             {
                 Identity = identity,
+                ProjectRelativePath = projectPath,
                 DisplayPath = policy.DisplayRoot == DotNetSourceDisplayRoot.Workspace ? workspacePath : projectPath
             };
             if (!files.TryAdd(document.SyntaxTree, sourceFile))
