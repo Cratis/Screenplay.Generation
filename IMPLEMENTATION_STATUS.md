@@ -33,10 +33,10 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 ## Current Generation release
 
 - Repository: <https://github.com/Cratis/Screenplay.Generation>
-- Current public release: [`v0.10.1`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.10.1) at `682a92a8ab538da0db9b8a0edafeb27c54dbe656`.
+- Current public release: [`v0.12.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.12.0) at `65eb13329f158ea1d18a1eb34b86386ad87a8003`.
 - The four packages release in lockstep: Contracts, Generation, DotNet, and DotNet.Vogen.
-- `0.7.0` is the minimum public compatibility floor; package validation compares the complete public surface against the latest published release, `0.10.1`. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
-- `0.10.0` introduced neutral executable-specification facts, admission, and lowering; `0.10.1` corrected bare rejection-step admission.
+- `0.7.0` is the minimum public compatibility floor; package validation compares the complete public surface against the latest published release, `0.12.0`. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
+- `0.10.0` introduced neutral executable-specification facts, admission, and lowering; `0.10.1` corrected bare rejection-step admission; `0.12.0` is the released shared adapter and strict source-placement baseline.
 - Unchanged legacy binaries compiled against the `0.1.0` core packages and the first correctly sourced `0.5.0` Vogen package remain the compatibility-ancestry smoke.
 - Historical `Cratis.Screenplay.Generation.DotNet.Vogen` versions `0.2.0` through `0.4.0` were incorrectly sourced. Manual unlisting remains tracked in [issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13); OIDC publication credentials cannot delete or unlist them.
 - The normative lifecycle and compatibility contract is in [`COMPATIBILITY.md`](COMPATIBILITY.md).
@@ -59,12 +59,14 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 - Neutral executable-specification scenarios with ordered Given/When/Then facts, typed values, deterministic admission, and Screenplay lowering.
 - Shared .NET adapter helpers for collection element types, named attribute arguments, companion method families, resilient type shapes, and declared concept nomination through `DotNetConceptFacts.Emit(...)`.
 - Fixed, project-qualified .NET source-structure snapshots and deterministic source placement derivation with host-owned policy, application/specification project roles, and fail-closed `DOTNETSP####` diagnostics.
+- Additive exact `SourceOwner` requests for method-backed and synthetic artifacts without rewriting fixed snapshots.
+- Explicit versioned flat-source compatibility placement admitted only after a sole `DOTNETSP0004`, with strict/compatibility policy, usage, trigger, and source-owner provenance on each result.
 
 ## Current verification evidence
 
-- Full Debug suite: **452 specs passed** — Generation 175, Generation.DotNet 175, and Generation.DotNet.Vogen 102.
+- Full Debug suite: **508 specs passed** — Generation 175, Generation.DotNet 231, and Generation.DotNet.Vogen 102.
 - Release targets `net8.0`, `net9.0`, and `net10.0` built with zero warnings and zero errors.
-- All four sentinel `9999.0.0` packages validate against published `0.10.1`.
+- All four sentinel `9999.0.0` packages validate against published `0.12.0`.
 - Legacy binaries compiled against core `0.1.0` and Vogen `0.5.0` run unchanged against the candidate packages.
 - The clean current-source consumer verifies shared symbol/method identities, source snapshots and placement, concept nomination, executable specification facts and bare rejection admission, adapter composition, conflicts, provenance, deterministic source, compiler verification, and round-trip stability.
 - The isolated package cache starts empty for consumer verification.
@@ -79,13 +81,13 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 
 ## Unreleased `main` capability
 
-- Shared .NET adapter generalization and source-placement work is merged on `main` after `v0.10.1` but has not been released.
-- The next release should include those APIs, advance package validation from `0.10.1`, and be followed by coordinated Critter Stack and CLI upgrades.
+- Exact alternate source owners and explicit fail-closed flat-source compatibility placement are implemented after `v0.12.0` for the preserved Critter Stack adoption blocker.
+- The next release should include those additive APIs and be followed by resumed Critter Stack shared-placement adoption.
 
 ## Immediate next actions
 
-1. Publish the merged post-`0.10.1` shared adapter and source-placement capability as the next lockstep minor release after fresh package/consumer verification.
-2. Upgrade Critter Stack and CLI together to that release and replace adapter-local concept nomination or placement mechanics where the shared APIs apply.
+1. Publish the additive source-owner and explicit flat-source compatibility contract as the next lockstep minor release after fresh package/consumer verification.
+2. Resume Critter Stack shared source-placement adoption against that public release, preserving canonical output and strict project-aware diagnostics.
 3. Continue atomic adapter orchestration under [issue #17](https://github.com/Cratis/Screenplay.Generation/issues/17), with granular derivation in #19, validation contracts in #20, and descriptor/probe admission in #23.
 4. Reconcile issue #18 and #25 with capability already merged or released.
 5. Leave [Generation issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13) open until a NuGet owner manually unlists the identified incorrectly sourced Vogen packages.

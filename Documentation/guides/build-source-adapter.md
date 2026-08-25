@@ -39,20 +39,22 @@ Keep runtime packages for the framework you analyze out of the adapter whenever 
 Reference one version across all directly referenced Screenplay Generation packages.
 
 :::note
-`v0.10.1` is the current public release. `DotNetConceptFacts`, `DotNetInvocations`, the newest `DotNetSymbols` helpers, source placement, and method identities described below are on current `main` and require the next lockstep minor release. New adapters that need these APIs should wait for that release instead of copying them.
+`v0.12.0` is the current public release. Exact alternate source owners and explicit flat-source compatibility placement are on current `main` and require the next lockstep minor release. New adapters that need those additions should wait for that release instead of copying them or rewriting fixed snapshots.
 :::
 
-| Capability | Released `0.10.1` | Current `main` |
+| Capability | Released `0.12.0` | Current `main` |
 | --- | ---: | ---: |
 | Adapter, context, and fact contracts | Yes | Yes |
 | Stable source identity | Yes | Yes |
 | Executable specification facts | Yes | Yes |
-| `DotNetConceptFacts` | No | Yes |
-| New symbol and invocation helpers | No | Yes |
-| Fixed source snapshots and placement | No | Yes |
-| Overload-safe method subjects | No | Yes |
+| `DotNetConceptFacts` | Yes | Yes |
+| Symbol and invocation helpers | Yes | Yes |
+| Fixed source snapshots and strict placement | Yes | Yes |
+| Overload-safe method subjects | Yes | Yes |
+| Exact alternate source owners | No | Yes |
+| Explicit flat-source compatibility placement | No | Yes |
 
-Sections using a current-main-only API prepare you for the next minor release; they are not instructions for a `0.10.1` package consumer.
+Sections using a current-main-only API prepare you for the next minor release; they are not instructions for a `0.12.0` package consumer.
 
 ## Implement the adapter contract
 
@@ -295,10 +297,11 @@ Do not infer concepts from names such as `Id`, from having one property, or from
 Source layout does not decide semantic role. First establish `ArtifactKind` and `GenerationSliceKind` from framework semantics. Then use the shared placement pipeline:
 
 1. Create a fixed snapshot with `DotNetSourceStructures.Create(context)`.
-2. Find the source structure for the artifact subject.
-3. Build a `DotNetSourcePlacementRequest` with the artifact key, structure, slice kind, and `options.SourceStructurePolicy`.
-4. Call `DotNetSourcePlacementDerivation.Derive(...)` once for the complete request set.
-5. Convert successful placements to `ArtifactPlacementFact` values and retain every placement diagnostic.
+2. Find the source structure for the artifact subject, or for an exact different source owner established by adapter semantics.
+3. Build a `DotNetSourcePlacementRequest` with the artifact key, unchanged structure, slice kind, and `options.SourceStructurePolicy`. Set `SourceOwner` only when the artifact is method-backed or synthetic and its exact owner is known.
+4. Optionally supply an exact, versioned `DotNetSourcePlacementCompatibilityPolicy` for a legacy placement that may be used only after strict `DOTNETSP0004` insufficient-structure failure.
+5. Call `DotNetSourcePlacementDerivation.Derive(...)` once for the complete request set.
+6. Convert successful placements to `ArtifactPlacementFact` values, retain every placement diagnostic, and pass the result policy and compatibility fields to host provenance.
 
 ```csharp
 var structureSnapshot = DotNetSourceStructures.Create(context);
@@ -352,6 +355,10 @@ foreach (var placement in placementSnapshot.Placements)
 ```
 
 An adapter with several behavior kinds supplies the independently proven `GenerationSliceKind` for each artifact instead of assigning `StateChange` universally. Snapshot diagnostics and derivation diagnostics both belong in the adapter contribution.
+
+For a query represented by a method subject or a reducer represented by a synthetic subject, do not change `DotNetSourceStructure.Subject`. Set `SourceOwner` to the exact containing type, projection, or model subject. The request remains invalid with `DOTNETSP0012` when the nominated owner differs from the fixed structure, and two different owner requests for one artifact conflict with `DOTNETSP0013`.
+
+Strict placement is the default. A compatibility policy contains the exact legacy `ArtifactPlacement`; Generation does not infer it from a filename. A valid policy can supply placement only when strict resolution returns exactly one `DOTNETSP0004` diagnostic; strict success still wins, while malformed compatibility reports `DOTNETSP0015`. Every other `DOTNETSP####` result remains blocking, including snapshot diagnostics `DOTNETSP0009` through `DOTNETSP0011`, which occur before any placement request exists. `DotNetSourcePlacement.UsedCompatibilityPlacement`, `CompatibilityReasonCode`, `Policy`, `CompatibilityPolicy`, and `SourceOwner` provide defensive, deterministic host/CLI provenance.
 
 The host owns `FeatureRoot`, explicit module, and skipped namespace segments. Folder and namespace evidence must agree when both establish placement.
 
