@@ -35,6 +35,10 @@ Adapters contribute semantic facts; they do not construct syntax nodes or concat
 
 `Cratis.Screenplay.Generation.DotNet` deliberately does not own `MSBuildWorkspace`. Hosts such as Cratis CLI load a project once and pass Roslyn compilations to official adapters.
 
+### Adapter syntax robustness
+
+Adapter discovery is based on compiler symbols and semantic models, not preferred source formatting. Semantically valid generated, decompiler-style, fully qualified, explicitly cast, or otherwise non-idiomatic C# must produce the same facts as its idiomatic equivalent. Every .NET adapter should keep one reusable source fixture that deliberately exercises non-idiomatic syntax and assert that its ordinary supported facts still resolve without additional loss.
+
 ## Vogen adapter composition
 
 `Cratis.Screenplay.Generation.DotNet.Vogen` recognizes the exact Roslyn metadata names `Vogen.ValueObjectAttribute`, ``Vogen.ValueObjectAttribute`1``, and `Vogen.VogenDefaultsAttribute`. It has no Vogen package or runtime dependency. Vogen is pinned only in the adapter's semantic spec project so production consumers remain decoupled from the source generator.
@@ -91,6 +95,8 @@ Generated members never provide primary evidence. The adapter never infers ident
 
 ## Concepts
 
+.NET adapters can nominate a source type as a concept through `DotNetConceptFacts.Emit(...)`. Nomination requires an authored declaration surface—such as an attribute or an explicit framework registration API—with the adapter's own evidence. Structural guessing from wrapper shape or naming is not sufficient. The helper emits the neutral concept artifact and a representation only for a supported explicitly declared primitive backing; unsupported backings retain the concept nomination without inventing a representation.
+
 Adapters can contribute `ArtifactKind.Concept` together with independently proven `ConceptRepresentationFact`, `ConceptAttributeFact`, and `ConceptValidationRuleFact` assertions. Primitive/enumeration representations, named attributes, and named external predicate rules resolve deterministically and lower to top-level Screenplay concepts without module placement.
 
 `TypeReferenceDefinition.Subject` binds an artifact property to the exact concept subject rather than a simple display name. Missing, conflicting, unsupported, or same-named concept definitions produce stable diagnostics; generation never falls back to `String`.
@@ -128,6 +134,10 @@ Every public fact discriminator has an explicit `Unknown = -1` sentinel without 
 
 `GenerationDiagnostic.Outcome` independently classifies `Unknown`, `Conflict`, and `Unsupported` results while preserving stable codes, severity, source range, subject, and all incompatible resolver variants. The nullable additive property keeps older producers and consumers binary compatible. Valid unrelated facts continue to generate deterministic compiler-verified Screenplay output.
 
+### Convention-altering extension diagnostics
+
+When an authored framework extension can alter discovery or runtime conventions beyond what an adapter can prove statically, adapters use a stable adapter-owned diagnostic code and `GenerationDiagnosticOutcome.Unsupported`. `Subject` identifies the authored extension type. The message names both the exact hook surface and the affected convention scope, using this shape: `Authored extension '<type>' uses '<hook surface>' and may alter <scope>; the recovered model reflects default <scope> only.` This distinguishes bounded default recovery from an unrecognized framework generation without introducing a new diagnostic outcome.
+
 See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the current implementation checkpoint and pre-release decisions.
 
 ## Build and test
@@ -139,7 +149,7 @@ dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Art
 ./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
 
-Package validation runs during pack against the latest released API baseline, `0.8.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
+Package validation runs during pack against the latest released API baseline, `0.8.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, shared symbol helpers, declared concept nomination, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
 
 All builds require zero errors and zero warnings. Generated Screenplay output must compile and remain stable through print/compile/print.
 

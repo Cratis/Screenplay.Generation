@@ -143,8 +143,7 @@ internal static class SpecificationAdmission
     {
         if (step.Kind == SpecificationStepKind.Error)
         {
-            return step.Phase == SpecificationStepPhase.Then && step.Artifact is null && step.Values.Count == 0 &&
-                (step.ErrorCode is not null || step.ErrorMessage is not null);
+            return step.Phase == SpecificationStepPhase.Then && step.Artifact is null && step.Values.Count == 0;
         }
 
         if (step.Artifact is null || step.ErrorCode is not null || step.ErrorMessage is not null ||

@@ -71,43 +71,21 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
             project,
             EvidenceStrength.Exact,
             $"The authored type has the exact '{MetadataName(attribute)}' attribute");
-        facts.Add(new ArtifactFact
-        {
-            Id = FactIdFor("concept", subject),
-            Subject = subject,
-            Evidence = conceptEvidence,
-            Definition = new ArtifactDefinition
-            {
-                Key = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Concept },
-                Name = type.Name,
-                File = conceptEvidence.Source?.Path
-            }
-        });
-
         var backing = BackingType(project.Compilation, attribute, defaultAttribute);
-        var primitive = PrimitiveFor(backing.Type);
-        if (primitive is not null)
-        {
-            var representationEvidence = DotNetSource.EvidenceFor(
-                backing.Evidence,
-                identity,
-                project,
-                EvidenceStrength.Exact,
-                $"Vogen configures '{DisplayName(backing.Type)}' as the backing type");
-            facts.Add(new ConceptRepresentationFact
-            {
-                Id = FactIdFor("concept-representation", subject),
-                Subject = subject,
-                Evidence = representationEvidence,
-                Definition = new ConceptRepresentationDefinition
-                {
-                    Concept = subject,
-                    Kind = ConceptRepresentationKind.Primitive,
-                    Primitive = primitive
-                }
-            });
-        }
-        else
+        var representationEvidence = DotNetSource.EvidenceFor(
+            backing.Evidence,
+            identity,
+            project,
+            EvidenceStrength.Exact,
+            $"Vogen configures '{DisplayName(backing.Type)}' as the backing type");
+        var conceptFacts = DotNetConceptFacts.Emit(
+            type,
+            backing.Type,
+            subject,
+            conceptEvidence,
+            representationEvidence);
+        facts.AddRange(conceptFacts);
+        if (!conceptFacts.OfType<ConceptRepresentationFact>().Any())
         {
             diagnostics.Add(new GenerationDiagnostic
             {
@@ -115,11 +93,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
                 Severity = GenerationDiagnosticSeverity.Warning,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Vogen concept '{type.Name}' uses unsupported backing type '{DisplayName(backing.Type)}'; no concept representation was contributed",
-                Source = DotNetSource.EvidenceFor(
-                    backing.Evidence,
-                    identity,
-                    project,
-                    EvidenceStrength.Exact).Source,
+                Source = representationEvidence.Source,
                 Subject = subject
             });
         }
@@ -413,40 +387,6 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
 
     static ITypeSymbol? TypeConstructorArgument(AttributeData attribute) =>
         attribute.ConstructorArguments.FirstOrDefault().Value as ITypeSymbol;
-
-    static GenerationPrimitiveKind? PrimitiveFor(ITypeSymbol type) => type.SpecialType switch
-    {
-        SpecialType.System_String => GenerationPrimitiveKind.Text,
-        SpecialType.System_Boolean => GenerationPrimitiveKind.Boolean,
-        SpecialType.System_Byte or
-        SpecialType.System_SByte or
-        SpecialType.System_Int16 or
-        SpecialType.System_UInt16 or
-        SpecialType.System_Int32 or
-        SpecialType.System_UInt32 or
-        SpecialType.System_Int64 or
-        SpecialType.System_UInt64 => GenerationPrimitiveKind.WholeNumber,
-        SpecialType.System_Decimal or
-        SpecialType.System_Double or
-        SpecialType.System_Single => GenerationPrimitiveKind.Number,
-        _ => NamedPrimitiveFor(type)
-    };
-
-    static GenerationPrimitiveKind? NamedPrimitiveFor(ITypeSymbol type)
-    {
-        if (type is not INamedTypeSymbol named || named.IsGenericType)
-        {
-            return null;
-        }
-
-        return DotNetSubjectIds.MetadataName(named) switch
-        {
-            "System.Guid" => GenerationPrimitiveKind.Uuid,
-            "System.DateOnly" => GenerationPrimitiveKind.Date,
-            "System.DateTime" or "System.DateTimeOffset" => GenerationPrimitiveKind.DateTime,
-            _ => null
-        };
-    }
 
     static FactId FactIdFor(string kind, SubjectId subject) => new()
     {
