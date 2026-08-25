@@ -121,9 +121,10 @@ public sealed class DotNetAnalysisContext(IEnumerable<DotNetProjectCompilation> 
         var metadataName = DotNetSubjectIds.MetadataName(type);
         var candidates = Projects
             .Select(project => new { Project = project, Type = project.Compilation.GetTypeByMetadataName(metadataName) })
-            .Where(_ => _.Type?.Locations.Any(location => location.IsInSource) == true)
+            .Where(_ =>
+                _.Type?.Locations.Any(location => location.IsInSource) == true &&
+                SymbolEqualityComparer.Default.Equals(_.Type.ContainingModule, _.Project.Compilation.SourceModule))
             .Select(_ => _.Project.SubjectForType(_.Type!))
-            .Distinct()
             .ToArray();
         return candidates.Length == 1 ? candidates[0] : null;
     }
