@@ -39,10 +39,10 @@ Keep runtime packages for the framework you analyze out of the adapter whenever 
 Reference one version across all directly referenced Screenplay Generation packages.
 
 :::note
-`v0.12.0` is the current public release. Exact alternate source owners and explicit flat-source compatibility placement are on current `main` and require the next lockstep minor release. New adapters that need those additions should wait for that release instead of copying them or rewriting fixed snapshots.
+`v0.13.0` is the current public release. Exact alternate source owners and explicit flat-source compatibility placement are available in that lockstep package set.
 :::
 
-| Capability | Released `0.12.0` | Current `main` |
+| Capability | Released `0.13.0` | Current `main` |
 | --- | ---: | ---: |
 | Adapter, context, and fact contracts | Yes | Yes |
 | Stable source identity | Yes | Yes |
@@ -51,10 +51,8 @@ Reference one version across all directly referenced Screenplay Generation packa
 | Symbol and invocation helpers | Yes | Yes |
 | Fixed source snapshots and strict placement | Yes | Yes |
 | Overload-safe method subjects | Yes | Yes |
-| Exact alternate source owners | No | Yes |
-| Explicit flat-source compatibility placement | No | Yes |
-
-Sections using a current-main-only API prepare you for the next minor release; they are not instructions for a `0.12.0` package consumer.
+| Exact alternate source owners | Yes | Yes |
+| Explicit flat-source compatibility placement | Yes | Yes |
 
 ## Implement the adapter contract
 
