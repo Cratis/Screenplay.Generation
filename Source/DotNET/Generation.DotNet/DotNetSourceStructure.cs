@@ -186,6 +186,11 @@ public static class DotNetSourceStructureDiagnosticCodes
     /// A source placement request identifies an unknown or undefined artifact role.
     /// </summary>
     public const string UnsupportedPlacementArtifactKind = "DOTNETSP0014";
+
+    /// <summary>
+    /// An explicit compatibility placement policy is malformed or unsupported.
+    /// </summary>
+    public const string UnsupportedCompatibilityPolicy = "DOTNETSP0015";
 }
 
 /// <summary>

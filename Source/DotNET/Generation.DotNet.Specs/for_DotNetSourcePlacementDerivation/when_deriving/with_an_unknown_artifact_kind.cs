@@ -32,6 +32,15 @@ public class with_an_unknown_artifact_kind : Specification
                 {
                     FeatureRoot = "Source",
                     NamespaceSegmentsToSkip = 1
+                },
+                CompatibilityPolicy = new DotNetSourcePlacementCompatibilityPolicy
+                {
+                    Placement = new ArtifactPlacement
+                    {
+                        Module = "Banking",
+                        Slice = "Register",
+                        SliceKind = GenerationSliceKind.StateChange
+                    }
                 }
             }
         ]);
