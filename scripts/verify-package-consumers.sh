@@ -394,7 +394,21 @@ internal static class Program
                             : Vogen.Validation.Ok;
                 }
 
+                [System.AttributeUsage(System.AttributeTargets.Class)]
+                public sealed class EndpointPolicyAttribute : System.Attribute
+                {
+                    public bool Required { get; set; }
+                }
+
+                [EndpointPolicy(Required = true)]
                 public sealed record CustomerRegistered(CustomerCode CustomerCode);
+                public sealed class CustomerBatch : System.Collections.Generic.List<CustomerRegistered>;
+                public static class CustomerHandler
+                {
+                    public static void Validate(CustomerRegistered request) => _ = request;
+                    public static void Load(CustomerRegistered request, int version) => _ = (request, version);
+                    public static void Validate(CustomerCode request) => _ = request;
+                }
             }
             """,
             path: "/consumer/Concepts/CustomerCode.cs");
@@ -463,6 +477,38 @@ internal static class Program
             AuthoredSyntaxTrees = new HashSet<SyntaxTree> { authoredTree }
         };
         var context = new DotNetAnalysisContext([project]);
+        var customerRegistered = compilation.GetTypeByMetadataName("Ordering.CustomerRegistered")!;
+        var batchElement = DotNetSymbols.ElementTypeOf(compilation.GetTypeByMetadataName("Ordering.CustomerBatch")!);
+        var endpointPolicy = customerRegistered.GetAttributes().Single();
+        var companions = DotNetSymbols.CompanionMethodsFor(
+            compilation.GetTypeByMetadataName("Ordering.CustomerHandler")!,
+            customerRegistered,
+            ["Validate", "Load"]);
+        Require(
+            SymbolEqualityComparer.Default.Equals(batchElement, customerRegistered) &&
+            DotNetSymbols.NamedArgument<bool>(endpointPolicy, "Required") == true &&
+            companions.Select(method => method.Name).SequenceEqual(["Load", "Validate"], StringComparer.Ordinal),
+            "CSC0024",
+            "The shared .NET symbol helpers did not preserve collection, attribute, or companion-method semantics.");
+
+        var configuredEvidence = DotNetSource.EvidenceFor(
+            legacySymbol,
+            new AdapterIdentity { Id = "registered-values", Version = "1.0.0" },
+            project,
+            EvidenceStrength.Configured,
+            "An authored registration declares the source type as a domain value");
+        var nominatedConcept = DotNetConceptFacts.Emit(
+            legacySymbol,
+            compilation.GetSpecialType(SpecialType.System_String),
+            project.SubjectForType(legacySymbol),
+            configuredEvidence);
+        Require(
+            nominatedConcept.OfType<ArtifactFact>().Single().Definition.Key.Kind == ArtifactKind.Concept &&
+            nominatedConcept.OfType<ConceptRepresentationFact>().Single().Definition.Primitive == GenerationPrimitiveKind.Text &&
+            nominatedConcept.All(fact => fact.Evidence.Strength == EvidenceStrength.Configured),
+            "CSC0025",
+            "Declared concept nomination did not emit neutral concept and primitive facts with its own evidence.");
+
         IDotNetScreenplayAdapter[] adapters =
         [
             new VogenConceptScreenplayAdapter(),
