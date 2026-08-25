@@ -33,10 +33,10 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 ## Current Generation release
 
 - Repository: <https://github.com/Cratis/Screenplay.Generation>
-- Current public release: [`v0.12.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.12.0) at `65eb13329f158ea1d18a1eb34b86386ad87a8003`.
+- Current public release: [`v0.13.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.13.0) at `249bc43f4ca4d206da836db45e6b39b1ba1bd93f`.
 - The four packages release in lockstep: Contracts, Generation, DotNet, and DotNet.Vogen.
-- `0.7.0` is the minimum public compatibility floor; package validation compares the complete public surface against the latest published release, `0.12.0`. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
-- `0.10.0` introduced neutral executable-specification facts, admission, and lowering; `0.10.1` corrected bare rejection-step admission; `0.12.0` is the released shared adapter and strict source-placement baseline.
+- `0.7.0` is the minimum public compatibility floor; package validation for `0.13.0` compared the complete public surface against its released predecessor, `0.12.0`. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
+- `0.10.0` introduced neutral executable-specification facts, admission, and lowering; `0.10.1` corrected bare rejection-step admission; `0.12.0` added the shared adapter and strict source-placement baseline; `0.13.0` added exact alternate source owners and explicit flat-source compatibility.
 - Unchanged legacy binaries compiled against the `0.1.0` core packages and the first correctly sourced `0.5.0` Vogen package remain the compatibility-ancestry smoke.
 - Historical `Cratis.Screenplay.Generation.DotNet.Vogen` versions `0.2.0` through `0.4.0` were incorrectly sourced. Manual unlisting remains tracked in [issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13); OIDC publication credentials cannot delete or unlist them.
 - The normative lifecycle and compatibility contract is in [`COMPATIBILITY.md`](COMPATIBILITY.md).
@@ -75,22 +75,20 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 
 ## Coordinated repository state
 
-- Critter Stack public `main` is released as `v0.21.0` and consumes all four Generation packages at `0.9.0`.
+- Critter Stack public `main` is released as `v0.22.0` and consumes all four Generation packages at `0.9.0`.
 - Cratis CLI public `main` is released as `v2.17.0` and consumes Generation `0.9.0`; it owns workspace loading, package provenance, provider admission, and distribution.
 - Arc public `main` owns its adapter independently and does not currently consume these Generation packages; neutral specification adoption is tracked separately in Arc.
 
 ## Unreleased `main` capability
 
-- Exact alternate source owners and explicit fail-closed flat-source compatibility placement are implemented after `v0.12.0` for the preserved Critter Stack adoption blocker.
-- The next release should include those additive APIs and be followed by resumed Critter Stack shared-placement adoption.
+- No additional package capability is pending after `v0.13.0`.
 
 ## Immediate next actions
 
-1. Publish the additive source-owner and explicit flat-source compatibility contract as the next lockstep minor release after fresh package/consumer verification.
-2. Resume Critter Stack shared source-placement adoption against that public release, preserving canonical output and strict project-aware diagnostics.
-3. Continue atomic adapter orchestration under [issue #17](https://github.com/Cratis/Screenplay.Generation/issues/17), with granular derivation in #19, validation contracts in #20, and descriptor/probe admission in #23.
-4. Reconcile issue #18 and #25 with capability already merged or released.
-5. Leave [Generation issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13) open until a NuGet owner manually unlists the identified incorrectly sourced Vogen packages.
+1. Resume Critter Stack shared source-placement adoption against public `0.13.0`, preserving canonical output and strict project-aware diagnostics.
+2. Continue atomic adapter orchestration under [issue #17](https://github.com/Cratis/Screenplay.Generation/issues/17), with granular derivation in #19, validation contracts in #20, and descriptor/probe admission in #23.
+3. Reconcile issue #18 and #25 with capability already merged or released.
+4. Leave [Generation issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13) open until a NuGet owner manually unlists the identified incorrectly sourced Vogen packages.
 
 ## Safety boundaries
 

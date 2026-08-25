@@ -30,7 +30,7 @@ Source placement remains strict by default. Exact alternate source ownership and
 
 ## Compatibility verification
 
-After every release, `PackageValidationBaselineVersion` advances to that release for all four packages. Package validation allows compatible additions but rejects public removals and signature breaks. The current baseline is the latest released version, `0.12.0`; `0.7.0` remains the minimum public compatibility floor.
+Before a capability release, `PackageValidationBaselineVersion` advances to the latest published predecessor for all four packages. Package validation allows compatible additions but rejects public removals and signature breaks. Release `0.13.0` was validated against predecessor `0.12.0`; `0.7.0` remains the minimum public compatibility floor.
 
 Public fact discriminator enums reserve `Unknown = -1` and never renumber an existing value. Unknown or future undefined values fail closed with typed diagnostics rather than falling through to another role. `GenerationDiagnostic.Outcome` is an additive, nullable semantic dimension (`Unknown`, `Conflict`, or `Unsupported`) independent of stable diagnostic code and severity.
 
