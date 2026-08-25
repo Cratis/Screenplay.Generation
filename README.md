@@ -48,6 +48,7 @@ Each `DotNetProjectCompilation` requires the workspace host's authoritative `Aut
 Hosts can additionally provide a `DotNetProjectSourceContext` created by `DotNetSourcePaths.Create(...)`. The context keeps stable source identity separate from the path displayed in generated output and diagnostics:
 
 - identity is the host-declared project identity plus normalized project-relative path;
+- `DotNetSourceFile.ProjectRelativePath` preserves authored casing for source-structure derivation independently from identity case folding;
 - `SourceRange.Path` is the host-declared display path, explicitly workspace-relative or project-relative;
 - `/` separators, Unicode NFC normalization, and the `Ordinal` or `InvariantLowercase` case policy are host-owned rather than inferred from the operating system; `InvariantLowercase` folds first and NFC-normalizes the folded identity;
 - the factory returns an immutable defensive snapshot whose project identity, policy, and file mappings cannot be replaced;

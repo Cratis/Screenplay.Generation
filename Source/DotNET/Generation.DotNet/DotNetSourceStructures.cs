@@ -106,7 +106,7 @@ public static class DotNetSourceStructures
                 }
 
                 var orderedDeclarations = mappedDeclarations
-                    .OrderBy(_ => _.SourceFile.Identity.Path, StringComparer.Ordinal)
+                    .OrderBy(_ => _.SourceFile.ProjectRelativePath, StringComparer.Ordinal)
                     .ThenBy(_ => _.SpanStart)
                     .ToArray();
                 structures.Add(new DotNetSourceStructure
@@ -120,7 +120,7 @@ public static class DotNetSourceStructures
                     ProjectRelativePaths =
                     [
                         .. orderedDeclarations
-                            .Select(_ => _.SourceFile.Identity.Path)
+                            .Select(_ => _.SourceFile.ProjectRelativePath)
                             .Distinct(StringComparer.Ordinal)
                     ],
                     Source = DotNetSource.RangeForProject(orderedDeclarations[0].Location, project)

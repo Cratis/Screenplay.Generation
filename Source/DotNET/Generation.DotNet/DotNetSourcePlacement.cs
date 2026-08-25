@@ -181,27 +181,33 @@ public static class DotNetSourcePlacementDerivation
         CanonicalArtifact(request.Artifact),
         request.Structure.Project,
         ((int)request.Structure.ProjectRole).ToString(CultureInfo.InvariantCulture),
+        request.Structure.Subject.Value,
         request.Structure.Namespace,
         string.Join('\u001e', request.Structure.ProjectRelativePaths.Order(StringComparer.Ordinal)),
         CanonicalSource(request.Structure.Source),
         ((int)request.SliceKind).ToString(CultureInfo.InvariantCulture),
         request.Policy.Version.ToString(CultureInfo.InvariantCulture),
-        request.Policy.FeatureRoot ?? string.Empty,
+        CanonicalOptional(request.Policy.FeatureRoot),
         request.Policy.NamespaceSegmentsToSkip.ToString(CultureInfo.InvariantCulture),
-        request.Policy.Module ?? string.Empty);
+        CanonicalOptional(request.Policy.Module));
 
     static string CanonicalArtifact(ArtifactKey artifact) =>
         $"{artifact.Subject.Value}\u001f{((int)artifact.Kind).ToString(CultureInfo.InvariantCulture)}";
 
     static string CanonicalSource(SourceRange? source) => source is null
-        ? string.Empty
-        : string.Join(
+        ? "0"
+        : $"1{string.Join(
             '\u001e',
             source.Path,
-            source.FileIdentity?.Project ?? string.Empty,
-            source.FileIdentity?.Path ?? string.Empty,
+            CanonicalFileIdentity(source.FileIdentity),
             source.StartLine.ToString(CultureInfo.InvariantCulture),
             source.StartColumn.ToString(CultureInfo.InvariantCulture),
             source.EndLine.ToString(CultureInfo.InvariantCulture),
-            source.EndColumn.ToString(CultureInfo.InvariantCulture));
+            source.EndColumn.ToString(CultureInfo.InvariantCulture))}";
+
+    static string CanonicalFileIdentity(SourceFileIdentity? identity) => identity is null
+        ? "0"
+        : $"1{identity.Project}\u001d{identity.Path}";
+
+    static string CanonicalOptional(string? value) => value is null ? "0" : $"1{value}";
 }

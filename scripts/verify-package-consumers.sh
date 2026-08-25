@@ -458,7 +458,7 @@ internal static class Program
             new DotNetSourcePathPolicy
             {
                 DisplayRoot = DotNetSourceDisplayRoot.Workspace,
-                CasePolicy = DotNetSourcePathCasePolicy.Ordinal
+                CasePolicy = DotNetSourcePathCasePolicy.InvariantLowercase
             },
             [
                 new DotNetSourceDocument
@@ -595,7 +595,7 @@ internal static class Program
             concept.Evidence.Source?.FileIdentity == new SourceFileIdentity
             {
                 Project = "Ordering/Ordering",
-                Path = "Concepts/CustomerCode.cs"
+                Path = "concepts/customercode.cs"
             },
             "CSC0022",
             "The explicit source context did not keep display path and stable file identity separate.");

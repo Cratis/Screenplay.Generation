@@ -38,6 +38,7 @@ public class when_mapping_source_identity_and_display_paths : given.a_compilatio
     }
 
     [Fact] void should_keep_identity_independent_from_display_root() => _workspaceFile.Identity.ShouldEqual(_projectFile.Identity);
+    [Fact] void should_preserve_the_project_relative_path() => _workspaceFile.ProjectRelativePath.ShouldEqual("Common/Order.cs");
     [Fact] void should_display_the_workspace_relative_path() => _workspaceFile.DisplayPath.ShouldEqual("apps/Banking/Common/Order.cs");
     [Fact] void should_display_the_project_relative_path() => _projectFile.DisplayPath.ShouldEqual("Common/Order.cs");
     [Fact] void should_disambiguate_the_same_relative_path_in_another_project() => _workspaceFile.Identity.ShouldNotEqual(_otherProjectFile.Identity);
