@@ -349,7 +349,17 @@ internal static class Program
             (int)GenerationPrimitiveKind.Unknown == -1 &&
             (int)ConceptAttributeKind.Unknown == -1 &&
             (int)ConceptValidationRuleKind.Unknown == -1 &&
-            (int)EvidenceStrength.Unknown == -1,
+            (int)EvidenceStrength.Unknown == -1 &&
+            (int)DotNetProjectRole.Unknown == -1 &&
+            (int)DotNetProjectRole.Application == 0 &&
+            (int)DotNetProjectRole.Specifications == 1 &&
+            (int)GenerationSliceKind.StateChange == 0 &&
+            (int)GenerationSliceKind.StateView == 1 &&
+            (int)GenerationSliceKind.Automation == 2 &&
+            (int)GenerationSliceKind.Translate == 3 &&
+            (int)ArtifactKind.Command == 3 &&
+            (int)ArtifactKind.Query == 8 &&
+            (int)ArtifactKind.Reducer == 10,
             "CSC0019",
             "The additive public Unknown discriminator values are unavailable or were renumbered.");
         Require(
@@ -555,9 +565,76 @@ internal static class Program
         Require(
             mappedPlacement.IsSuccess &&
             mappedPlacement.Placements.Single().Structure.Project == sourceContext.ProjectIdentity &&
-            mappedPlacement.Placements.Single().Structure.Source?.FileIdentity?.Project == sourceContext.ProjectIdentity,
+            mappedPlacement.Placements.Single().Structure.Source?.FileIdentity?.Project == sourceContext.ProjectIdentity &&
+            !mappedPlacement.Placements.Single().UsedCompatibilityPlacement &&
+            mappedPlacement.Placements.Single().CompatibilityReasonCode is null,
             "CSC0031",
-            "Source placement did not derive directly from the fixed host-owned source snapshot and identity.");
+            "Strict source placement did not retain the fixed host-owned snapshot, identity, or strict-default provenance.");
+
+        var syntheticReducerSubject = new SubjectId { Value = $"{mappedStructure.Subject.Value}#reducer" };
+        var ownedPlacement = DotNetSourcePlacementDerivation.Derive(
+        [
+            new DotNetSourcePlacementRequest
+            {
+                Artifact = new ArtifactKey { Subject = syntheticReducerSubject, Kind = ArtifactKind.Reducer },
+                Structure = mappedStructure,
+                SourceOwner = mappedStructure.Subject,
+                SliceKind = GenerationSliceKind.StateView,
+                Policy = new DotNetSourceStructurePolicy { Module = "Ordering" }
+            }
+        ]);
+        Require(
+            ownedPlacement.IsSuccess &&
+            ownedPlacement.Placements.Single().Artifact.Subject == syntheticReducerSubject &&
+            ownedPlacement.Placements.Single().Structure.Subject == mappedStructure.Subject &&
+            ownedPlacement.Placements.Single().SourceOwner == mappedStructure.Subject,
+            "CSC0033",
+            "An exact synthetic artifact source owner did not retain the unchanged fixed source structure.");
+
+        var flatSubject = new SubjectId { Value = "dotnet://Ordering/Ordering/Ordering.PlaceOrder" };
+        var compatibilityPolicy = new DotNetSourcePlacementCompatibilityPolicy
+        {
+            Placement = new ArtifactPlacement
+            {
+                Module = "Commerce",
+                Features = ["Orders"],
+                Slice = "Place",
+                SliceKind = GenerationSliceKind.StateChange
+            }
+        };
+        var flatPlacement = DotNetSourcePlacementDerivation.Derive(
+        [
+            new DotNetSourcePlacementRequest
+            {
+                Artifact = new ArtifactKey { Subject = flatSubject, Kind = ArtifactKind.Command },
+                Structure = new DotNetSourceStructure
+                {
+                    Subject = flatSubject,
+                    Project = sourceContext.ProjectIdentity,
+                    ProjectRole = DotNetProjectRole.Application,
+                    Namespace = "Ordering",
+                    ProjectRelativePaths = ["PlaceOrder.cs"]
+                },
+                SliceKind = GenerationSliceKind.StateChange,
+                Policy = new DotNetSourceStructurePolicy { NamespaceSegmentsToSkip = 1, Module = "Configured" },
+                CompatibilityPolicy = compatibilityPolicy
+            }
+        ]);
+        var flatResult = flatPlacement.Placements.Single();
+        Require(
+            flatPlacement.IsSuccess &&
+            flatResult.UsedCompatibilityPlacement &&
+            flatResult.CompatibilityReasonCode == DotNetSourceStructureDiagnosticCodes.InsufficientStructure &&
+            flatResult.Policy.Module == "Configured" &&
+            flatResult.Policy.NamespaceSegmentsToSkip == 1 &&
+            flatResult.CompatibilityPolicy?.Version == compatibilityPolicy.Version &&
+            flatResult.CompatibilityPolicy?.Placement.Module == compatibilityPolicy.Placement.Module &&
+            flatResult.CompatibilityPolicy?.Placement.Features.SequenceEqual(compatibilityPolicy.Placement.Features, StringComparer.Ordinal) == true &&
+            flatResult.CompatibilityPolicy?.Placement.Slice == compatibilityPolicy.Placement.Slice &&
+            flatResult.Placement.Module == "Commerce" &&
+            flatResult.Placement.Slice == "Place",
+            "CSC0034",
+            "Explicit flat-source compatibility placement did not retain deterministic policy and trigger provenance.");
 
         var semanticModel = compilation.GetSemanticModel(authoredTree);
         var invocation = authoredTree.GetRoot().DescendantNodes()

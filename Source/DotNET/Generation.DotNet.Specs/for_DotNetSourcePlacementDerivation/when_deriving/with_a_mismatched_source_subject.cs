@@ -29,6 +29,15 @@ public class with_a_mismatched_source_subject : Specification
             {
                 FeatureRoot = "Source",
                 NamespaceSegmentsToSkip = 1
+            },
+            CompatibilityPolicy = new DotNetSourcePlacementCompatibilityPolicy
+            {
+                Placement = new ArtifactPlacement
+                {
+                    Module = "Banking",
+                    Slice = "Register",
+                    SliceKind = GenerationSliceKind.StateChange
+                }
             }
         }
     ]);
