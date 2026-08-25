@@ -59,6 +59,13 @@ public sealed record DotNetProjectCompilation
     /// <param name="type">The type to identify.</param>
     /// <returns>The project-qualified subject identity.</returns>
     public SubjectId SubjectForType(INamedTypeSymbol type) => DotNetSubjectIds.ForType(type, Name);
+
+    /// <summary>
+    /// Gets a project-qualified subject identity for a method.
+    /// </summary>
+    /// <param name="method">The method to identify.</param>
+    /// <returns>The project-qualified subject identity.</returns>
+    public SubjectId SubjectForMethod(IMethodSymbol method) => DotNetSubjectIds.ForMethod(method, Name);
 }
 
 /// <summary>
