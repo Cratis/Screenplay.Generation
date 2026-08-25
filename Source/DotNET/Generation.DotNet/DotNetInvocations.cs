@@ -3,6 +3,7 @@
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace Cratis.Screenplay.Generation.DotNet;
 
@@ -36,24 +37,32 @@ public static class DotNetInvocations
     /// <param name="invocation">The invocation containing the argument.</param>
     /// <param name="method">The method symbol bound to <paramref name="invocation"/>.</param>
     /// <param name="parameterName">The exact formal parameter name.</param>
-    /// <returns>The named or positional argument, or <see langword="null"/> when it is omitted or unresolved.</returns>
+    /// <param name="semanticModel">The owning semantic model.</param>
+    /// <returns>The exactly bound authored argument, or <see langword="null"/> when it is omitted, expanded, or unresolved.</returns>
     public static ArgumentSyntax? ArgumentForParameter(
         InvocationExpressionSyntax invocation,
         IMethodSymbol method,
-        string parameterName)
+        string parameterName,
+        SemanticModel semanticModel)
     {
-        var named = invocation.ArgumentList.Arguments.FirstOrDefault(_ =>
-            string.Equals(_.NameColon?.Name.Identifier.ValueText, parameterName, StringComparison.Ordinal));
-        if (named is not null)
+        var definition = DefinitionOf(method);
+        var parameterExists =
+            method.Parameters.Any(_ => string.Equals(_.Name, parameterName, StringComparison.Ordinal)) ||
+            (definition.IsExtensionMethod &&
+             definition.Parameters.FirstOrDefault() is { } receiver &&
+             string.Equals(receiver.Name, parameterName, StringComparison.Ordinal));
+        if (!parameterExists || semanticModel.GetOperation(invocation) is not IInvocationOperation operation)
         {
-            return named;
+            return null;
         }
 
-        var parameter = method.Parameters.FirstOrDefault(_ => string.Equals(_.Name, parameterName, StringComparison.Ordinal));
-        var index = parameter is null ? -1 : method.Parameters.IndexOf(parameter);
-        return index >= 0 && index < invocation.ArgumentList.Arguments.Count
-            ? invocation.ArgumentList.Arguments[index]
-            : null;
+        var arguments = operation.Arguments
+            .Where(_ => string.Equals(_.Parameter?.Name, parameterName, StringComparison.Ordinal) &&
+                        !_.IsImplicit &&
+                        _.Syntax is ArgumentSyntax)
+            .Select(_ => (ArgumentSyntax)_.Syntax)
+            .ToArray();
+        return arguments.Length == 1 ? arguments[0] : null;
     }
 
     /// <summary>
@@ -61,10 +70,12 @@ public static class DotNetInvocations
     /// </summary>
     /// <param name="invocation">The invocation to inspect.</param>
     /// <param name="method">The method symbol bound to <paramref name="invocation"/>.</param>
-    /// <returns>The receiver expression, or <see langword="null"/> for a receiverless static call.</returns>
+    /// <param name="semanticModel">The owning semantic model.</param>
+    /// <returns>The receiver expression, or <see langword="null"/> when no receiver expression is authored.</returns>
     public static ExpressionSyntax? ReceiverFor(
         InvocationExpressionSyntax invocation,
-        IMethodSymbol method)
+        IMethodSymbol method,
+        SemanticModel semanticModel)
     {
         if (method.ReducedFrom is not null)
         {
@@ -81,12 +92,22 @@ public static class DotNetInvocations
         var definition = DefinitionOf(method);
         if (definition.IsExtensionMethod && definition.Parameters.FirstOrDefault() is { } receiver)
         {
-            return ArgumentForParameter(invocation, method, receiver.Name)?.Expression;
+            return ArgumentForParameter(invocation, method, receiver.Name, semanticModel)?.Expression;
         }
 
-        return invocation.Expression is MemberAccessExpressionSyntax memberAccess && !method.IsStatic
-            ? memberAccess.Expression
-            : null;
+        if (method.IsStatic)
+        {
+            return null;
+        }
+
+        return invocation.Expression switch
+        {
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Expression,
+            MemberBindingExpressionSyntax => invocation.Parent is ConditionalAccessExpressionSyntax conditional
+                ? conditional.Expression
+                : null,
+            _ => null
+        };
     }
 
     /// <summary>
@@ -100,7 +121,7 @@ public static class DotNetInvocations
         InvocationExpressionSyntax invocation,
         IMethodSymbol method,
         SemanticModel semanticModel) =>
-        ReceiverFor(invocation, method) is { } receiver
+        ReceiverFor(invocation, method, semanticModel) is { } receiver
             ? RootParameter(receiver, semanticModel)
             : null;
 
@@ -126,6 +147,9 @@ public static class DotNetInvocations
                 ParenthesizedExpressionSyntax parenthesized => parenthesized.Expression,
                 CastExpressionSyntax cast => cast.Expression,
                 MemberAccessExpressionSyntax member => member.Expression,
+                MemberBindingExpressionSyntax binding => binding.Ancestors()
+                    .OfType<ConditionalAccessExpressionSyntax>()
+                    .FirstOrDefault()?.Expression!,
                 ElementAccessExpressionSyntax element => element.Expression,
                 ConditionalAccessExpressionSyntax conditional => conditional.Expression,
                 _ => null!

@@ -54,8 +54,8 @@ public class when_resolving_invocation_semantics : given.a_compilation
         _reduced = DotNetInvocations.MethodFor(reducedInvocation, semanticModel)!;
         _static = DotNetInvocations.MethodFor(staticInvocation, semanticModel)!;
         _instance = DotNetInvocations.MethodFor(instanceInvocation, semanticModel)!;
-        _reducedName = DotNetInvocations.ArgumentForParameter(reducedInvocation, _reduced, "name")!;
-        _staticName = DotNetInvocations.ArgumentForParameter(staticInvocation, _static, "name")!;
+        _reducedName = DotNetInvocations.ArgumentForParameter(reducedInvocation, _reduced, "name", semanticModel)!;
+        _staticName = DotNetInvocations.ArgumentForParameter(staticInvocation, _static, "name", semanticModel)!;
         _reducedRoot = DotNetInvocations.ReceiverRootParameter(reducedInvocation, _reduced, semanticModel)!;
         _staticRoot = DotNetInvocations.ReceiverRootParameter(staticInvocation, _static, semanticModel)!;
         _instanceRoot = DotNetInvocations.ReceiverRootParameter(instanceInvocation, _instance, semanticModel)!;

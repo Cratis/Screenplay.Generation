@@ -126,23 +126,6 @@ public sealed class AcmeScreenplayAdapter : IDotNetScreenplayAdapter
                     },
                     Evidence = evidence
                 });
-                facts.Add(new ArtifactPlacementFact
-                {
-                    Id = new FactId { Value = $"acme:placement:command:{subject.Value}" },
-                    Subject = subject,
-                    Artifact = key,
-                    Placement = new ArtifactPlacement
-                    {
-                        Module = options.Module ?? project.Name,
-                        Slice = type.Name,
-                        SliceKind = GenerationSliceKind.StateChange
-                    },
-                    Evidence = evidence with
-                    {
-                        Strength = EvidenceStrength.Heuristic,
-                        Explanation = "The adapter's explicit module and command name provide the initial placement"
-                    }
-                });
             }
         }
 
@@ -157,6 +140,8 @@ public sealed class AcmeScreenplayAdapter : IDotNetScreenplayAdapter
 ```
 
 Keep `CanAnalyze()` cheap, deterministic, and semantic. Package presence alone must not create facts. Return only the facts and diagnostics the adapter can establish from `Analyze()`.
+
+This first pass emits only the exact command artifact. Add placement through the fixed source snapshot and shared derivation pipeline in [Derive source placement](#derive-source-placement); do not derive it ad hoc inside artifact discovery.
 
 ## Establish the analysis context in the host
 
@@ -253,7 +238,7 @@ Prefer semantic helpers over adapter-specific syntax utilities:
 - `DotNetInvocations` resolves exact direct and reduced methods, formal-parameter arguments, and bounded receiver roots;
 - `DotNetSource` establishes authored declarations, attributes, evidence, and ranges.
 
-`DotNetInvocations.MethodFor(...)` returns `null` when Roslyn has no exact symbol. Do not use candidate symbols to guess through a broken compilation. Use `DefinitionOf(...)` before matching generic extension metadata, `ArgumentForParameter(...)` instead of positional assumptions, and `ReceiverRootParameter(...)` only for a bounded direct parameter-root check.
+`DotNetInvocations.MethodFor(...)` returns `null` when Roslyn has no exact symbol. Do not use candidate symbols to guess through a broken compilation. Use `DefinitionOf(...)` before matching generic extension metadata, `ArgumentForParameter(...)` with the owning semantic model instead of positional assumptions, and `ReceiverRootParameter(...)` only for a bounded direct parameter-root check. Omitted optional parameters, expanded `params` arguments, aliases, invocation results, and unqualified instance receivers resolve to `null` rather than a partial guess.
 
 Adapter discovery depends on compiler symbols and semantic models, not preferred source formatting. Keep one reusable source fixture with semantically valid generated, decompiler-style, fully qualified, explicitly cast, and otherwise non-idiomatic C#. Its supported facts must resolve without extra loss.
 

@@ -311,6 +311,7 @@ using Cratis.Screenplay.Generation.DotNet;
 using Cratis.Screenplay.Generation.DotNet.Vogen;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 internal static class Program
 {
@@ -403,11 +404,17 @@ internal static class Program
                 [EndpointPolicy(Required = true)]
                 public sealed record CustomerRegistered(CustomerCode CustomerCode);
                 public sealed class CustomerBatch : System.Collections.Generic.List<CustomerRegistered>;
+                public sealed class CustomerOptions;
+                public static class CustomerOptionsExtensions
+                {
+                    public static void Configure(this CustomerOptions options, string name = "default") => _ = (options, name);
+                }
                 public static class CustomerHandler
                 {
                     public static void Validate(CustomerRegistered request) => _ = request;
                     public static void Load(CustomerRegistered request, int version) => _ = (request, version);
                     public static void Validate(CustomerCode request) => _ = request;
+                    public static void Configure(CustomerOptions options) => options.Configure(name: "consumer");
                 }
             }
             """,
@@ -552,7 +559,20 @@ internal static class Program
             "CSC0031",
             "Source placement did not derive directly from the fixed host-owned source snapshot and identity.");
 
-        _ = typeof(DotNetInvocations);
+        var semanticModel = compilation.GetSemanticModel(authoredTree);
+        var invocation = authoredTree.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>()
+            .Single(_ => _.ToString().Contains("consumer", StringComparison.Ordinal));
+        var invocationMethod = DotNetInvocations.MethodFor(invocation, semanticModel)!;
+        var invocationName = DotNetInvocations.ArgumentForParameter(invocation, invocationMethod, "name", semanticModel)!;
+        var invocationRoot = DotNetInvocations.ReceiverRootParameter(invocation, invocationMethod, semanticModel)!;
+        Require(
+            DotNetInvocations.DefinitionOf(invocationMethod).Name == "Configure" &&
+            invocationName.Expression.ToString() == "\"consumer\"" &&
+            invocationRoot.Name == "options",
+            "CSC0032",
+            "The shared .NET invocation helpers did not preserve exact method, formal-argument, or receiver-root semantics.");
+
         var customerRegistered = compilation.GetTypeByMetadataName("Ordering.CustomerRegistered")!;
         var batchElement = DotNetSymbols.ElementTypeOf(compilation.GetTypeByMetadataName("Ordering.CustomerBatch")!);
         var endpointPolicy = customerRegistered.GetAttributes().Single();
