@@ -33,9 +33,10 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 ## Current Generation release
 
 - Repository: <https://github.com/Cratis/Screenplay.Generation>
-- Current public release: [`v0.8.0`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.8.0) at `4ec7ef0031e0f1c74d1033e0a78234f40bbd65ff`.
+- Current public release: [`v0.10.1`](https://github.com/Cratis/Screenplay.Generation/releases/tag/v0.10.1) at `682a92a8ab538da0db9b8a0edafeb27c54dbe656`.
 - The four packages release in lockstep: Contracts, Generation, DotNet, and DotNet.Vogen.
-- `0.7.0` is the minimum public compatibility floor; package validation now compares the complete public surface against the latest published release, `0.8.0`. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
+- `0.7.0` is the minimum public compatibility floor; package validation compares the complete public surface against the latest published release, `0.10.1`. Compatible additions remain allowed; removals and incompatible signature changes fail validation.
+- `0.10.0` introduced neutral executable-specification facts, admission, and lowering; `0.10.1` corrected bare rejection-step admission.
 - Unchanged legacy binaries compiled against the `0.1.0` core packages and the first correctly sourced `0.5.0` Vogen package remain the compatibility-ancestry smoke.
 - Historical `Cratis.Screenplay.Generation.DotNet.Vogen` versions `0.2.0` through `0.4.0` were incorrectly sourced. Manual unlisting remains tracked in [issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13); OIDC publication credentials cannot delete or unlist them.
 - The normative lifecycle and compatibility contract is in [`COMPATIBILITY.md`](COMPATIBILITY.md).
@@ -55,28 +56,39 @@ Hosts own loading and orchestration, adapters own source-framework semantics, an
 - Exact authored Vogen value-object, supported primitive representation, and `Validate(TBacking) -> Vogen.Validation` discovery without a production Vogen dependency.
 - Stable Vogen loss codes: `VOG0001` unsupported backing, `VOG0002` unrepresented normalization, and `VOG0003` unrepresented named instance.
 - Independent Vogen and external-adapter contribution composition through one neutral resolver/generator pipeline.
+- Neutral executable-specification scenarios with ordered Given/When/Then facts, typed values, deterministic admission, and Screenplay lowering.
+- Shared .NET adapter helpers for collection element types, named attribute arguments, companion method families, resilient type shapes, and declared concept nomination through `DotNetConceptFacts.Emit(...)`.
+- Fixed, project-qualified .NET source-structure snapshots and deterministic source placement derivation with host-owned policy, application/specification project roles, and fail-closed `DOTNETSP####` diagnostics.
 
 ## Current verification evidence
 
-- Generation specs: 137 passing.
-- Generation.DotNet specs: 57 passing.
-- Generation.DotNet.Vogen specs: 87 passing.
-- Total Debug specs: **281 passing**.
-- Debug `net10.0` and Release `net8.0`, `net9.0`, and `net10.0`: zero warnings and zero errors.
-- All four sentinel `9999.0.0` packages pack with package validation against published `0.8.0`.
+- Full Debug suite: **452 specs passed** — Generation 175, Generation.DotNet 175, and Generation.DotNet.Vogen 102.
+- Release targets `net8.0`, `net9.0`, and `net10.0` built with zero warnings and zero errors.
+- All four sentinel `9999.0.0` packages validate against published `0.10.1`.
+- Legacy binaries compiled against core `0.1.0` and Vogen `0.5.0` run unchanged against the candidate packages.
+- The clean current-source consumer verifies shared symbol/method identities, source snapshots and placement, concept nomination, executable specification facts and bare rejection admission, adapter composition, conflicts, provenance, deterministic source, compiler verification, and round-trip stability.
 - The isolated package cache starts empty for consumer verification.
 - Existing binaries compiled against core `0.1.0` and Vogen `0.5.0` run unchanged against the sentinel packages.
 - A separate current-source consumer compiles only against the sentinel package set. With fake exact Vogen metadata authored directly in Roslyn source and no Vogen runtime/source-generator package, it verifies legacy positional-null source calls, explicit stable source identity/display mapping, authoritative authored trees, exact subject references, neutral representation and named validation facts, conflict variants, stable Vogen diagnostic-code APIs, independent adapter composition and provenance, and compiler-verified deterministic source without verification loss.
 
 ## Coordinated repository state
 
-- Critter Stack is released as [`v0.19.0`](https://github.com/Cratis/Screenplay.CritterStack/releases/tag/v0.19.0) at `3585e9abba1d78bb1eb093e068d5beef6e609a1a`. Its facade composes independent Vogen and Marten/Wolverine contributions through all four Generation `0.8.0` packages; the low-level Critter Stack adapter remains Vogen-independent.
-- CLI `v2.15.2` at `ff0ae6fb59a5154f89ce6f3830505ecc87e0c97b` is the coordinated CLI checkpoint. It consumes all four Generation packages at `0.8.0`, Critter Stack `0.19.0`, and Arc `22.1.0`; atomic adapter roster/profile migration remains tracked in Generation #17 and CLI #95.
+- Critter Stack public `main` is released as `v0.21.0` and consumes all four Generation packages at `0.9.0`.
+- Cratis CLI public `main` is released as `v2.17.0` and consumes Generation `0.9.0`; it owns workspace loading, package provenance, provider admission, and distribution.
+- Arc public `main` owns its adapter independently and does not currently consume these Generation packages; neutral specification adoption is tracked separately in Arc.
+
+## Unreleased `main` capability
+
+- Shared .NET adapter generalization and source-placement work is merged on `main` after `v0.10.1` but has not been released.
+- The next release should include those APIs, advance package validation from `0.10.1`, and be followed by coordinated Critter Stack and CLI upgrades.
 
 ## Immediate next actions
 
-1. Continue atomic adapter orchestration under [issue #17](https://github.com/Cratis/Screenplay.Generation/issues/17), with authored-source helpers in #18, granular derivation in #19, validation contracts in #20, and descriptor/probe admission in #23.
-2. Leave [Generation issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13) open until a NuGet owner manually unlists the identified incorrectly sourced Vogen packages.
+1. Publish the merged post-`0.10.1` shared adapter and source-placement capability as the next lockstep minor release after fresh package/consumer verification.
+2. Upgrade Critter Stack and CLI together to that release and replace adapter-local concept nomination or placement mechanics where the shared APIs apply.
+3. Continue atomic adapter orchestration under [issue #17](https://github.com/Cratis/Screenplay.Generation/issues/17), with granular derivation in #19, validation contracts in #20, and descriptor/probe admission in #23.
+4. Reconcile issue #18 and #25 with capability already merged or released.
+5. Leave [Generation issue #13](https://github.com/Cratis/Screenplay.Generation/issues/13) open until a NuGet owner manually unlists the identified incorrectly sourced Vogen packages.
 
 ## Safety boundaries
 
