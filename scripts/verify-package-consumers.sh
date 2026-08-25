@@ -311,6 +311,7 @@ using Cratis.Screenplay.Generation.DotNet;
 using Cratis.Screenplay.Generation.DotNet.Vogen;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 internal static class Program
 {
@@ -403,11 +404,17 @@ internal static class Program
                 [EndpointPolicy(Required = true)]
                 public sealed record CustomerRegistered(CustomerCode CustomerCode);
                 public sealed class CustomerBatch : System.Collections.Generic.List<CustomerRegistered>;
+                public sealed class CustomerOptions;
+                public static class CustomerOptionsExtensions
+                {
+                    public static void Configure(this CustomerOptions options, string name = "default") => _ = (options, name);
+                }
                 public static class CustomerHandler
                 {
                     public static void Validate(CustomerRegistered request) => _ = request;
                     public static void Load(CustomerRegistered request, int version) => _ = (request, version);
                     public static void Validate(CustomerCode request) => _ = request;
+                    public static void Configure(CustomerOptions options) => options.Configure(name: "consumer");
                 }
             }
             """,
@@ -533,20 +540,56 @@ internal static class Program
                 structure.ProjectRelativePaths.Contains("Concepts/CustomerCode.cs", StringComparer.Ordinal)),
             "CSC0026",
             "The fixed .NET source-structure snapshot did not retain mapped authored source.");
+        var mappedStructure = sourceStructureSnapshot.Structures.Single(structure =>
+            structure.Subject == project.SubjectForType(legacySymbol));
+        var mappedPlacement = DotNetSourcePlacementDerivation.Derive(
+        [
+            new DotNetSourcePlacementRequest
+            {
+                Artifact = new ArtifactKey { Subject = mappedStructure.Subject, Kind = ArtifactKind.Command },
+                Structure = mappedStructure,
+                SliceKind = GenerationSliceKind.StateChange,
+                Policy = new DotNetSourceStructurePolicy { Module = "Ordering" }
+            }
+        ]);
+        Require(
+            mappedPlacement.IsSuccess &&
+            mappedPlacement.Placements.Single().Structure.Project == sourceContext.ProjectIdentity &&
+            mappedPlacement.Placements.Single().Structure.Source?.FileIdentity?.Project == sourceContext.ProjectIdentity,
+            "CSC0031",
+            "Source placement did not derive directly from the fixed host-owned source snapshot and identity.");
+
+        var semanticModel = compilation.GetSemanticModel(authoredTree);
+        var invocation = authoredTree.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>()
+            .Single(_ => _.ToString().Contains("consumer", StringComparison.Ordinal));
+        var invocationMethod = DotNetInvocations.MethodFor(invocation, semanticModel)!;
+        var invocationName = DotNetInvocations.ArgumentForParameter(invocation, invocationMethod, "name", semanticModel)!;
+        var invocationRoot = DotNetInvocations.ReceiverRootParameter(invocation, invocationMethod, semanticModel)!;
+        Require(
+            DotNetInvocations.DefinitionOf(invocationMethod).Name == "Configure" &&
+            invocationName.Expression.ToString() == "\"consumer\"" &&
+            invocationRoot.Name == "options",
+            "CSC0032",
+            "The shared .NET invocation helpers did not preserve exact method, formal-argument, or receiver-root semantics.");
 
         var customerRegistered = compilation.GetTypeByMetadataName("Ordering.CustomerRegistered")!;
         var batchElement = DotNetSymbols.ElementTypeOf(compilation.GetTypeByMetadataName("Ordering.CustomerBatch")!);
         var endpointPolicy = customerRegistered.GetAttributes().Single();
+        var handlerType = compilation.GetTypeByMetadataName("Ordering.CustomerHandler")!;
         var companions = DotNetSymbols.CompanionMethodsFor(
-            compilation.GetTypeByMetadataName("Ordering.CustomerHandler")!,
+            handlerType,
             customerRegistered,
             ["Validate", "Load"]);
+        var validationOverloads = handlerType.GetMembers("Validate").OfType<IMethodSymbol>().ToArray();
         Require(
             SymbolEqualityComparer.Default.Equals(batchElement, customerRegistered) &&
             DotNetSymbols.NamedArgument<bool>(endpointPolicy, "Required") == true &&
-            companions.Select(method => method.Name).SequenceEqual(["Load", "Validate"], StringComparer.Ordinal),
+            companions.Select(method => method.Name).SequenceEqual(["Load", "Validate"], StringComparer.Ordinal) &&
+            project.SubjectForMethod(validationOverloads[0]) != project.SubjectForMethod(validationOverloads[1]) &&
+            DotNetSubjectIds.MethodDisplayName(validationOverloads[0]).Contains("Validate", StringComparison.Ordinal),
             "CSC0028",
-            "The shared .NET symbol helpers did not preserve collection, attribute, or companion-method semantics.");
+            "The shared .NET symbol helpers did not preserve collection, attribute, companion-method, or overload identity semantics.");
 
         var configuredEvidence = DotNetSource.EvidenceFor(
             legacySymbol,
@@ -626,11 +669,114 @@ internal static class Program
             "CSC0009",
             "The external adapter did not bind TypeReferenceDefinition.Subject to the exact concept subject.");
 
+        var specificationAdapter = new AdapterIdentity { Id = "specification-smoke", Version = "1.0.0" };
+        var commandSubject = new SubjectId { Value = "dotnet://Ordering/Ordering/RegisterCustomer" };
+        var commandKey = new ArtifactKey { Subject = commandSubject, Kind = ArtifactKind.Command };
+        var scenarioSubject = new SubjectId { Value = "dotnet://Ordering.Specs/RegisteringCustomer" };
+        var scenarioKey = new SpecificationScenarioKey { Scenario = scenarioSubject };
+        var whenKey = new SpecificationStepKey { Scenario = scenarioKey, Index = 0 };
+        var errorKey = new SpecificationStepKey { Scenario = scenarioKey, Index = 1 };
+        var nameValueKey = new SpecificationValueKey { Step = whenKey, Path = ["name"] };
+        var specificationEvidence = new Evidence
+        {
+            Adapter = specificationAdapter,
+            Strength = EvidenceStrength.Exact,
+            Source = new SourceRange
+            {
+                Path = "Customers/RegisteringCustomer.cs",
+                StartLine = 1,
+                StartColumn = 1,
+                EndLine = 1,
+                EndColumn = 20
+            }
+        };
+        var specificationContribution = new AdapterContribution
+        {
+            Adapter = specificationAdapter,
+            Facts =
+            [
+                new ArtifactFact
+                {
+                    Id = new FactId { Value = "specification-smoke:command" },
+                    Subject = commandSubject,
+                    Definition = new ArtifactDefinition { Key = commandKey, Name = "RegisterCustomer" },
+                    Evidence = specificationEvidence
+                },
+                new ArtifactPlacementFact
+                {
+                    Id = new FactId { Value = "specification-smoke:command-placement" },
+                    Subject = commandSubject,
+                    Artifact = commandKey,
+                    Placement = new ArtifactPlacement
+                    {
+                        Module = "Customers",
+                        Features = ["Registration"],
+                        Slice = "Register",
+                        SliceKind = GenerationSliceKind.StateChange
+                    },
+                    Evidence = specificationEvidence
+                },
+                new SpecificationScenarioFact
+                {
+                    Id = new FactId { Value = "specification-smoke:scenario" },
+                    Subject = scenarioSubject,
+                    Definition = new SpecificationScenarioDefinition
+                    {
+                        Key = scenarioKey,
+                        Name = "RegisteringCustomer",
+                        TargetArtifact = commandKey,
+                        Steps = [whenKey, errorKey]
+                    },
+                    Evidence = specificationEvidence
+                },
+                new SpecificationStepFact
+                {
+                    Id = new FactId { Value = "specification-smoke:when" },
+                    Subject = new SubjectId { Value = $"{scenarioSubject.Value}/step/0" },
+                    Definition = new SpecificationStepDefinition
+                    {
+                        Key = whenKey,
+                        Phase = SpecificationStepPhase.When,
+                        Kind = SpecificationStepKind.Command,
+                        Artifact = commandKey,
+                        Values = [nameValueKey]
+                    },
+                    Evidence = specificationEvidence
+                },
+                new SpecificationValueFact
+                {
+                    Id = new FactId { Value = "specification-smoke:name" },
+                    Subject = new SubjectId { Value = $"{scenarioSubject.Value}/step/0/name" },
+                    Definition = new SpecificationValueDefinition
+                    {
+                        Key = nameValueKey,
+                        Kind = SpecificationValueKind.Text,
+                        Type = new TypeReferenceDefinition { Name = "String" },
+                        Scalar = "Cratis"
+                    },
+                    Evidence = specificationEvidence
+                },
+                new SpecificationStepFact
+                {
+                    Id = new FactId { Value = "specification-smoke:error" },
+                    Subject = new SubjectId { Value = $"{scenarioSubject.Value}/step/1" },
+                    Definition = new SpecificationStepDefinition
+                    {
+                        Key = errorKey,
+                        Phase = SpecificationStepPhase.Then,
+                        Kind = SpecificationStepKind.Error
+                    },
+                    Evidence = specificationEvidence
+                }
+            ]
+        };
+        AdapterContribution[] allContributions = [.. contributions, specificationContribution];
+
         var generated = new ScreenplayDefinitionGenerator().Generate(
-            contributions,
+            allContributions,
             new ScreenplayGenerationOptions { Domain = "Ordering" });
         var generatedFromReversedContributions = new ScreenplayDefinitionGenerator().Generate(
-            contributions.Reverse(),
+            allContributions.Reverse(),
             new ScreenplayGenerationOptions { Domain = "Ordering" });
         Require(generated.IsSuccess, "CSC0010", "The composed Screenplay did not pass compiler verification.");
         Require(
@@ -644,6 +790,16 @@ internal static class Program
             generated.Source == generatedFromReversedContributions.Source && generatedFromReversedContributions.IsSuccess,
             "CSC0012",
             "Generated source changed when adapter contribution order changed.");
+        var admittedSpecification = generated.Graph.Specifications.Single();
+        Require(
+            admittedSpecification.Definition.Name == "RegisteringCustomer" &&
+            admittedSpecification.Steps.Select(step => step.Definition.Kind).SequenceEqual(
+                [SpecificationStepKind.Command, SpecificationStepKind.Error]) &&
+            admittedSpecification.Steps[0].Values.Single().Definition.Scalar == "Cratis" &&
+            admittedSpecification.Steps[1].Definition.ErrorCode is null &&
+            admittedSpecification.Steps[1].Definition.ErrorMessage is null,
+            "CSC0030",
+            "Neutral specification facts did not preserve order, typed values, or a bare rejection.");
         Require(
             generated.Source.Contains("concept CustomerCode : String", StringComparison.Ordinal) &&
             generated.Source.Contains("rule Validate", StringComparison.Ordinal) &&
@@ -659,7 +815,7 @@ internal static class Program
             .Select(evidence => evidence.Adapter.Id)
             .ToHashSet(StringComparer.Ordinal);
         Require(
-            graphAdapterIds.SetEquals([VogenAdapterId, ExternalAdapterId]),
+            graphAdapterIds.SetEquals([VogenAdapterId, ExternalAdapterId, specificationAdapter.Id]),
             "CSC0014",
             "The resolved successful graph lost adapter provenance.");
 

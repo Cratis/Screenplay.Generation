@@ -28,7 +28,7 @@ The latest released minor line is serviced. The `0.1.0` core package surface and
 
 ## Compatibility verification
 
-After every release, `PackageValidationBaselineVersion` advances to that release for all four packages. Package validation allows compatible additions but rejects public removals and signature breaks. The current baseline is the latest released version, `0.8.0`; `0.7.0` remains the minimum public compatibility floor.
+After every release, `PackageValidationBaselineVersion` advances to that release for all four packages. Package validation allows compatible additions but rejects public removals and signature breaks. The current baseline is the latest released version, `0.10.1`; `0.7.0` remains the minimum public compatibility floor.
 
 Public fact discriminator enums reserve `Unknown = -1` and never renumber an existing value. Unknown or future undefined values fail closed with typed diagnostics rather than falling through to another role. `GenerationDiagnostic.Outcome` is an additive, nullable semantic dimension (`Unknown`, `Conflict`, or `Unsupported`) independent of stable diagnostic code and severity.
 

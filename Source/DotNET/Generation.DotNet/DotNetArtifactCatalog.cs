@@ -22,6 +22,31 @@ public static class DotNetSubjectIds
     };
 
     /// <summary>
+    /// Gets the stable subject identity for a method within a project identity.
+    /// </summary>
+    /// <param name="method">The method to identify.</param>
+    /// <param name="projectIdentity">The stable project identity within the analyzed workspace.</param>
+    /// <returns>The generation subject identity.</returns>
+    public static SubjectId ForMethod(IMethodSymbol method, string projectIdentity) => new()
+    {
+        Value = $"{ForType(method.ContainingType, projectIdentity).Value}#method:{Uri.EscapeDataString(MethodDocumentationId(method))}"
+    };
+
+    /// <summary>
+    /// Gets a readable, signature-stable display name for a method.
+    /// </summary>
+    /// <param name="method">The method to display.</param>
+    /// <returns>The method name including containing type, generic arity, parameter types, and modifiers.</returns>
+    public static string MethodDisplayName(IMethodSymbol method)
+    {
+        var containingType = TypeDisplayName(method.ContainingType, method.ContainingNamespace);
+        var arity = method.Arity == 0 ? string.Empty : $"`{method.Arity}";
+        var parameters = string.Join(", ", method.Parameters.Select(parameter => ParameterDisplayName(parameter, method.ContainingNamespace)));
+
+        return $"{containingType}.{method.Name}{arity}({parameters})";
+    }
+
+    /// <summary>
     /// Gets the fully qualified metadata name of a type, including generic arity and nested-type separators.
     /// </summary>
     /// <param name="type">The type to name.</param>
@@ -40,6 +65,34 @@ public static class DotNetSubjectIds
             : type.ContainingNamespace.ToDisplayString();
 
         return string.IsNullOrEmpty(namespaceName) ? nestedName : $"{namespaceName}.{nestedName}";
+    }
+
+    static string MethodDocumentationId(IMethodSymbol method) =>
+        method.GetDocumentationCommentId() ?? MethodDisplayName(method);
+
+    static string ParameterDisplayName(IParameterSymbol parameter, INamespaceSymbol localNamespace)
+    {
+        var modifier = parameter.IsParams
+            ? "params "
+            : parameter.RefKind switch
+            {
+                RefKind.Ref => "ref ",
+                RefKind.RefReadOnlyParameter => "ref readonly ",
+                RefKind.In => "in ",
+                RefKind.Out => "out ",
+                _ => string.Empty
+            };
+
+        return $"{modifier}{TypeDisplayName(parameter.Type, localNamespace)}";
+    }
+
+    static string TypeDisplayName(ITypeSymbol type, INamespaceSymbol localNamespace)
+    {
+        var format = SymbolEqualityComparer.Default.Equals(type.ContainingNamespace, localNamespace)
+            ? SymbolDisplayFormat.MinimallyQualifiedFormat
+            : SymbolDisplayFormat.FullyQualifiedFormat;
+
+        return type.ToDisplayString(format).Replace("global::", string.Empty, StringComparison.Ordinal);
     }
 }
 

@@ -18,6 +18,8 @@ Framework adapters remain owned by their source ecosystems:
 - Arc: [`Cratis.Arc.Screenplay`](https://github.com/Cratis/Arc)
 - Critter Stack: [`Cratis.CritterStack.Screenplay`](https://github.com/Cratis/Screenplay.CritterStack)
 
+See [Build a .NET source adapter](Documentation/guides/build-source-adapter.md) for the canonical adapter contract, source-authority rules, fact and evidence patterns, composition flow, and verification checklist.
+
 ## Architecture
 
 ```text
@@ -37,7 +39,13 @@ Adapters contribute semantic facts; they do not construct syntax nodes or concat
 
 ### Adapter syntax robustness
 
+`DotNetSymbols` and `DotNetInvocations` provide shared metadata-name, companion-method, named-argument, extension-method, formal-argument, and bounded receiver-root mechanics. Adapters should use these helpers instead of duplicating syntax-shape assumptions.
+
 Adapter discovery is based on compiler symbols and semantic models, not preferred source formatting. Semantically valid generated, decompiler-style, fully qualified, explicitly cast, or otherwise non-idiomatic C# must produce the same facts as its idiomatic equivalent. Every .NET adapter should keep one reusable source fixture that deliberately exercises non-idiomatic syntax and assert that its ordinary supported facts still resolve without additional loss.
+
+## Screenplay-to-code rendering
+
+Screenplay Generation owns source-to-Screenplay recovery only. To turn Screenplay into framework code, implement `IArtifactRenderPlanner` from `Cratis.Stage.Contracts`; do not reverse adapter facts or call the Generation lowerer backward. See the [Stage renderer target guide](https://github.com/Cratis/Stage/blob/main/Documentation/guides/build-renderer-target.md).
 
 ## Vogen adapter composition
 
@@ -150,7 +158,7 @@ dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Art
 ./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
 
-Package validation runs during pack against the latest released API baseline, `0.8.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, shared symbol helpers, declared concept nomination, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
+Package validation runs during pack against the latest released API baseline, `0.10.1`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, shared symbol helpers, declared concept nomination, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
 
 All builds require zero errors and zero warnings. Generated Screenplay output must compile and remain stable through print/compile/print.
 
