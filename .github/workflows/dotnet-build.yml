@@ -18,6 +18,7 @@ on:
       - "*.targets"
       - "*.slnx"
       - "global.json"
+      - "scripts/**"
 
 jobs:
   build:
@@ -46,3 +47,6 @@ jobs:
       # break in the pull request that causes it, which is what Directory.Build.props already claims happens.
       - name: Pack
         run: dotnet pack --no-build --configuration Release -o ./Artifacts/NuGet -p:Version=9999.0.0
+
+      - name: Verify package consumers
+        run: ./scripts/verify-package-consumers.sh 9999.0.0 ./Artifacts/NuGet
