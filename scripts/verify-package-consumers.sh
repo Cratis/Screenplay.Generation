@@ -480,6 +480,11 @@ internal static class Program
             project.Role == DotNetProjectRole.Application,
             "CSC0024",
             "The additive project role did not preserve the application default.");
+        var placementOptions = new DotNetAdapterOptions
+        {
+            FeatureRoot = "Source",
+            NamespaceSegmentsToSkip = 1
+        };
         var sourceStructure = DotNetSourceStructureResolver.Resolve(
             new DotNetSourceStructure
             {
@@ -490,11 +495,7 @@ internal static class Program
                 ProjectRelativePaths = ["Source/Customers/Register/Register.cs"]
             },
             GenerationSliceKind.StateChange,
-            new DotNetSourceStructurePolicy
-            {
-                FeatureRoot = "Source",
-                NamespaceSegmentsToSkip = 1
-            });
+            placementOptions.SourceStructurePolicy);
         Require(
             sourceStructure.IsSuccess &&
             sourceStructure.Structure.ProjectRole == DotNetProjectRole.Specifications &&
@@ -513,11 +514,7 @@ internal static class Program
                 },
                 Structure = sourceStructure.Structure,
                 SliceKind = GenerationSliceKind.StateChange,
-                Policy = new DotNetSourceStructurePolicy
-                {
-                    FeatureRoot = "Source",
-                    NamespaceSegmentsToSkip = 1
-                }
+                Policy = placementOptions.SourceStructurePolicy
             }
         ]);
         Require(

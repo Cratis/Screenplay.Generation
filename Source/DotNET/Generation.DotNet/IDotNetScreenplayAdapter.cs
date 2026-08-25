@@ -35,12 +35,27 @@ public interface IDotNetScreenplayAdapter
 public sealed record DotNetAdapterOptions
 {
     /// <summary>
+    /// Gets an optional project-relative directory beneath which source placement begins.
+    /// </summary>
+    public string? FeatureRoot { get; init; }
+
+    /// <summary>
     /// Gets an optional module that all discovered artifacts should be placed beneath.
     /// </summary>
     public string? Module { get; init; }
 
     /// <summary>
-    /// Gets the number of leading namespace segments to omit from inferred features.
+    /// Gets the number of leading namespace segments to omit from inferred placement.
     /// </summary>
     public int NamespaceSegmentsToSkip { get; init; }
+
+    /// <summary>
+    /// Gets the equivalent shared source-structure policy.
+    /// </summary>
+    public DotNetSourceStructurePolicy SourceStructurePolicy => new()
+    {
+        FeatureRoot = FeatureRoot,
+        Module = Module,
+        NamespaceSegmentsToSkip = NamespaceSegmentsToSkip
+    };
 }
