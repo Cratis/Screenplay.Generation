@@ -122,6 +122,7 @@ public sealed class DotNetAnalysisContext(IEnumerable<DotNetProjectCompilation> 
         var candidates = Projects
             .Select(project => new { Project = project, Type = project.Compilation.GetTypeByMetadataName(metadataName) })
             .Where(_ =>
+                _.Project.Compilation.Assembly.Identity.Equals(type.ContainingAssembly.Identity) &&
                 _.Type?.Locations.Any(location => location.IsInSource) == true &&
                 SymbolEqualityComparer.Default.Equals(_.Type.ContainingModule, _.Project.Compilation.SourceModule))
             .Select(_ => _.Project.SubjectForType(_.Type!))
