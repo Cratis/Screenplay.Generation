@@ -2,8 +2,6 @@
 
 Framework-neutral source adapter SDK for generating verified [Cratis Screenplay](https://github.com/Cratis/Screenplay) definitions.
 
-**Public compatibility floor and lifecycle:** [`COMPATIBILITY.md`](https://github.com/Cratis/Screenplay.Generation/blob/main/COMPATIBILITY.md)
-
 ## Packages
 
 | Package | Responsibility |
@@ -148,8 +146,6 @@ Every public fact discriminator has an explicit `Unknown = -1` sentinel without 
 ### Convention-altering extension diagnostics
 
 When an authored framework extension can alter discovery or runtime conventions beyond what an adapter can prove statically, adapters use a stable adapter-owned diagnostic code and `GenerationDiagnosticOutcome.Unsupported`. `Subject` identifies the authored extension type. The message names both the exact hook surface and the affected convention scope, using this shape: `Authored extension '<type>' uses '<hook surface>' and may alter <scope>; the recovered model reflects default <scope> only.` This distinguishes bounded default recovery from an unrecognized framework generation without introducing a new diagnostic outcome.
-
-See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the current implementation checkpoint and pre-release decisions.
 
 ## Build and test
 
