@@ -49,6 +49,7 @@ Reference one version across all directly referenced Screenplay Generation packa
 | Executable specification facts | Yes | Yes |
 | `DotNetConceptFacts` | Yes | Yes |
 | Symbol and invocation helpers | Yes | Yes |
+| Exact normalized method-signature matching | No | Yes |
 | Fixed source snapshots and strict placement | Yes | Yes |
 | Overload-safe method subjects | Yes | Yes |
 | Exact alternate source owners | Yes | Yes |
@@ -237,9 +238,12 @@ Prefer semantic helpers over adapter-specific syntax utilities:
 - `DotNetTypeShapes` converts public properties and exact type subjects;
 - `DotNetSymbols` handles metadata-name attributes and interfaces, collection elements, named arguments, and companion method families;
 - `DotNetInvocations` resolves exact direct and reduced methods, formal-parameter arguments, and bounded receiver roots;
+- `DotNetMethodSignatures` captures and matches exact normalized containing type, nullability, method/static/extension/generic/return/ref, and ordered parameter/ref/`params`/receiver shape;
 - `DotNetSource` establishes authored declarations, attributes, evidence, and ranges.
 
 `DotNetInvocations.MethodFor(...)` returns `null` when Roslyn has no exact symbol. Do not use candidate symbols to guess through a broken compilation. Use `DefinitionOf(...)` before matching generic extension metadata, `ArgumentForParameter(...)` with the owning semantic model instead of positional assumptions, and `ReceiverRootParameter(...)` only for a bounded direct parameter-root check. Omitted optional parameters, expanded `params` arguments, aliases, invocation results, and unqualified instance receivers resolve to `null` rather than a partial guess.
+
+Create a `DotNetMethodSignature` from the exact allowlisted method symbol available to the analyzed compilation, then match bound candidates with `DotNetMethodSignatures.Matches(...)`. The descriptor retains nullability and symbol identity, so it is intentionally compilation-bound; do not reconstruct expected signatures from display strings, aliases, short names, or symbols from an unrelated compilation.
 
 Adapter discovery depends on compiler symbols and semantic models, not preferred source formatting. Keep one reusable source fixture with semantically valid generated, decompiler-style, fully qualified, explicitly cast, and otherwise non-idiomatic C#. Its supported facts must resolve without extra loss.
 
