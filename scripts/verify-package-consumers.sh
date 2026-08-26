@@ -434,7 +434,12 @@ internal static class Program
             namespace Ordering;
 
             [Vogen.ValueObject<int>]
-            public readonly partial record struct GeneratedOnlyCode;
+            public readonly partial record struct GeneratedOnlyCode
+            {
+                static string Value { get; set; } = string.Empty;
+                static string Transform(string value) => value;
+                static void Generated() => Value = Transform("generated");
+            }
             """,
             path: "/consumer/obj/GeneratedOnlyCode.g.cs");
         var compilation = CSharpCompilation.Create(
@@ -640,6 +645,25 @@ internal static class Program
         var invocation = authoredTree.GetRoot().DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
             .Single(_ => _.ToString().Contains("consumer", StringComparison.Ordinal));
+        var authoredInvocations = DotNetSource.AuthoredInvocationsIn(project);
+        var authoredAssignments = DotNetSource.AuthoredAssignmentsIn(project);
+        var configureScope = (MethodDeclarationSyntax)compilation.GetTypeByMetadataName("Ordering.CustomerHandler")!.GetMembers("Configure").OfType<IMethodSymbol>().Single().DeclaringSyntaxReferences.Single().GetSyntax();
+        var scopedInvocations = DotNetSource.AuthoredInvocationsIn(configureScope, project);
+        var assignmentScope = (MethodDeclarationSyntax)compilation.GetTypeByMetadataName("Ordering.CustomerOptionsExtensions")!.GetMembers("Configure").OfType<IMethodSymbol>().Single().DeclaringSyntaxReferences.Single().GetSyntax();
+        var scopedAssignments = DotNetSource.AuthoredAssignmentsIn(assignmentScope, project);
+        Require(
+            authoredInvocations.Contains(invocation) &&
+            authoredInvocations.All(candidate => candidate.SyntaxTree == authoredTree) &&
+            authoredAssignments.Count > 0 &&
+            authoredAssignments.All(candidate => candidate.SyntaxTree == authoredTree) &&
+            scopedInvocations.Count == 1 &&
+            scopedInvocations[0].SyntaxTree == invocation.SyntaxTree &&
+            scopedInvocations[0].Span == invocation.Span &&
+            scopedAssignments.Count == 1 &&
+            authoredAssignments.Any(candidate => candidate.SyntaxTree == scopedAssignments[0].SyntaxTree && candidate.Span == scopedAssignments[0].Span),
+            "CSC0035",
+            "Authoritative invocation and assignment enumeration admitted generated source or lost exact scoped source.");
+
         var invocationMethod = DotNetInvocations.MethodFor(invocation, semanticModel)!;
         var invocationName = DotNetInvocations.ArgumentForParameter(invocation, invocationMethod, "name", semanticModel)!;
         var invocationRoot = DotNetInvocations.ReceiverRootParameter(invocation, invocationMethod, semanticModel)!;
