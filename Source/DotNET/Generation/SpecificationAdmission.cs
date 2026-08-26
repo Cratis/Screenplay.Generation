@@ -166,7 +166,7 @@ internal static class SpecificationAdmission
     static bool ValidPhases(IReadOnlyList<AdmittedSpecificationStep> steps)
     {
         var phases = steps.Select(step => step.Definition.Phase).ToArray();
-        return phases.Count(phase => phase == SpecificationStepPhase.When) == 1 &&
+        return phases.Count(phase => phase == SpecificationStepPhase.When) <= 1 &&
             phases.Any(phase => phase == SpecificationStepPhase.Then) &&
             phases.SequenceEqual(phases.OrderBy(phase => (int)phase));
     }

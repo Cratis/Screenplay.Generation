@@ -6,6 +6,8 @@ namespace Cratis.Screenplay.Generation.for_GenerationResolver.given;
 public class specification_facts : facts
 {
     protected static readonly SubjectId ScenarioSubject = new() { Value = "dotnet://Banking.Specs/RegisteringAccount" };
+    protected static readonly SubjectId ReadModelSubject = new() { Value = "dotnet://Banking.ReadModels.AccountOverview" };
+    protected static readonly SubjectId QuerySubject = new() { Value = "dotnet://Banking.Queries.AccountById" };
 
     protected static SpecificationScenarioKey ScenarioKey() => new() { Scenario = ScenarioSubject };
 
@@ -15,13 +17,16 @@ public class specification_facts : facts
         Index = index
     };
 
-    protected static SpecificationValueKey ValueKey(int step, string path) => new()
+    protected static SpecificationValueKey ValueKey(int step, params string[] path) => new()
     {
         Step = StepKey(step),
-        Path = [path]
+        Path = path
     };
 
-    protected static SpecificationScenarioFact Scenario(params SpecificationStepKey[] steps) => new()
+    protected static SpecificationScenarioFact Scenario(params SpecificationStepKey[] steps) =>
+        ScenarioFor(CommandKey(), steps);
+
+    protected static SpecificationScenarioFact ScenarioFor(ArtifactKey target, params SpecificationStepKey[] steps) => new()
     {
         Id = new FactId { Value = "scenario" },
         Subject = ScenarioSubject,
@@ -29,7 +34,7 @@ public class specification_facts : facts
         {
             Key = ScenarioKey(),
             Name = "RegisteringAccount",
-            TargetArtifact = CommandKey(),
+            TargetArtifact = target,
             Steps = steps
         },
         Evidence = Exact(10)
@@ -61,10 +66,17 @@ public class specification_facts : facts
         int step,
         string path,
         string scalar,
+        SpecificationValueKind kind = SpecificationValueKind.Text) =>
+        ValueAt(step, [path], scalar, kind);
+
+    protected static SpecificationValueFact ValueAt(
+        int step,
+        string[] path,
+        string scalar,
         SpecificationValueKind kind = SpecificationValueKind.Text) => new()
         {
-            Id = new FactId { Value = $"value-{step}-{path}" },
-            Subject = new SubjectId { Value = $"{ScenarioSubject.Value}/step/{step}/{path}" },
+            Id = new FactId { Value = $"value-{step}-{string.Join('-', path)}" },
+            Subject = new SubjectId { Value = $"{ScenarioSubject.Value}/step/{step}/{string.Join('/', path)}" },
             Definition = new SpecificationValueDefinition
             {
                 Key = ValueKey(step, path),
@@ -95,17 +107,79 @@ public class specification_facts : facts
         Evidence = Exact(4)
     };
 
+    protected static ArtifactFact ReadModelArtifact() => new()
+    {
+        Id = new FactId { Value = "read-model" },
+        Subject = ReadModelSubject,
+        Definition = new ArtifactDefinition
+        {
+            Key = ReadModelKey(),
+            Name = "AccountOverview",
+            Properties =
+            [
+                new PropertyDefinition
+                {
+                    Name = "name",
+                    Type = new TypeReferenceDefinition { Name = "String" }
+                }
+            ]
+        },
+        Evidence = Exact(6)
+    };
+
+    protected static ArtifactFact QueryArtifact() => new()
+    {
+        Id = new FactId { Value = "query" },
+        Subject = QuerySubject,
+        Definition = new ArtifactDefinition
+        {
+            Key = QueryKey(),
+            Name = "AccountById",
+            Properties =
+            [
+                new PropertyDefinition
+                {
+                    Name = "accountId",
+                    Type = new TypeReferenceDefinition { Name = "String" },
+                    IsIdentifier = true
+                }
+            ]
+        },
+        Evidence = Exact(7)
+    };
+
     protected static ArtifactPlacementFact CommandPlacement() => Placement(
         "command-placement",
         CommandSubject,
         CommandKey());
 
-    protected static ArtifactPlacementFact EventPlacement() => Placement(
+    protected static ArtifactPlacementFact EventPlacement(string slice = "Register") => Placement(
         "event-placement",
         EventSubject,
-        EventKey());
+        EventKey(),
+        GenerationSliceKind.StateChange,
+        slice);
 
-    static ArtifactPlacementFact Placement(string id, SubjectId subject, ArtifactKey artifact) => new()
+    protected static ArtifactPlacementFact ReadModelPlacement() => Placement(
+        "read-model-placement",
+        ReadModelSubject,
+        ReadModelKey(),
+        GenerationSliceKind.StateView,
+        "Overview");
+
+    protected static ArtifactPlacementFact QueryPlacement() => Placement(
+        "query-placement",
+        QuerySubject,
+        QueryKey(),
+        GenerationSliceKind.StateView,
+        "Overview");
+
+    static ArtifactPlacementFact Placement(
+        string id,
+        SubjectId subject,
+        ArtifactKey artifact,
+        GenerationSliceKind sliceKind = GenerationSliceKind.StateChange,
+        string slice = "Register") => new()
     {
         Id = new FactId { Value = id },
         Subject = subject,
@@ -114,8 +188,8 @@ public class specification_facts : facts
         {
             Module = "Accounts",
             Features = ["Registration"],
-            Slice = "Register",
-            SliceKind = GenerationSliceKind.StateChange
+            Slice = slice,
+            SliceKind = sliceKind
         },
         Evidence = Exact(5)
     };
@@ -130,6 +204,35 @@ public class specification_facts : facts
     {
         Subject = EventSubject,
         Kind = ArtifactKind.Event
+    };
+
+    protected static ArtifactKey ReadModelKey() => new()
+    {
+        Subject = ReadModelSubject,
+        Kind = ArtifactKind.ReadModel
+    };
+
+    protected static ArtifactKey QueryKey() => new()
+    {
+        Subject = QuerySubject,
+        Kind = ArtifactKind.Query
+    };
+
+    protected static RelationshipFact QueryReturnsReadModel() => new()
+    {
+        Id = new FactId { Value = "query-returns-read-model" },
+        Subject = QuerySubject,
+        Definition = new RelationshipDefinition
+        {
+            Key = new RelationshipKey
+            {
+                Kind = RelationshipKind.Returns,
+                Source = QuerySubject,
+                Target = ReadModelSubject
+            },
+            IsOptional = true
+        },
+        Evidence = Exact(8)
     };
 
     protected static Evidence Exact(int line) => new()
