@@ -14,6 +14,11 @@ public class when_admitting_a_valid_contribution : given.a_contribution
     [Fact] void should_freeze_every_current_fact_family() => _result.Snapshot!.Facts.Select(fact => fact.GetType()).ShouldContainOnly(
         typeof(ArtifactFact),
         typeof(ArtifactPlacementFact),
+        typeof(ArtifactDeclarationFact),
+        typeof(ArtifactMemberDeclarationFact),
+        typeof(ArtifactMemberTypeUseFact),
+        typeof(TypeUseBindingFact),
+        typeof(ArtifactMemberRoleFact),
         typeof(RelationshipFact),
         typeof(ConceptRepresentationFact),
         typeof(ConceptAttributeFact),

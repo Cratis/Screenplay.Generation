@@ -20,29 +20,81 @@ public class with_inconsistent_ownership : given.a_contribution
         };
         var placement = (ArtifactPlacementFact)facts[1];
         facts[1] = placement with { Artifact = placement.Artifact with { Subject = ExternalSubject } };
-        var relationship = (RelationshipFact)facts[2];
-        facts[2] = relationship with
+        var declaration = (ArtifactDeclarationFact)facts[2];
+        facts[2] = declaration with
+        {
+            Definition = declaration.Definition with
+            {
+                Artifact = declaration.Definition.Artifact with { Subject = ExternalSubject }
+            }
+        };
+        var member = (ArtifactMemberDeclarationFact)facts[3];
+        facts[3] = member with
+        {
+            Definition = member.Definition with
+            {
+                Member = member.Definition.Member with
+                {
+                    Artifact = member.Definition.Member.Artifact with { Subject = ExternalSubject }
+                }
+            }
+        };
+        var typeUse = (ArtifactMemberTypeUseFact)facts[4];
+        facts[4] = typeUse with
+        {
+            Definition = typeUse.Definition with
+            {
+                Member = typeUse.Definition.Member with
+                {
+                    Artifact = typeUse.Definition.Member.Artifact with { Subject = ExternalSubject }
+                }
+            }
+        };
+        var binding = (TypeUseBindingFact)facts[5];
+        facts[5] = binding with
+        {
+            Definition = binding.Definition with
+            {
+                Member = binding.Definition.Member with
+                {
+                    Artifact = binding.Definition.Member.Artifact with { Subject = ExternalSubject }
+                }
+            }
+        };
+        var role = (ArtifactMemberRoleFact)facts[6];
+        facts[6] = role with
+        {
+            Definition = role.Definition with
+            {
+                Member = role.Definition.Member with
+                {
+                    Artifact = role.Definition.Member.Artifact with { Subject = ExternalSubject }
+                }
+            }
+        };
+        var relationship = (RelationshipFact)facts[7];
+        facts[7] = relationship with
         {
             Definition = relationship.Definition with
             {
                 Key = relationship.Definition.Key with { Source = ExternalSubject }
             }
         };
-        var concept = (ConceptRepresentationFact)facts[3];
-        facts[3] = concept with
+        var concept = (ConceptRepresentationFact)facts[8];
+        facts[8] = concept with
         {
             Definition = concept.Definition with { Concept = ExternalSubject }
         };
-        var scenario = (SpecificationScenarioFact)facts[6];
-        facts[6] = scenario with
+        var scenario = (SpecificationScenarioFact)facts[11];
+        facts[11] = scenario with
         {
             Definition = scenario.Definition with
             {
                 Key = new SpecificationScenarioKey { Scenario = ExternalSubject }
             }
         };
-        var step = (SpecificationStepFact)facts[7];
-        facts[7] = step with
+        var step = (SpecificationStepFact)facts[12];
+        facts[12] = step with
         {
             Definition = step.Definition with
             {
@@ -56,8 +108,8 @@ public class with_inconsistent_ownership : given.a_contribution
                 ]
             }
         };
-        var value = (SpecificationValueFact)facts[8];
-        facts[8] = value with
+        var value = (SpecificationValueFact)facts[13];
+        facts[13] = value with
         {
             Definition = value.Definition with
             {
@@ -68,5 +120,5 @@ public class with_inconsistent_ownership : given.a_contribution
     }
 
     [Fact] void should_reject_the_whole_contribution() => _result.Snapshot.ShouldBeNull();
-    [Fact] void should_report_every_inconsistent_ownership_chain() => _result.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.OwnershipMismatch).ShouldBeGreaterThan(6);
+    [Fact] void should_report_every_inconsistent_ownership_chain() => _result.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.OwnershipMismatch).ShouldBeGreaterThan(11);
 }

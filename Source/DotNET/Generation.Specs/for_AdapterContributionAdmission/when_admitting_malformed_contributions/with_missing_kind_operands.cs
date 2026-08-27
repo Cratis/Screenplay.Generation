@@ -10,18 +10,18 @@ public class with_missing_kind_operands : given.a_contribution
     void Because()
     {
         var facts = EveryFact();
-        var representation = (ConceptRepresentationFact)facts[3];
-        facts[3] = representation with
+        var representation = (ConceptRepresentationFact)facts[8];
+        facts[8] = representation with
         {
             Definition = representation.Definition with { Primitive = null }
         };
-        var step = (SpecificationStepFact)facts[7];
-        facts[7] = step with
+        var step = (SpecificationStepFact)facts[12];
+        facts[12] = step with
         {
             Definition = step.Definition with { Artifact = null }
         };
-        var value = (SpecificationValueFact)facts[8];
-        facts[8] = value with
+        var value = (SpecificationValueFact)facts[13];
+        facts[13] = value with
         {
             Definition = value.Definition with
             {

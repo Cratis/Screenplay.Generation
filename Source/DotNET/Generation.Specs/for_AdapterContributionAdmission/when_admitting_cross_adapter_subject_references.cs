@@ -12,7 +12,7 @@ public class when_admitting_cross_adapter_subject_references : given.a_contribut
         var facts = EveryFact();
         _result = Admit(
             Descriptor(GenerationFactCapability.Artifact, GenerationFactCapability.Relationship),
-            Contribution([facts[0], facts[2]]));
+            Contribution([facts[0], facts[7]]));
     }
 
     [Fact] void should_admit_structurally_valid_references_not_declared_by_this_adapter() => _result.IsAdmitted.ShouldBeTrue();

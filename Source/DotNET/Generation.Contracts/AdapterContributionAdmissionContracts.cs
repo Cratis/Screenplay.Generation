@@ -123,7 +123,17 @@ public enum AdapterContributionAdmissionDiagnosticCode
     /// <summary>
     /// A required API capability occurs more than once.
     /// </summary>
-    DuplicateApiCapability = 21
+    DuplicateApiCapability = 21,
+
+    /// <summary>
+    /// A type-use shape is empty or does not terminate in exactly one named type.
+    /// </summary>
+    InvalidTypeUseShape = 22,
+
+    /// <summary>
+    /// An artifact member declaration has a negative declaration order.
+    /// </summary>
+    InvalidDeclarationOrder = 23
 }
 
 /// <summary>

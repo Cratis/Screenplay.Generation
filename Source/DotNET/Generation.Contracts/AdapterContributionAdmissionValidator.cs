@@ -487,6 +487,11 @@ static class AdapterContributionAdmissionValidator
         SpecificationScenarioFact => GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => GenerationFactCapability.SpecificationValue,
+        ArtifactDeclarationFact => GenerationFactCapability.ArtifactDeclaration,
+        ArtifactMemberDeclarationFact => GenerationFactCapability.ArtifactMemberDeclaration,
+        ArtifactMemberTypeUseFact => GenerationFactCapability.ArtifactMemberTypeUse,
+        TypeUseBindingFact => GenerationFactCapability.TypeUseBinding,
+        ArtifactMemberRoleFact => GenerationFactCapability.ArtifactMemberRole,
         _ => GenerationFactCapability.Unknown
     };
 }

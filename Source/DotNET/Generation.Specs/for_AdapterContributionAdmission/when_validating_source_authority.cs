@@ -38,11 +38,11 @@ public class when_validating_source_authority : given.a_contribution
     }
 
     [Fact] void should_admit_authoritative_fact_and_diagnostic_ranges() => _accepted.IsAdmitted.ShouldBeTrue();
-    [Fact] void should_validate_every_fact_and_contribution_diagnostic_range() => _acceptingValidator.Validated.Count.ShouldEqual(10);
+    [Fact] void should_validate_every_fact_and_contribution_diagnostic_range() => _acceptingValidator.Validated.Count.ShouldEqual(15);
     [Fact] void should_reject_nonauthoritative_fact_and_diagnostic_ranges_atomically() => _rejected.Snapshot.ShouldBeNull();
-    [Fact] void should_report_every_nonauthoritative_range() => _rejected.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.SourceNotAuthoritative).ShouldEqual(10);
+    [Fact] void should_report_every_nonauthoritative_range() => _rejected.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.SourceNotAuthoritative).ShouldEqual(15);
     [Fact] void should_reject_source_evidence_when_no_authority_validator_is_supplied() => _withoutValidator.Snapshot.ShouldBeNull();
-    [Fact] void should_require_authority_for_every_unvalidated_range() => _withoutValidator.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.SourceAuthorityRequired).ShouldEqual(10);
+    [Fact] void should_require_authority_for_every_unvalidated_range() => _withoutValidator.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.SourceAuthorityRequired).ShouldEqual(15);
     [Fact] void should_order_rejected_source_diagnostics_independently_of_fact_order() => Projection(_rejectedReversed).ShouldEqual(Projection(_rejected));
 
     static string[] Projection(AdapterContributionAdmissionResult result) =>
