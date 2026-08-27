@@ -56,8 +56,9 @@ internal static class DotNetPayloadValues
             DotNetSourceValues.AddFailure(failures, conversionFailure);
         }
 
+        var authoredArguments = creation.ArgumentList?.Arguments ?? [];
         var explicitArguments = operation.Arguments
-            .Where(argument => !argument.IsImplicit && argument.Syntax is ArgumentSyntax)
+            .Where(argument => authoredArguments.Any(authored => authored.Span.Contains(argument.Syntax.Span)))
             .ToArray();
         var hasExactConstructorShape =
             explicitArguments.Length == constructor.Parameters.Length &&
@@ -82,9 +83,9 @@ internal static class DotNetPayloadValues
         else
         {
             var constructorValues = new List<DotNetNamedValue>();
-            foreach (var authoredArgument in creation.ArgumentList?.Arguments ?? [])
+            foreach (var authoredArgument in authoredArguments)
             {
-                var argument = explicitArguments.Single(argument => argument.Syntax.Span == authoredArgument.Span);
+                var argument = explicitArguments.Single(argument => authoredArgument.Span.Contains(argument.Syntax.Span));
                 var parameter = argument.Parameter!;
                 Add(
                     parameter.Name,
@@ -333,8 +334,8 @@ internal static class DotNetPayloadValues
             IFieldSymbol field => field.Type,
             _ => null
         };
-        var hasInvalidValueOperation = HasInvalidValueOperation(expression, semanticModel, expectedType);
-        if (hasInvalidValueOperation)
+        var hasInvalidValueConversion = HasInvalidValueConversion(expression, semanticModel, expectedType);
+        if (hasInvalidValueConversion)
         {
             DotNetSourceValues.AddFailure(failures, new(
                 DotNetValueFailureKind.Unsupported,
@@ -342,15 +343,37 @@ internal static class DotNetPayloadValues
                 "The payload value conversion is not semantically valid"));
         }
 
-        switch (DotNetSourceValues.Extract(expression, semanticModel))
+        var extracted = DotNetSourceValues.Extract(expression, semanticModel);
+        if (extracted is DotNetUnknown<DotNetSourceValue> unknown)
         {
-            case DotNetKnown<DotNetSourceValue> known when !isDuplicate && !hasInvalidValueOperation:
-                values.Add(new(name, symbol, known.Value, expression.GetLocation()));
-                break;
-            case DotNetUnknown<DotNetSourceValue> unknown:
-                DotNetSourceValues.AddFailures(failures, unknown.Failures);
-                break;
+            DotNetSourceValues.AddFailures(failures, unknown.Failures);
+            return;
         }
+
+        var hasInvalidValueOperation = DotNetSourceValues.HasInvalidOperation(semanticModel.GetOperation(expression));
+        if (hasInvalidValueOperation)
+        {
+            DotNetSourceValues.AddFailure(failures, new(
+                DotNetValueFailureKind.Unsupported,
+                expression.GetLocation(),
+                "The payload value conversion is not semantically valid"));
+        }
+        else if (!isDuplicate && !hasInvalidValueConversion && extracted is DotNetKnown<DotNetSourceValue> known)
+        {
+            values.Add(new(name, symbol, known.Value, expression.GetLocation()));
+        }
+    }
+
+    static bool HasInvalidValueConversion(
+        ExpressionSyntax expression,
+        SemanticModel semanticModel,
+        ITypeSymbol? expectedType = null)
+    {
+        var convertedType = semanticModel.GetTypeInfo(expression).ConvertedType;
+        return (expectedType is not null &&
+                !DotNetSourceValues.IsSupportedContextualConversion(semanticModel.ClassifyConversion(expression, expectedType))) ||
+            (convertedType is not null &&
+                !DotNetSourceValues.IsSupportedContextualConversion(semanticModel.ClassifyConversion(expression, convertedType)));
     }
 
     static bool HasInvalidValueOperation(

@@ -127,6 +127,13 @@ internal static class DotNetCollectionValues
                 }
             }
 
+            var extracted = DotNetSourceValues.Extract(elementExpression, semanticModel);
+            if (extracted is DotNetUnknown<DotNetSourceValue> unknown)
+            {
+                DotNetSourceValues.AddFailures(failures, unknown.Failures);
+                continue;
+            }
+
             if (DotNetSourceValues.ContextualConversionFailure(
                     elementExpression,
                     semanticModel,
@@ -134,15 +141,9 @@ internal static class DotNetCollectionValues
             {
                 DotNetSourceValues.AddFailure(failures, elementConversionFailure);
             }
-
-            switch (DotNetSourceValues.Extract(elementExpression, semanticModel))
+            else if (extracted is DotNetKnown<DotNetSourceValue> known)
             {
-                case DotNetKnown<DotNetSourceValue> known:
-                    values.Add(new(known.Value, elementExpression.GetLocation()));
-                    break;
-                case DotNetUnknown<DotNetSourceValue> unknown:
-                    DotNetSourceValues.AddFailures(failures, unknown.Failures);
-                    break;
+                values.Add(new(known.Value, elementExpression.GetLocation()));
             }
         }
 
@@ -206,7 +207,14 @@ internal static class DotNetCollectionValues
         if (outerRank.Sizes[0] is not OmittedArraySizeExpressionSyntax)
         {
             var size = outerRank.Sizes[0];
-            if (!TryGetExactArrayLength(size, semanticModel, out var length))
+            if (DotNetSourceValues.ConditionalExpressionWithin(size) is { } conditionalDimension)
+            {
+                DotNetSourceValues.AddFailure(failures, new(
+                    DotNetValueFailureKind.Conditional,
+                    conditionalDimension.GetLocation(),
+                    "The array dimension depends on a condition"));
+            }
+            else if (!TryGetExactArrayLength(size, semanticModel, out var length))
             {
                 DotNetSourceValues.AddFailure(failures, new(
                     DotNetValueFailureKind.Computed,

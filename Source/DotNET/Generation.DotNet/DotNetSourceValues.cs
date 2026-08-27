@@ -25,15 +25,7 @@ public static class DotNetSourceValues
         SemanticModel semanticModel)
     {
         var authoredExpression = expression;
-        var conditionalExpression = UnwrapConditional(expression);
-        if (conditionalExpression is ConditionalExpressionSyntax or ConditionalAccessExpressionSyntax or SwitchExpressionSyntax or
-            BinaryExpressionSyntax
-            {
-                RawKind: (int)SyntaxKind.CoalesceExpression or
-                    (int)SyntaxKind.LogicalAndExpression or
-                    (int)SyntaxKind.LogicalOrExpression
-            } or
-            AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.CoalesceAssignmentExpression })
+        if (ConditionalExpressionWithin(expression) is { } conditionalExpression)
         {
             return Unknown<DotNetSourceValue>(conditionalExpression, DotNetValueFailureKind.Conditional, "The value depends on a condition");
         }
@@ -335,6 +327,33 @@ public static class DotNetSourceValues
         (conversion.IsIdentity || conversion.IsImplicit) &&
         !conversion.IsUserDefined;
 
+    internal static ExpressionSyntax? ConditionalExpressionWithin(ExpressionSyntax expression)
+    {
+        while (expression is ParenthesizedExpressionSyntax or CastExpressionSyntax or CheckedExpressionSyntax or
+            PostfixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.SuppressNullableWarningExpression })
+        {
+            expression = expression switch
+            {
+                ParenthesizedExpressionSyntax parenthesized => parenthesized.Expression,
+                CastExpressionSyntax cast => cast.Expression,
+                CheckedExpressionSyntax checkedExpression => checkedExpression.Expression,
+                PostfixUnaryExpressionSyntax suppression => suppression.Operand,
+                _ => expression
+            };
+        }
+
+        return expression is ConditionalExpressionSyntax or ConditionalAccessExpressionSyntax or SwitchExpressionSyntax or
+            BinaryExpressionSyntax
+            {
+                RawKind: (int)SyntaxKind.CoalesceExpression or
+                    (int)SyntaxKind.LogicalAndExpression or
+                    (int)SyntaxKind.LogicalOrExpression
+            } or
+            AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.CoalesceAssignmentExpression }
+                ? expression
+                : null;
+    }
+
     static bool HasInvalidContextualOperation(
         IOperation? operation,
         ExpressionSyntax expression)
@@ -458,23 +477,6 @@ public static class DotNetSourceValues
 
     static bool RequiresBinding(ExpressionSyntax expression) => expression is
         IdentifierNameSyntax or GenericNameSyntax or MemberAccessExpressionSyntax or ElementAccessExpressionSyntax or InvocationExpressionSyntax;
-
-    static ExpressionSyntax UnwrapConditional(ExpressionSyntax expression)
-    {
-        while (expression is ParenthesizedExpressionSyntax or CastExpressionSyntax or
-            PostfixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.SuppressNullableWarningExpression })
-        {
-            expression = expression switch
-            {
-                ParenthesizedExpressionSyntax parenthesized => parenthesized.Expression,
-                CastExpressionSyntax cast => cast.Expression,
-                PostfixUnaryExpressionSyntax suppression => suppression.Operand,
-                _ => expression
-            };
-        }
-
-        return expression;
-    }
 
     static ExpressionSyntax UnwrapParentheses(ExpressionSyntax expression)
     {
