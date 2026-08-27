@@ -444,6 +444,7 @@ internal static class Program
                     public static void Validate(CustomerCode request) => _ = request;
                     public static void Configure(CustomerOptions options) => options.Configure(name: "consumer");
                     public static Delivery BuildDelivery() => new("Screenplay", new[] { "source", "exact" });
+                    public static System.Type DeliveryType() => typeof(Delivery);
                 }
             }
             """,
@@ -707,6 +708,15 @@ internal static class Program
             invalidMessage is DotNetKnown<string> { Value: "Customer codes cannot be blank" },
             "CSC0039",
             "The current packages did not compose authored invocation, exact signature, formal argument, and bounded constant helpers on the Vogen Invalid call.");
+
+        var deliveryTypeExpression = authoredTree.GetRoot().DescendantNodes().OfType<TypeOfExpressionSyntax>().Single();
+        var deliveryType = DotNetSourceValues.TypeOf(deliveryTypeExpression, semanticModel);
+        var untypedDeliveryType = DotNetSourceValues.Extract(deliveryTypeExpression, semanticModel);
+        Require(
+            deliveryType is DotNetKnown<ITypeSymbol> { Value.Name: "Delivery" } &&
+            untypedDeliveryType is DotNetKnown<DotNetSourceValue> { Value: DotNetTypeValue { Type.Name: "Delivery" } },
+            "CSC0040",
+            "Bounded typeof extraction did not preserve the exact source type through typed and untyped public helpers.");
 
         var deliveryCreation = authoredTree.GetRoot().DescendantNodes().OfType<ImplicitObjectCreationExpressionSyntax>().Single(creation => semanticModel.GetTypeInfo(creation).Type?.Name == "Delivery");
         var deliveryPayload = (DotNetKnown<DotNetPayloadValue>)DotNetSourceValues.Payload(deliveryCreation, semanticModel);
