@@ -12,10 +12,37 @@ static class AdapterRunCanonicalizer
         .. records.Select(record => new GenerationFactRecord
         {
             Fact = Fact(record.Fact),
+            Lineage = record.Lineage is null ? null : Lineage(record.Lineage),
             Disposition = record.Disposition,
             Diagnostics = Diagnostics(record.Diagnostics)
         })
     ];
+
+    public static GenerationDerivationSnapshot Derivation(GenerationDerivationSnapshot snapshot) => new()
+    {
+        Rules =
+        [
+            .. snapshot.Rules
+                .Select(rule => new GenerationDerivationRuleRecord
+                {
+                    Rule = Rule(rule.Rule),
+                    Inputs = [.. rule.Inputs.Select(id => new FactId { Value = id.Value }).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
+                    Outputs = [.. rule.Outputs.Select(id => new FactId { Value = id.Value }).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
+                    Diagnostics = Diagnostics(rule.Diagnostics)
+                })
+                .OrderBy(rule => rule.Rule.Id, StringComparer.Ordinal)
+                .ThenBy(rule => rule.Rule.Version, StringComparer.Ordinal)
+        ],
+        Facts =
+        [
+            .. FactRecords(snapshot.Facts)
+                .OrderBy(record => record.Fact.Id.Value, StringComparer.Ordinal)
+                .ThenBy(record => record.Fact.Subject.Value, StringComparer.Ordinal)
+                .ThenBy(record => Structural.FactFamily(record.Fact))
+                .ThenBy(record => Structural.FactDefinition(record.Fact), StringComparer.Ordinal)
+        ],
+        Diagnostics = Diagnostics(snapshot.Diagnostics)
+    };
 
     public static ImmutableArray<GenerationDiagnostic> Diagnostics(IEnumerable<GenerationDiagnostic> diagnostics) =>
     [
@@ -48,6 +75,41 @@ static class AdapterRunCanonicalizer
                 Evidence = evidence,
                 Artifact = ArtifactKey(placement.Artifact),
                 Placement = Placement(placement.Placement)
+            },
+            ArtifactDeclarationFact declaration => new ArtifactDeclarationFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = ArtifactDeclaration(declaration.Definition)
+            },
+            ArtifactMemberDeclarationFact member => new ArtifactMemberDeclarationFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = ArtifactMemberDeclaration(member.Definition)
+            },
+            ArtifactMemberTypeUseFact typeUse => new ArtifactMemberTypeUseFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = ArtifactMemberTypeUse(typeUse.Definition)
+            },
+            TypeUseBindingFact binding => new TypeUseBindingFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = TypeUseBinding(binding.Definition)
+            },
+            ArtifactMemberRoleFact role => new ArtifactMemberRoleFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = ArtifactMemberRole(role.Definition)
             },
             RelationshipFact relationship => new RelationshipFact
             {
@@ -116,6 +178,19 @@ static class AdapterRunCanonicalizer
             Disposition = record.Disposition
         };
     }
+
+    static GenerationFactLineage Lineage(GenerationFactLineage lineage) => new()
+    {
+        Producer = Rule(lineage.Producer),
+        Inputs = [.. lineage.Inputs.Select(id => new FactId { Value = id.Value }).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
+        Evidence = [.. lineage.Evidence.Select(Evidence)]
+    };
+
+    static GenerationDerivationRuleIdentity Rule(GenerationDerivationRuleIdentity rule) => new()
+    {
+        Id = rule.Id,
+        Version = rule.Version
+    };
 
     static AdapterDescriptor Descriptor(AdapterDescriptor descriptor) =>
         AdapterDescriptorAdmission.Admit(descriptor).Descriptor;
@@ -300,6 +375,49 @@ static class AdapterRunCanonicalizer
                 IsIdentifier = property.IsIdentifier
             })
         ]
+    };
+
+    static ArtifactDeclarationDefinition ArtifactDeclaration(ArtifactDeclarationDefinition definition) => new()
+    {
+        Artifact = ArtifactKey(definition.Artifact),
+        Name = definition.Name,
+        Description = definition.Description,
+        File = definition.File
+    };
+
+    static ArtifactMemberKey ArtifactMemberKey(ArtifactMemberKey member) => new()
+    {
+        Artifact = ArtifactKey(member.Artifact),
+        Name = member.Name
+    };
+
+    static ArtifactMemberDeclarationDefinition ArtifactMemberDeclaration(ArtifactMemberDeclarationDefinition definition) => new()
+    {
+        Member = ArtifactMemberKey(definition.Member),
+        DeclarationOrder = definition.DeclarationOrder
+    };
+
+    static ArtifactMemberTypeUseDefinition ArtifactMemberTypeUse(ArtifactMemberTypeUseDefinition definition) => new()
+    {
+        Member = ArtifactMemberKey(definition.Member),
+        Type = new TypeUseDefinition
+        {
+            Name = definition.Type.Name,
+            ObservedTypeSubject = definition.Type.ObservedTypeSubject is null ? null : Subject(definition.Type.ObservedTypeSubject),
+            Shape = [.. definition.Type.Shape]
+        }
+    };
+
+    static TypeUseBindingDefinition TypeUseBinding(TypeUseBindingDefinition definition) => new()
+    {
+        Member = ArtifactMemberKey(definition.Member),
+        Target = ArtifactKey(definition.Target)
+    };
+
+    static ArtifactMemberRoleDefinition ArtifactMemberRole(ArtifactMemberRoleDefinition definition) => new()
+    {
+        Member = ArtifactMemberKey(definition.Member),
+        Role = definition.Role
     };
 
     static ArtifactPlacement Placement(ArtifactPlacement placement) => new()

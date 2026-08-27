@@ -207,4 +207,44 @@ public static class GenerationDiagnosticCodes
     /// An admitted fact participated in a conflict without a more specific pipeline diagnostic.
     /// </summary>
     public const string ConflictingGenerationFact = "GEN0042";
+
+    /// <summary>
+    /// A member type use names an artifact owner that was not declared in the fixed base snapshot.
+    /// </summary>
+    public const string MissingTypeUseOwner = "GEN0043";
+
+    /// <summary>
+    /// A member type use names a member that was not declared in the fixed base snapshot.
+    /// </summary>
+    public const string MissingTypeUseMember = "GEN0044";
+
+    /// <summary>
+    /// An observed exact type subject has no declared artifact target in the fixed base snapshot.
+    /// </summary>
+    public const string MissingTypeUseTarget = "GEN0045";
+
+    /// <summary>
+    /// Incompatible exact type uses were asserted for one artifact member.
+    /// </summary>
+    public const string ConflictingMemberTypeUse = "GEN0046";
+
+    /// <summary>
+    /// An exact observed type subject resolves to incompatible artifact targets.
+    /// </summary>
+    public const string ConflictingTypeUseTarget = "GEN0047";
+
+    /// <summary>
+    /// Incompatible artifact declarations prevent an exact type-use binding.
+    /// </summary>
+    public const string ConflictingTypeUseDeclaration = "GEN0048";
+
+    /// <summary>
+    /// An exact type-use shape cannot be represented without semantic loss.
+    /// </summary>
+    public const string UnsupportedTypeUseShape = "GEN0049";
+
+    /// <summary>
+    /// Incompatible declarations or roles were asserted for one artifact member.
+    /// </summary>
+    public const string ConflictingArtifactMember = "GEN0050";
 }

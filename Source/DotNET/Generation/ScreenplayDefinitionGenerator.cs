@@ -135,6 +135,21 @@ public sealed class ScreenplayDefinitionGenerator(
             .OrderBy(contribution => contribution.Descriptor.Identity.Id, StringComparer.Ordinal)
             .ThenBy(contribution => contribution.Descriptor.Identity.Version, StringComparer.Ordinal)
             .ToArray();
+        var facts = completed
+            .SelectMany(contribution => contribution.Facts.Select(fact => new ProducedFact(contribution.Descriptor.Identity, fact)))
+            .OrderBy(item => item.Producer.Id, StringComparer.Ordinal)
+            .ThenBy(item => item.Producer.Version, StringComparer.Ordinal)
+            .ThenBy(item => item.Fact.Id.Value, StringComparer.Ordinal)
+            .ThenBy(item => item.Fact.Subject.Value, StringComparer.Ordinal)
+            .ThenBy(item => Structural.FactFamily(item.Fact))
+            .ThenBy(item => Structural.FactDefinition(item.Fact), StringComparer.Ordinal)
+            .ThenBy(item => Structural.Evidence(item.Fact.Evidence), StringComparer.Ordinal)
+            .Select(item => item.Fact)
+            .ToArray();
+        var derivation = GenerationFactDerivation.Derive(new AdapterRunSnapshot
+        {
+            Facts = [.. facts.Select(fact => new GenerationFactRecord { Fact = fact })]
+        });
         var contributions = completed.Select(contribution => new AdapterContribution
         {
             Adapter = contribution.Descriptor.Identity,
@@ -158,20 +173,10 @@ public sealed class ScreenplayDefinitionGenerator(
         }
 
         var pipelineDiagnostics = graph.Diagnostics
+            .Concat(derivation.Diagnostics)
             .Concat(lowering.Diagnostics)
             .Concat(verificationDiagnostics)
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
-            .ToArray();
-        var facts = completed
-            .SelectMany(contribution => contribution.Facts.Select(fact => new ProducedFact(contribution.Descriptor.Identity, fact)))
-            .OrderBy(item => item.Producer.Id, StringComparer.Ordinal)
-            .ThenBy(item => item.Producer.Version, StringComparer.Ordinal)
-            .ThenBy(item => item.Fact.Id.Value, StringComparer.Ordinal)
-            .ThenBy(item => item.Fact.Subject.Value, StringComparer.Ordinal)
-            .ThenBy(item => Structural.FactFamily(item.Fact))
-            .ThenBy(item => Structural.FactDefinition(item.Fact), StringComparer.Ordinal)
-            .ThenBy(item => Structural.Evidence(item.Fact.Evidence), StringComparer.Ordinal)
-            .Select(item => item.Fact)
             .ToArray();
         var factRecords = GenerationFactDispositionCalculator.Calculate(
             facts,
@@ -185,6 +190,7 @@ public sealed class ScreenplayDefinitionGenerator(
         {
             Adapters = canonicalAdapters,
             Facts = canonicalFactRecords,
+            Derivation = derivation,
             Diagnostics = CanonicalDiagnostics(runnerDiagnostics.Concat(dispositionDiagnostics))
         };
         var diagnostics = CanonicalDiagnostics(

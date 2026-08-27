@@ -157,6 +157,11 @@ public sealed record GenerationFactRecord
     public required GenerationFact Fact { get; init; }
 
     /// <summary>
+    /// Gets derivation producer and input lineage when the fact was produced from admitted base facts.
+    /// </summary>
+    public GenerationFactLineage? Lineage { get; init; }
+
+    /// <summary>
     /// Gets the disposition calculated by later generation stages.
     /// </summary>
     public GenerationFactDisposition Disposition { get; init; } = GenerationFactDisposition.Unknown;
@@ -222,6 +227,11 @@ public sealed record AdapterRunSnapshot
     /// Gets admitted fact records in canonical fact order.
     /// </summary>
     public ImmutableArray<GenerationFactRecord> Facts { get; init; } = [];
+
+    /// <summary>
+    /// Gets the fixed-snapshot derivation result after generation has run, or <see langword="null"/> before derivation.
+    /// </summary>
+    public GenerationDerivationSnapshot? Derivation { get; init; }
 
     /// <summary>
     /// Gets run-level diagnostics in canonical order.
