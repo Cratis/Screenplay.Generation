@@ -13,11 +13,11 @@ internal static class SpecificationAdmission
     {
         var artifactsByKey = artifacts
             .Where(artifact => !artifact.IsConflicted)
-            .ToDictionary(artifact => Canonical.ArtifactKey(artifact.Key), StringComparer.Ordinal);
+            .ToDictionary(artifact => Structural.ArtifactKey(artifact.Key), StringComparer.Ordinal);
         var placementsByKey = placements
             .Where(placement => !placement.IsConflicted)
-            .ToDictionary(placement => Canonical.ArtifactKey(placement.Artifact), StringComparer.Ordinal);
-        var stepsByKey = facts.Steps.ToDictionary(step => Canonical.SpecificationStepKey(step.Key), StringComparer.Ordinal);
+            .ToDictionary(placement => Structural.ArtifactKey(placement.Artifact), StringComparer.Ordinal);
+        var stepsByKey = facts.Steps.ToDictionary(step => Structural.SpecificationStepKey(step.Key), StringComparer.Ordinal);
         var valueAdmission = new SpecificationValueAdmission(facts.Values);
         var admitted = new List<AdmittedSpecificationScenario>();
 
@@ -57,7 +57,7 @@ internal static class SpecificationAdmission
 
         var variant = scenario.Variants.Single();
         var definition = variant.Definition;
-        var targetKey = Canonical.ArtifactKey(definition.TargetArtifact);
+        var targetKey = Structural.ArtifactKey(definition.TargetArtifact);
         if (!artifacts.ContainsKey(targetKey) || !placements.TryGetValue(targetKey, out var placement) ||
             placement.EffectiveVariants.Count != 1 || !ValidStepKeys(definition))
         {
@@ -67,7 +67,7 @@ internal static class SpecificationAdmission
         var admittedSteps = new List<AdmittedSpecificationStep>();
         foreach (var stepKey in definition.Steps)
         {
-            if (!steps.TryGetValue(Canonical.SpecificationStepKey(stepKey), out var step) ||
+            if (!steps.TryGetValue(Structural.SpecificationStepKey(stepKey), out var step) ||
                 !TryAdmitStep(step, values, artifacts, out var admittedStep))
             {
                 return false;
@@ -106,7 +106,7 @@ internal static class SpecificationAdmission
         var variant = step.Variants.Single();
         var definition = variant.Definition;
         if (!ValidStepShape(definition, artifacts) ||
-            definition.Values.Select(Canonical.SpecificationValueKey).Distinct(StringComparer.Ordinal).Count() != definition.Values.Count)
+            definition.Values.Select(Structural.SpecificationValueKey).Distinct(StringComparer.Ordinal).Count() != definition.Values.Count)
         {
             return false;
         }
@@ -133,9 +133,9 @@ internal static class SpecificationAdmission
 
     static bool ValidStepKeys(SpecificationScenarioDefinition definition) =>
         definition.Steps.Count > 0 &&
-        definition.Steps.Select(Canonical.SpecificationStepKey).Distinct(StringComparer.Ordinal).Count() == definition.Steps.Count &&
+        definition.Steps.Select(Structural.SpecificationStepKey).Distinct(StringComparer.Ordinal).Count() == definition.Steps.Count &&
         definition.Steps.Select((step, index) => step.Index == index &&
-            Canonical.SpecificationScenarioKey(step.Scenario) == Canonical.SpecificationScenarioKey(definition.Key)).All(valid => valid);
+            Structural.SpecificationScenarioKey(step.Scenario) == Structural.SpecificationScenarioKey(definition.Key)).All(valid => valid);
 
     static bool ValidStepShape(
         SpecificationStepDefinition step,
@@ -147,7 +147,7 @@ internal static class SpecificationAdmission
         }
 
         if (step.Artifact is null || step.ErrorCode is not null || step.ErrorMessage is not null ||
-            !artifacts.TryGetValue(Canonical.ArtifactKey(step.Artifact), out var artifact))
+            !artifacts.TryGetValue(Structural.ArtifactKey(step.Artifact), out var artifact))
         {
             return false;
         }

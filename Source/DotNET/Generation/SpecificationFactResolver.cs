@@ -29,13 +29,15 @@ internal static class SpecificationFactResolver
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
-                .GroupBy(fact => Canonical.SpecificationScenarioKey(fact.Definition.Key), StringComparer.Ordinal)
-                .OrderBy(group => group.Key, StringComparer.Ordinal)
+                .GroupBy(fact => Structural.SpecificationScenarioKey(fact.Definition.Key), StringComparer.Ordinal)
+                .OrderBy(group => Canonical.SpecificationScenarioKey(group.First().Definition.Key), StringComparer.Ordinal)
+                .ThenBy(group => group.Key, StringComparer.Ordinal)
                 .Select(group =>
                 {
                     var variants = group
-                        .GroupBy(fact => Canonical.SpecificationScenario(fact.Definition), StringComparer.Ordinal)
-                        .OrderBy(variant => variant.Key, StringComparer.Ordinal)
+                        .GroupBy(fact => Structural.SpecificationScenario(fact.Definition), StringComparer.Ordinal)
+                        .OrderBy(variant => Canonical.SpecificationScenario(variant.First().Definition), StringComparer.Ordinal)
+                        .ThenBy(variant => variant.Key, StringComparer.Ordinal)
                         .Select(variant => new ResolvedSpecificationScenarioVariant
                         {
                             Definition = variant.First().Definition,
@@ -61,13 +63,15 @@ internal static class SpecificationFactResolver
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
-                .GroupBy(fact => Canonical.SpecificationStepKey(fact.Definition.Key), StringComparer.Ordinal)
-                .OrderBy(group => group.Key, StringComparer.Ordinal)
+                .GroupBy(fact => Structural.SpecificationStepKey(fact.Definition.Key), StringComparer.Ordinal)
+                .OrderBy(group => Canonical.SpecificationStepKey(group.First().Definition.Key), StringComparer.Ordinal)
+                .ThenBy(group => group.Key, StringComparer.Ordinal)
                 .Select(group =>
                 {
                     var variants = group
-                        .GroupBy(fact => Canonical.SpecificationStep(fact.Definition), StringComparer.Ordinal)
-                        .OrderBy(variant => variant.Key, StringComparer.Ordinal)
+                        .GroupBy(fact => Structural.SpecificationStep(fact.Definition), StringComparer.Ordinal)
+                        .OrderBy(variant => Canonical.SpecificationStep(variant.First().Definition), StringComparer.Ordinal)
+                        .ThenBy(variant => variant.Key, StringComparer.Ordinal)
                         .Select(variant => new ResolvedSpecificationStepVariant
                         {
                             Definition = variant.First().Definition,
@@ -93,13 +97,15 @@ internal static class SpecificationFactResolver
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
-                .GroupBy(fact => Canonical.SpecificationValueKey(fact.Definition.Key), StringComparer.Ordinal)
-                .OrderBy(group => group.Key, StringComparer.Ordinal)
+                .GroupBy(fact => Structural.SpecificationValueKey(fact.Definition.Key), StringComparer.Ordinal)
+                .OrderBy(group => Canonical.SpecificationValueKey(group.First().Definition.Key), StringComparer.Ordinal)
+                .ThenBy(group => group.Key, StringComparer.Ordinal)
                 .Select(group =>
                 {
                     var variants = group
-                        .GroupBy(fact => Canonical.SpecificationValue(fact.Definition), StringComparer.Ordinal)
-                        .OrderBy(variant => variant.Key, StringComparer.Ordinal)
+                        .GroupBy(fact => Structural.SpecificationValue(fact.Definition), StringComparer.Ordinal)
+                        .OrderBy(variant => Canonical.SpecificationValue(variant.First().Definition), StringComparer.Ordinal)
+                        .ThenBy(variant => variant.Key, StringComparer.Ordinal)
                         .Select(variant => new ResolvedSpecificationValueVariant
                         {
                             Definition = variant.First().Definition,

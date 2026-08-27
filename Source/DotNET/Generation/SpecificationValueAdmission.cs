@@ -6,7 +6,7 @@ namespace Cratis.Screenplay.Generation;
 internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificationValue> values)
 {
     readonly Dictionary<string, ResolvedSpecificationValue> _values = values.ToDictionary(
-        value => Canonical.SpecificationValueKey(value.Key),
+        value => Structural.SpecificationValueKey(value.Key),
         StringComparer.Ordinal);
 
     public bool TryAdmit(
@@ -16,7 +16,7 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
         TryAdmit(key, step, new HashSet<string>(StringComparer.Ordinal), out admitted);
 
     static bool SameStep(SpecificationStepKey left, SpecificationStepKey right) =>
-        Canonical.SpecificationStepKey(left) == Canonical.SpecificationStepKey(right);
+        Structural.SpecificationStepKey(left) == Structural.SpecificationStepKey(right);
 
     static bool IsValidShape(SpecificationValueDefinition definition)
     {
@@ -41,7 +41,7 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
         out AdmittedSpecificationValue? admitted)
     {
         admitted = null;
-        var canonicalKey = Canonical.SpecificationValueKey(key);
+        var canonicalKey = Structural.SpecificationValueKey(key);
         if (!SameStep(key.Step, step) || !visiting.Add(canonicalKey) ||
             !_values.TryGetValue(canonicalKey, out var resolved) || resolved.IsConflicted)
         {
@@ -51,7 +51,7 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
         var variant = resolved.Variants.Single();
         var definition = variant.Definition;
         if (!IsValidShape(definition) ||
-            definition.Children.Select(Canonical.SpecificationValueKey).Distinct(StringComparer.Ordinal).Count() != definition.Children.Count)
+            definition.Children.Select(Structural.SpecificationValueKey).Distinct(StringComparer.Ordinal).Count() != definition.Children.Count)
         {
             return false;
         }
