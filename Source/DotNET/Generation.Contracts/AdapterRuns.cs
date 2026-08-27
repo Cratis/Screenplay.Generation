@@ -43,7 +43,12 @@ public enum AdapterRunDisposition
     /// <summary>
     /// The adapter contribution was admitted.
     /// </summary>
-    Admitted = 5
+    Admitted = 5,
+
+    /// <summary>
+    /// The adapter registration was rejected before probing.
+    /// </summary>
+    RosterRejected = 6
 }
 
 /// <summary>
@@ -167,6 +172,21 @@ public sealed record GenerationFactRecord
 /// </summary>
 public sealed record AdapterRunRecord
 {
+    /// <summary>
+    /// Gets whether the registration was considered by the runner.
+    /// </summary>
+    public bool Considered { get; init; }
+
+    /// <summary>
+    /// Gets whether the adapter probe callback was invoked.
+    /// </summary>
+    public bool Probed { get; init; }
+
+    /// <summary>
+    /// Gets whether the adapter analysis callback was invoked.
+    /// </summary>
+    public bool Executed { get; init; }
+
     /// <summary>
     /// Gets the adapter descriptor.
     /// </summary>

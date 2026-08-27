@@ -91,7 +91,7 @@ static class AdapterContributionAdmissionValidator
         }
     }
 
-    static void ValidateDescriptor(
+    internal static void ValidateDescriptor(
         AdapterDescriptor descriptor,
         AdapterContributionAdmissionContext context)
     {
@@ -119,6 +119,29 @@ static class AdapterContributionAdmissionValidator
                 descriptor.RequiredHostCapabilities[index],
                 AdapterHostCapability.Unknown,
                 $"Descriptor.RequiredHostCapabilities[{index}]");
+        }
+
+        for (var index = 0; index < descriptor.RequiredApiCapabilities.Length; index++)
+        {
+            var capability = descriptor.RequiredApiCapabilities[index];
+            if (!AdapterContributionText.IsNormalized(capability.Id, false))
+            {
+                context.Add(
+                    AdapterContributionAdmissionDiagnosticCode.InvalidApiCapability,
+                    $"Descriptor.RequiredApiCapabilities[{index}]",
+                    "Required API capability identities must be nonempty, normalized, and contain no whitespace or control characters");
+            }
+        }
+
+        foreach (var duplicate in descriptor.RequiredApiCapabilities
+                     .GroupBy(capability => capability.Id, StringComparer.Ordinal)
+                     .Where(group => group.Count() > 1)
+                     .OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            context.Add(
+                AdapterContributionAdmissionDiagnosticCode.DuplicateApiCapability,
+                "Descriptor.RequiredApiCapabilities",
+                $"Required API capability '{duplicate.Key}' occurs {duplicate.Count()} times");
         }
 
         for (var index = 0; index < descriptor.EmittedFactCapabilities.Length; index++)
@@ -306,8 +329,7 @@ static class AdapterContributionAdmissionValidator
     {
         var isOrdered = source.EndLine > source.StartLine ||
                         (source.EndLine == source.StartLine && source.EndColumn >= source.StartColumn);
-        if (!IsNormalizedPath(source.Path) ||
-            source.Path.Contains('\\') ||
+        if (!IsPortableRelativePath(source.Path) ||
             source.StartLine < 1 ||
             source.StartColumn < 1 ||
             source.EndLine < 1 ||
@@ -318,7 +340,7 @@ static class AdapterContributionAdmissionValidator
             context.Add(
                 AdapterContributionAdmissionDiagnosticCode.InvalidSourceRange,
                 path,
-                $"{path} must identify a normalized path and an ordered positive 1-based range",
+                $"{path} must identify a normalized portable relative path without rooted, backslash, empty, or dot segments and an ordered positive 1-based range",
                 fact,
                 subject,
                 source);
@@ -370,10 +392,65 @@ static class AdapterContributionAdmissionValidator
 
     static bool IsFileIdentity(SourceFileIdentity identity) =>
         AdapterContributionText.IsNormalized(identity.Project, true) &&
-        IsNormalizedPath(identity.Path) &&
-        !identity.Path.StartsWith('/') &&
-        !identity.Path.Contains('\\') &&
-        !identity.Path.Split('/').Any(segment => string.Equals(segment, ".", StringComparison.Ordinal) || string.Equals(segment, "..", StringComparison.Ordinal));
+        IsPortableRelativePath(identity.Path);
+
+    static bool IsPortableRelativePath(string? value)
+    {
+        if (!IsNormalizedPath(value))
+        {
+            return false;
+        }
+
+        var path = value!;
+        if (path[0] == '/' ||
+            path.Contains('\\') ||
+            IsDriveRooted(path))
+        {
+            return false;
+        }
+
+        var segments = path.Split('/');
+        for (var index = 0; index < segments.Length; index++)
+        {
+            if (string.IsNullOrEmpty(segments[index]) ||
+                !TryDecodeSegment(segments[index], out var decoded) ||
+                string.Equals(decoded, ".", StringComparison.Ordinal) ||
+                string.Equals(decoded, "..", StringComparison.Ordinal) ||
+                decoded.Contains('/') ||
+                decoded.Contains('\\') ||
+                (index == 0 && IsDriveRooted(decoded)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    static bool TryDecodeSegment(string segment, out string decoded)
+    {
+        decoded = segment;
+        try
+        {
+            while (true)
+            {
+                var unescaped = Uri.UnescapeDataString(decoded);
+                if (string.Equals(unescaped, decoded, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                decoded = unescaped;
+            }
+        }
+        catch (UriFormatException)
+        {
+            return false;
+        }
+    }
+
+    static bool IsDriveRooted(string path) =>
+        path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':';
 
     static bool HasAuthoredDotPathSegment(string value)
     {

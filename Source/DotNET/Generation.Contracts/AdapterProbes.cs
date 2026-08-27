@@ -16,6 +16,11 @@ public sealed record AdapterProbeEvidence
     public required string Description { get; init; }
 
     /// <summary>
+    /// Gets the exact API capability established by this evidence, when the observation proves one.
+    /// </summary>
+    public AdapterApiCapability? ApiCapability { get; init; }
+
+    /// <summary>
     /// Gets the source range that established the observation, when available.
     /// </summary>
     public SourceRange? Source { get; init; }
@@ -38,6 +43,11 @@ public abstract record AdapterProbeResult
 }
 
 /// <summary>
+/// Indicates that an adapter was not probed.
+/// </summary>
+public sealed record AdapterProbeNotRun : AdapterProbeResult;
+
+/// <summary>
 /// Indicates that an adapter found no applicable source evidence.
 /// </summary>
 public sealed record AdapterProbeNotApplicable : AdapterProbeResult;
@@ -53,7 +63,7 @@ public sealed record AdapterProbeApplicable : AdapterProbeResult;
 public sealed record AdapterProbeBlocked : AdapterProbeResult
 {
     /// <summary>
-    /// Gets diagnostics explaining why execution is blocked.
+    /// Gets one or more valid diagnostics explaining why execution is blocked.
     /// </summary>
-    public ImmutableArray<GenerationDiagnostic> Diagnostics { get; init; } = [];
+    public required ImmutableArray<GenerationDiagnostic> Diagnostics { get; init; }
 }

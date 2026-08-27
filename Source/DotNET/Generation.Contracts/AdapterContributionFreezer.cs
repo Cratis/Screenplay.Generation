@@ -32,7 +32,7 @@ static class AdapterContributionFreezer
         return new(frozenDescriptor, adapter, facts, diagnostics);
     }
 
-    static AdapterDescriptor FreezeDescriptor(
+    internal static AdapterDescriptor FreezeDescriptor(
         AdapterDescriptor? descriptor,
         AdapterContributionAdmissionContext context)
     {
@@ -71,8 +71,34 @@ static class AdapterContributionFreezer
                 MaximumExclusive = range.MaximumExclusive
             },
             RequiredHostCapabilities = Canonical(descriptor.RequiredHostCapabilities),
+            RequiredApiCapabilities = FreezeApiCapabilities(descriptor.RequiredApiCapabilities, context),
             EmittedFactCapabilities = Canonical(descriptor.EmittedFactCapabilities)
         };
+    }
+
+    static ImmutableArray<AdapterApiCapability> FreezeApiCapabilities(
+        ImmutableArray<AdapterApiCapability> capabilities,
+        AdapterContributionAdmissionContext context)
+    {
+        if (capabilities.IsDefault)
+        {
+            return [];
+        }
+
+        var frozen = ImmutableArray.CreateBuilder<AdapterApiCapability>();
+        for (var index = 0; index < capabilities.Length; index++)
+        {
+            var capability = capabilities[index];
+            if (capability is null)
+            {
+                context.Missing($"Descriptor.RequiredApiCapabilities[{index}]");
+                continue;
+            }
+
+            frozen.Add(new AdapterApiCapability { Id = capability.Id ?? string.Empty });
+        }
+
+        return [.. frozen.OrderBy(capability => capability.Id, StringComparer.Ordinal)];
     }
 
     static ImmutableArray<T> Canonical<T>(ImmutableArray<T> values)

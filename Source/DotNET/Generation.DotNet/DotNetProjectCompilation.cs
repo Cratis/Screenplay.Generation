@@ -80,9 +80,10 @@ public sealed class DotNetAnalysisContext(IEnumerable<DotNetProjectCompilation> 
     public IReadOnlyList<DotNetProjectCompilation> Projects { get; } =
     [
         .. projects
-            .OrderBy(_ => _.Name, StringComparer.Ordinal)
+            .OrderBy(_ => _.SourceContext?.ProjectIdentity ?? _.Name, StringComparer.Ordinal)
+            .ThenBy(_ => _.Name, StringComparer.Ordinal)
             .ThenBy(_ => _.Compilation.AssemblyName, StringComparer.Ordinal)
-            .ThenBy(_ => _.ProjectPath, StringComparer.Ordinal)
+            .ThenBy(_ => _.SourceContext is null ? _.ProjectPath : null, StringComparer.Ordinal)
     ];
 
     /// <summary>

@@ -113,7 +113,17 @@ public enum AdapterContributionAdmissionDiagnosticCode
     /// <summary>
     /// Source evidence was supplied without a host authority validator.
     /// </summary>
-    SourceAuthorityRequired = 19
+    SourceAuthorityRequired = 19,
+
+    /// <summary>
+    /// A required API capability identity is malformed.
+    /// </summary>
+    InvalidApiCapability = 20,
+
+    /// <summary>
+    /// A required API capability occurs more than once.
+    /// </summary>
+    DuplicateApiCapability = 21
 }
 
 /// <summary>

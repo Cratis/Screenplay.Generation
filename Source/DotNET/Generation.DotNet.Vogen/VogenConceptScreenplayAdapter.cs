@@ -13,7 +13,7 @@ namespace Cratis.Screenplay.Generation.DotNet.Vogen;
 /// Recognition uses Roslyn metadata names and authoritative authored-source evidence. Generated members can corroborate
 /// a declaration but never originate concept, identity, validation, normalization, named-instance, or representation evidence.
 /// </remarks>
-public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
+public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, IDescribedDotNetScreenplayAdapter
 {
     const string AdapterId = "vogen";
     const string AdapterVersion = "1.0.0";
@@ -24,8 +24,60 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
     public AdapterIdentity Identity { get; } = new() { Id = AdapterId, Version = AdapterVersion };
 
     /// <inheritdoc/>
+    public AdapterDescriptor Descriptor { get; } = new()
+    {
+        Identity = new AdapterIdentity { Id = AdapterId, Version = AdapterVersion },
+        SourceLanguage = AdapterSourceLanguage.CSharp,
+        Category = AdapterCategory.Concepts,
+        RequiredHostCapabilities =
+        [
+            AdapterHostCapability.AuthoredSource,
+            AdapterHostCapability.StableSourceLocations,
+            AdapterHostCapability.SemanticAnalysis
+        ],
+        RequiredApiCapabilities =
+        [
+            VogenAdapterApiCapabilities.ValueObjectDeclaration
+        ],
+        EmittedFactCapabilities =
+        [
+            GenerationFactCapability.Artifact,
+            GenerationFactCapability.ConceptRepresentation,
+            GenerationFactCapability.ConceptValidationRule
+        ]
+    };
+
+    /// <inheritdoc/>
     public bool CanAnalyze(DotNetAnalysisContext context) =>
         context.Projects.Any(project => DeclarationsIn(project).Any());
+
+    /// <inheritdoc/>
+    public AdapterProbeResult Probe(DotNetAnalysisContext context)
+    {
+        var declarations = context.Projects
+            .SelectMany(project => DeclarationsIn(project).Select(declaration => new ProjectDeclaration(project, declaration)))
+            .ToArray();
+        if (declarations.Length == 0)
+        {
+            return new AdapterProbeNotApplicable();
+        }
+
+        try
+        {
+            var evidence = declarations.Select(DeclarationEvidence).ToList();
+            if (evidence.Exists(item => item.Source?.FileIdentity is null))
+            {
+                return UnsafeSourceMapping();
+            }
+
+            evidence.AddRange(ApiEvidence(declarations));
+            return new AdapterProbeApplicable { Evidence = [.. evidence] };
+        }
+        catch (DotNetSourceTreeNotMapped)
+        {
+            return UnsafeSourceMapping();
+        }
+    }
 
     /// <inheritdoc/>
     public AdapterContribution Analyze(DotNetAnalysisContext context, DotNetAdapterOptions options)
@@ -54,6 +106,60 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
             Diagnostics = diagnostics
         };
     }
+
+    static AdapterProbeEvidence DeclarationEvidence(ProjectDeclaration item) => new()
+    {
+        Description = $"The authored type has the exact '{MetadataName(item.Declaration.Attribute)}' Vogen declaration API",
+        Source = DotNetSource.RangeForProject(item.Declaration.Attribute.ApplicationSyntaxReference!.GetSyntax().GetLocation(), item.Project),
+        Subject = item.Project.SubjectForType(item.Declaration.Type)
+    };
+
+    static IEnumerable<AdapterProbeEvidence> ApiEvidence(IEnumerable<ProjectDeclaration> declarations)
+    {
+        var declarationArray = declarations.ToArray();
+        var exactDeclarationApis = declarationArray
+            .Select(item => item.Declaration.Attribute.AttributeClass)
+            .OfType<INamedTypeSymbol>()
+            .Where(IsExactVogenApi)
+            .Select(DotNetSubjectIds.MetadataName)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (exactDeclarationApis.Length > 0)
+        {
+            yield return new AdapterProbeEvidence
+            {
+                Description = $"The exact Vogen value-object declaration API is available through '{string.Join("' or '", exactDeclarationApis)}'",
+                ApiCapability = VogenAdapterApiCapabilities.ValueObjectDeclaration
+            };
+        }
+
+        var projects = declarationArray.Select(item => item.Project).Distinct().ToArray();
+        if (projects.Any(project => IsExactVogenApi(project.Compilation.GetTypeByMetadataName(VogenMetadataNames.Validation))))
+        {
+            yield return new AdapterProbeEvidence
+            {
+                Description = $"The exact '{VogenMetadataNames.Validation}' Vogen validation-result API is available",
+                ApiCapability = VogenAdapterApiCapabilities.ValidationResult
+            };
+        }
+    }
+
+    static bool IsExactVogenApi(INamedTypeSymbol? type) =>
+        type is not null && string.Equals(type.ContainingAssembly.Name, "Vogen.SharedTypes", StringComparison.Ordinal);
+
+    static AdapterProbeBlocked UnsafeSourceMapping() => new()
+    {
+        Diagnostics =
+        [
+            new GenerationDiagnostic
+            {
+                Code = VogenGenerationDiagnosticCodes.UnsafeSourceMapping,
+                Severity = GenerationDiagnosticSeverity.Error,
+                Message = "Applicable authored Vogen declarations do not have authoritative stable source mappings"
+            }
+        ]
+    };
 
     static void AddConcept(
         DotNetProjectCompilation project,
@@ -403,6 +509,8 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
     sealed record AuthoredMethod(IMethodSymbol Method, SyntaxReference Reference);
 
     sealed record VogenDeclaration(INamedTypeSymbol Type, AttributeData Attribute);
+
+    sealed record ProjectDeclaration(DotNetProjectCompilation Project, VogenDeclaration Declaration);
 
     sealed record VogenBackingType(ITypeSymbol Type, AttributeData Evidence);
 }

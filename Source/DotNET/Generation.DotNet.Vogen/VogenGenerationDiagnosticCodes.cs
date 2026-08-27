@@ -22,4 +22,9 @@ public static class VogenGenerationDiagnosticCodes
     /// A Vogen concept declares a named instance that Screenplay concepts cannot preserve.
     /// </summary>
     public const string NamedInstanceNotRepresented = "VOG0003";
+
+    /// <summary>
+    /// Applicable Vogen source lacks an authoritative stable source mapping.
+    /// </summary>
+    public const string UnsafeSourceMapping = "VOG0004";
 }

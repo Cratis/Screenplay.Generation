@@ -165,6 +165,17 @@ public enum GenerationFactCapability
 }
 
 /// <summary>
+/// Identifies one source-neutral API capability that an adapter requires and its probe can prove.
+/// </summary>
+public sealed record AdapterApiCapability
+{
+    /// <summary>
+    /// Gets the stable normalized capability identity.
+    /// </summary>
+    public required string Id { get; init; }
+}
+
+/// <summary>
 /// Describes the inclusive and exclusive Generation package versions supported by an adapter.
 /// </summary>
 /// <remarks>
@@ -218,6 +229,11 @@ public sealed record AdapterDescriptor
     /// Gets the source-neutral host capabilities required before the adapter can execute.
     /// </summary>
     public ImmutableArray<AdapterHostCapability> RequiredHostCapabilities { get; init; } = [];
+
+    /// <summary>
+    /// Gets the source-neutral API capabilities that an applicable probe must prove before execution.
+    /// </summary>
+    public ImmutableArray<AdapterApiCapability> RequiredApiCapabilities { get; init; } = [];
 
     /// <summary>
     /// Gets the neutral fact families the adapter is allowed to emit.
