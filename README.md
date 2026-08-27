@@ -18,6 +18,23 @@ Framework adapters remain owned by their source ecosystems:
 
 See [Build a .NET source adapter](Documentation/guides/build-source-adapter.md) for the canonical adapter contract, source-authority rules, fact and evidence patterns, composition flow, and verification checklist.
 
+## Public baseline and current main
+
+`0.15.0` is the current public lockstep release and package-validation baseline. The adapter execution boundary is additive on `main`.
+
+| Capability | Released `0.15.0` | Current `main` |
+| --- | ---: | ---: |
+| Adapter, context, neutral fact, evidence, and diagnostic contracts | Yes | Yes |
+| Stable source identity, fixed source snapshots, and strict placement | Yes | Yes |
+| Exact method signatures and bounded scalar, payload, and collection extraction | Yes | Yes |
+| Authoritative invocation and assignment enumeration | Yes | Yes |
+| Legacy `IDotNetScreenplayAdapter` | Yes | Yes |
+| Descriptors, structured probes, and atomic public admission | No | Yes |
+| Explicit modern/legacy registration and deterministic .NET runner | No | Yes |
+| Immutable adapter-run snapshots and `Generate(snapshot)` | No | Yes |
+| Per-fact generation dispositions | No | Yes |
+| Vogen modern descriptor/probe with legacy contribution parity | No | Yes |
+
 ## Architecture
 
 ```text
@@ -34,6 +51,18 @@ source adapter
 Adapters contribute semantic facts; they do not construct syntax nodes or concatenate `.play` fragments. This allows facts from related frameworks—such as Marten and Wolverine—to be resolved together before one document is emitted.
 
 `Cratis.Screenplay.Generation.DotNet` deliberately does not own `MSBuildWorkspace`. Hosts such as Cratis CLI load a project once and pass Roslyn compilations to official adapters.
+
+## Adapter discovery and execution
+
+The original `IDotNetScreenplayAdapter` remains source- and binary-compatible. New adapters should implement `IDescribedDotNetScreenplayAdapter`; its `AdapterDescriptor` declares the adapter category, source language, compatible Generation version range, required host and API capabilities, and the neutral fact families it may emit. `Probe()` returns `AdapterProbeNotApplicable`, `AdapterProbeApplicable`, or `AdapterProbeBlocked` together with canonical capability and source evidence instead of reducing admission to a Boolean.
+
+Hosts own an explicit roster. Register modern adapters with `DotNetAdapterRegistration.For(...)` and unchanged legacy adapters with `ForLegacy(...)`, then call `DotNetAdapterRunner.Run(...)` once. The runner canonicalizes the project and adapter rosters, considers and probes each eligible registration once, executes only applicable adapters once, admits each contribution atomically, and returns an immutable `AdapterRunSnapshot`. It never discovers packages implicitly.
+
+Duplicate adapter IDs are rejected before probe or analysis. Invalid descriptors reject the registration; incompatible Generation versions, unavailable host capabilities, unsupported source languages, and unsafe project rosters block before probing; missing API evidence or a blocked probe prevents execution; nonauthoritative source and malformed contributions reject the whole contribution. Callback failures become stable diagnostics and do not expose exception text or machine paths.
+
+A modern `SourceIndependent` adapter with no host requirements can run against an empty .NET context. A source adapter that declares `StableSourceLocations` requires every authored tree to have an authoritative `DotNetProjectSourceContext` mapping, and every located probe, fact, and diagnostic must use that mapping. The modern Vogen path requires stable locations; its legacy interface remains available for compatibility.
+
+Pass the frozen snapshot to `ScreenplayDefinitionGenerator.Generate(snapshot, options)` to preserve runner diagnostics and receive final fact dispositions: `Lowered`, `ProvenanceOnly`, `OmittedWithDiagnostic`, or `Conflicted`. This snapshot records one run only. It does not add issue #19 adapter/fact lineage, and it does not add issue #24 serialization or fingerprints.
 
 ### Adapter syntax robustness
 
@@ -81,24 +110,24 @@ Flat compatibility is opt-in per artifact. An adapter may supply a versioned `Do
 
 A composition host references `Cratis.Screenplay.Generation` and `Cratis.Screenplay.Generation.DotNet.Vogen` directly, plus its external ecosystem adapter package. The Vogen adapter package brings `Cratis.Screenplay.Generation.DotNet` and `Cratis.Screenplay.Generation.Contracts` transitively; the analyzed application references Vogen itself.
 
-A clean consumer composes Vogen with any external ecosystem adapter by keeping contributions separate until neutral resolution:
+A clean consumer composes Vogen with explicitly selected ecosystem adapters through one runner invocation:
 
 ```csharp
-var adapters = new IDotNetScreenplayAdapter[]
+var roster = new DotNetAdapterRegistration[]
 {
-    new VogenConceptScreenplayAdapter(),
-    externalAdapter
+    DotNetAdapterRegistration.For(new VogenConceptScreenplayAdapter()),
+    DotNetAdapterRegistration.For(externalModernAdapter),
+    DotNetAdapterRegistration.ForLegacy(unchangedLegacyAdapter)
 };
 
 var adapterOptions = new DotNetAdapterOptions();
-var contributions = adapters
-    .Where(adapter => adapter.CanAnalyze(context))
-    .Select(adapter => adapter.Analyze(context, adapterOptions));
-
+var snapshot = DotNetAdapterRunner.Run(roster, context, adapterOptions);
 var definition = new ScreenplayDefinitionGenerator().Generate(
-    contributions,
+    snapshot,
     new ScreenplayGenerationOptions { Domain = "Ordering" });
 ```
+
+`VogenConceptScreenplayAdapter` implements both contracts. Prefer `For(vogen)` for its `Concepts` descriptor, exact Vogen API probe evidence, declared fact capabilities, and stable-source enforcement. Use `ForLegacy(vogen)` only when preserving a legacy host path; run the two registrations separately because their shared `vogen` identity is intentionally a duplicate in one roster. Safely applicable modern and legacy runs produce the same Vogen contribution.
 
 The Vogen contribution establishes authored concepts, supported primitive representations, and one named validation rule only when the attribute-bearing declaration contains an authored static `Validate(TBacking)` method returning the exact `Vogen.Validation` type. The rule keeps the authored predicate and implementation file; a single semantically constant `Validation.Invalid("message")` return can also preserve its message. Arbitrary validation bodies are never translated into built-in rules.
 
@@ -158,7 +187,7 @@ dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Art
 ./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
 
-Package validation runs during pack against the latest released API baseline, `0.14.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, shared symbol helpers, declared concept nomination, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
+Package validation runs during pack against the latest released API baseline, `0.15.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, shared symbol helpers, declared concept nomination, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
 
 All builds require zero errors and zero warnings. Generated Screenplay output must compile and remain stable through print/compile/print.
 
