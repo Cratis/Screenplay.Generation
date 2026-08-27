@@ -30,6 +30,11 @@ public enum GenerationDiagnosticOutcome
 public enum GenerationDiagnosticSeverity
 {
     /// <summary>
+    /// The diagnostic severity is unknown or unsupported.
+    /// </summary>
+    Unknown = -1,
+
+    /// <summary>
     /// Informational context that does not make the result incomplete.
     /// </summary>
     Information = 0,
