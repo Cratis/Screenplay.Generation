@@ -146,7 +146,6 @@ public static class DotNetSource
     /// <returns>The authored invocations, or an empty list when the scope is not authoritative authored source.</returns>
     /// <exception cref="DotNetAuthoredSyntaxTreeNotInCompilation">An authoritative tree is absent from the compilation.</exception>
     /// <exception cref="DotNetSourceTreeNotMapped">An authoritative tree is absent from the explicit source context.</exception>
-    /// <exception cref="DotNetAuthoredSyntaxTreeIdentityNotUnique">Legacy authored trees have missing or duplicate paths.</exception>
     public static IReadOnlyList<InvocationExpressionSyntax> AuthoredInvocationsIn(
         SyntaxNode scope,
         DotNetProjectCompilation project) =>
@@ -171,7 +170,6 @@ public static class DotNetSource
     /// <returns>The authored assignments, or an empty list when the scope is not authoritative authored source.</returns>
     /// <exception cref="DotNetAuthoredSyntaxTreeNotInCompilation">An authoritative tree is absent from the compilation.</exception>
     /// <exception cref="DotNetSourceTreeNotMapped">An authoritative tree is absent from the explicit source context.</exception>
-    /// <exception cref="DotNetAuthoredSyntaxTreeIdentityNotUnique">Legacy authored trees have missing or duplicate paths.</exception>
     public static IReadOnlyList<AssignmentExpressionSyntax> AuthoredAssignmentsIn(
         SyntaxNode scope,
         DotNetProjectCompilation project) =>
@@ -361,10 +359,27 @@ public static class DotNetSource
     static IReadOnlyList<TNode> AuthoredNodesIn<TNode>(SyntaxNode scope, DotNetProjectCompilation project)
         where TNode : SyntaxNode
     {
-        var authoredTrees = AuthoredTreesIn(project);
-        return authoredTrees.Contains(scope.SyntaxTree)
+        ValidateScopedAuthoredTrees(project);
+        return project.AuthoredSyntaxTrees.Contains(scope.SyntaxTree)
             ? [.. scope.DescendantNodesAndSelf().OfType<TNode>().OrderBy(node => node.SpanStart)]
             : [];
+    }
+
+    static void ValidateScopedAuthoredTrees(DotNetProjectCompilation project)
+    {
+        var compilationTrees = project.Compilation.SyntaxTrees.ToHashSet();
+        foreach (var tree in project.AuthoredSyntaxTrees)
+        {
+            if (!compilationTrees.Contains(tree))
+            {
+                throw new DotNetAuthoredSyntaxTreeNotInCompilation(tree.FilePath);
+            }
+
+            if (project.SourceContext?.Files.ContainsKey(tree) == false)
+            {
+                throw new DotNetSourceTreeNotMapped(tree.FilePath);
+            }
+        }
     }
 
     static IReadOnlyList<SyntaxTree> AuthoredTreesIn(DotNetProjectCompilation project)

@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
 namespace Cratis.Screenplay.Generation.DotNet;
@@ -36,6 +37,8 @@ public sealed record DotNetParameterSignature
 /// </summary>
 public sealed record DotNetMethodSignature
 {
+    ImmutableArray<DotNetParameterSignature> _parameters = [];
+
     /// <summary>
     /// Gets the exact original containing type.
     /// </summary>
@@ -77,9 +80,13 @@ public sealed record DotNetMethodSignature
     public required RefKind ReturnRefKind { get; init; }
 
     /// <summary>
-    /// Gets the ordered parameter signatures.
+    /// Gets or initializes an immutable snapshot of the ordered parameter signatures.
     /// </summary>
-    public required IReadOnlyList<DotNetParameterSignature> Parameters { get; init; }
+    public required IReadOnlyList<DotNetParameterSignature> Parameters
+    {
+        get => _parameters;
+        init => _parameters = [.. value];
+    }
 }
 
 /// <summary>
