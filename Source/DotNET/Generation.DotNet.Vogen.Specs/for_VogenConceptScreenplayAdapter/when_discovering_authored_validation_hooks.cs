@@ -12,6 +12,11 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
     ConceptValidationRuleFact _ambiguousMessageRule = null!;
     ConceptValidationRuleFact _wrappedMessageRule = null!;
     ConceptValidationRuleFact _localMessageRule = null!;
+    ConceptValidationRuleFact _namedMessageRule = null!;
+    ConceptValidationRuleFact _omittedMessageRule = null!;
+    ConceptValidationRuleFact _lookalikeMessageRule = null!;
+    ConceptValidationRuleFact _dynamicallyBoundMessageRule = null!;
+    ConceptValidationRuleFact _conditionalConstantMessageRule = null!;
 
     void Because()
     {
@@ -64,6 +69,39 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
                         return Build();
                     }
                 }
+                [Vogen.ValueObject<string>]
+                public partial struct NamedMessage
+                {
+                    private static Vogen.Validation Validate(string value) => Vogen.Validation.Invalid(reason: "Named invalid message");
+                }
+                [Vogen.ValueObject<string>]
+                public partial struct OmittedMessage
+                {
+                    private static Vogen.Validation Validate(string value) => Vogen.Validation.Invalid();
+                }
+                internal static class ExactValidationFactory
+                {
+                    internal static Vogen.Validation Invalid(string reason) => Vogen.Validation.Invalid(reason);
+                }
+                [Vogen.ValueObject<string>]
+                public partial struct ExactReturnLookalikeMessage
+                {
+                    private static Vogen.Validation Validate(string value) => ExactValidationFactory.Invalid("Lookalike invalid message");
+                }
+                [Vogen.ValueObject<string>]
+                public partial struct DynamicallyBoundMessage
+                {
+                    private static Vogen.Validation Validate(string value)
+                    {
+                        dynamic factory = value;
+                        return (Vogen.Validation)factory.Invalid("Dynamically bound invalid message");
+                    }
+                }
+                [Vogen.ValueObject<string>]
+                public partial struct ConditionalConstantMessage
+                {
+                    private static Vogen.Validation Validate(string value) => Vogen.Validation.Invalid(true ? "A" : "B");
+                }
                 """));
 
         _contribution = Analyze(Project("Concepts.Project", compilation));
@@ -73,9 +111,14 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
         _ambiguousMessageRule = RuleFor("AmbiguousMessage");
         _wrappedMessageRule = RuleFor("WrappedMessage");
         _localMessageRule = RuleFor("LocalMessage");
+        _namedMessageRule = RuleFor("NamedMessage");
+        _omittedMessageRule = RuleFor("OmittedMessage");
+        _lookalikeMessageRule = RuleFor("ExactReturnLookalikeMessage");
+        _dynamicallyBoundMessageRule = RuleFor("DynamicallyBoundMessage");
+        _conditionalConstantMessageRule = RuleFor("ConditionalConstantMessage");
     }
 
-    [Fact] void should_emit_one_named_rule_for_each_exact_authored_hook() => _contribution.Facts.OfType<ConceptValidationRuleFact>().Count().ShouldEqual(6);
+    [Fact] void should_emit_one_named_rule_for_each_exact_authored_hook() => _contribution.Facts.OfType<ConceptValidationRuleFact>().Count().ShouldEqual(11);
     [Fact] void should_use_a_stable_rule_identity() => _contribution.Facts.OfType<ConceptValidationRuleFact>().All(_ => _.Definition.RuleIdentity == "vogen.validate").ShouldBeTrue();
     [Fact] void should_point_to_the_authored_predicate() => _contribution.Facts.OfType<ConceptValidationRuleFact>().All(_ => _.Definition.Kind == ConceptValidationRuleKind.NamedPredicate && _.Definition.Predicate == "Validate").ShouldBeTrue();
     [Fact] void should_use_a_stable_fact_identity() => _customerCodeRule.Id.Value.ShouldEqual($"vogen:concept-validation:vogen.validate:{_customerCodeRule.Subject.Value}");
@@ -88,6 +131,11 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
     [Fact] void should_not_choose_between_multiple_invalid_messages() => _ambiguousMessageRule.Definition.Message.ShouldBeNull();
     [Fact] void should_not_preserve_a_message_from_a_wrapped_invalid_invocation() => _wrappedMessageRule.Definition.Message.ShouldBeNull();
     [Fact] void should_not_preserve_a_message_returned_by_a_local_function() => _localMessageRule.Definition.Message.ShouldBeNull();
+    [Fact] void should_preserve_a_named_invalid_argument_using_the_actual_vogen_parameter_name() => _namedMessageRule.Definition.Message.ShouldEqual("Named invalid message");
+    [Fact] void should_keep_a_validation_rule_without_a_message_when_the_optional_argument_is_omitted() => _omittedMessageRule.Definition.Message.ShouldBeNull();
+    [Fact] void should_not_preserve_a_message_from_an_exact_return_type_lookalike_factory() => _lookalikeMessageRule.Definition.Message.ShouldBeNull();
+    [Fact] void should_not_guess_a_message_from_a_dynamically_bound_invalid_invocation() => _dynamicallyBoundMessageRule.Definition.Message.ShouldBeNull();
+    [Fact] void should_not_strengthen_an_authored_conditional_constant_into_one_message() => _conditionalConstantMessageRule.Definition.Message.ShouldBeNull();
     [Fact] void should_not_emit_loss_diagnostics_for_represented_validation() => _contribution.Diagnostics.ShouldBeEmpty();
 
     ConceptValidationRuleFact RuleFor(string conceptName)

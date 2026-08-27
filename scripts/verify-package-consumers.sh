@@ -312,11 +312,20 @@ using Cratis.Screenplay.Generation.DotNet.Vogen;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 internal static class Program
 {
+    const string ExpectedGeneratedSourceHash = "747F3674C73545CD043D8B40690605C0D0BF2A67D01173E58EBC162B87C10FDD";
+    const string ExpectedVogenDiagnosticsHash = "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945";
+    const string ExpectedVogenFactsHash = "90C12E55CE826906076A14873D82BF28FE76252AD6C695FA8729B81C94D99D07";
     const string ExternalAdapterId = "external-smoke";
     const string VogenAdapterId = "vogen";
+
+    static readonly JsonSerializerOptions _serializerOptions = new();
 
     static int Main()
     {
@@ -370,6 +379,14 @@ internal static class Program
             }.Kind == ConceptAttributeKind.Named,
             "CSC0020",
             "The additive concept attribute discriminator did not preserve the legacy named default.");
+        var failure = new DotNetValueFailure(DotNetValueFailureKind.Computed, Location.None, "Computed");
+        var mutableFailures = new List<DotNetValueFailure> { failure };
+        var unknown = new DotNetUnknown<int>(Failures: mutableFailures);
+        mutableFailures.Clear();
+        Require(
+            unknown.Failures.SequenceEqual([failure]),
+            "CSC0037",
+            "The named Failures constructor argument did not retain an immutable failure snapshot.");
 
         var authoredTree = CSharpSyntaxTree.ParseText(
             """
@@ -413,6 +430,7 @@ internal static class Program
 
                 [EndpointPolicy(Required = true)]
                 public sealed record CustomerRegistered(CustomerCode CustomerCode);
+                public sealed record Delivery(string Name, string[] Tags);
                 public sealed class CustomerBatch : System.Collections.Generic.List<CustomerRegistered>;
                 public sealed class CustomerOptions;
                 public static class CustomerOptionsExtensions
@@ -425,6 +443,8 @@ internal static class Program
                     public static void Load(CustomerRegistered request, int version) => _ = (request, version);
                     public static void Validate(CustomerCode request) => _ = request;
                     public static void Configure(CustomerOptions options) => options.Configure(name: "consumer");
+                    public static Delivery BuildDelivery() => new("Screenplay", new[] { "source", "exact" });
+                    public static System.Type DeliveryType() => typeof(Delivery);
                 }
             }
             """,
@@ -434,7 +454,12 @@ internal static class Program
             namespace Ordering;
 
             [Vogen.ValueObject<int>]
-            public readonly partial record struct GeneratedOnlyCode;
+            public readonly partial record struct GeneratedOnlyCode
+            {
+                static string Value { get; set; } = string.Empty;
+                static string Transform(string value) => value;
+                static void Generated() => Value = Transform("generated");
+            }
             """,
             path: "/consumer/obj/GeneratedOnlyCode.g.cs");
         var compilation = CSharpCompilation.Create(
@@ -640,6 +665,71 @@ internal static class Program
         var invocation = authoredTree.GetRoot().DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
             .Single(_ => _.ToString().Contains("consumer", StringComparison.Ordinal));
+        var authoredInvocations = DotNetSource.AuthoredInvocationsIn(project);
+        var authoredAssignments = DotNetSource.AuthoredAssignmentsIn(project);
+        var configureScope = (MethodDeclarationSyntax)compilation.GetTypeByMetadataName("Ordering.CustomerHandler")!.GetMembers("Configure").OfType<IMethodSymbol>().Single().DeclaringSyntaxReferences.Single().GetSyntax();
+        var scopedInvocations = DotNetSource.AuthoredInvocationsIn(configureScope, project);
+        var assignmentScope = (MethodDeclarationSyntax)compilation.GetTypeByMetadataName("Ordering.CustomerOptionsExtensions")!.GetMembers("Configure").OfType<IMethodSymbol>().Single().DeclaringSyntaxReferences.Single().GetSyntax();
+        var scopedAssignments = DotNetSource.AuthoredAssignmentsIn(assignmentScope, project);
+        Require(
+            authoredInvocations.Contains(invocation) &&
+            authoredInvocations.All(candidate => candidate.SyntaxTree == authoredTree) &&
+            authoredAssignments.Count > 0 &&
+            authoredAssignments.All(candidate => candidate.SyntaxTree == authoredTree) &&
+            scopedInvocations.Count == 1 &&
+            scopedInvocations[0].SyntaxTree == invocation.SyntaxTree &&
+            scopedInvocations[0].Span == invocation.Span &&
+            scopedAssignments.Count == 1 &&
+            authoredAssignments.Any(candidate => candidate.SyntaxTree == scopedAssignments[0].SyntaxTree && candidate.Span == scopedAssignments[0].Span),
+            "CSC0035",
+            "Authoritative invocation and assignment enumeration admitted generated source or lost exact scoped source.");
+
+        var validationScope = (MethodDeclarationSyntax)legacySymbol.GetMembers("Validate").OfType<IMethodSymbol>().Single().DeclaringSyntaxReferences.Single().GetSyntax();
+        var invalidInvocation = DotNetSource.AuthoredInvocationsIn(validationScope, project)
+            .Single(candidate => candidate.ToString().Contains("Vogen.Validation.Invalid", StringComparison.Ordinal));
+        var invalidMethod = DotNetInvocations.MethodFor(invalidInvocation, semanticModel);
+        var invalidDefinition = compilation.GetTypeByMetadataName("Vogen.Validation")!.GetMembers("Invalid").OfType<IMethodSymbol>().Single();
+        var invalidSignature = DotNetMethodSignatures.From(invalidDefinition);
+        var invalidOperation = semanticModel.GetOperation(invalidInvocation);
+        var invalidParameter = invalidMethod is null
+            ? null
+            : DotNetInvocations.DefinitionOf(invalidMethod).Parameters.SingleOrDefault(parameter => parameter.Ordinal == 0);
+        var invalidArgument = invalidMethod is null || invalidParameter is null
+            ? null
+            : DotNetInvocations.ArgumentForParameter(invalidInvocation, invalidMethod, invalidParameter.Name, semanticModel);
+        var invalidMessage = invalidArgument is null
+            ? null
+            : DotNetSourceValues.Constant<string>(invalidArgument.Expression, semanticModel);
+        Require(
+            invalidMethod is not null &&
+            invalidOperation is IInvocationOperation &&
+            DotNetMethodSignatures.Matches(invalidMethod, invalidSignature) &&
+            invalidArgument?.Expression.ToString() == "InvalidMessage" &&
+            invalidMessage is DotNetKnown<string> { Value: "Customer codes cannot be blank" },
+            "CSC0039",
+            "The current packages did not compose authored invocation, exact signature, formal argument, and bounded constant helpers on the Vogen Invalid call.");
+
+        var deliveryTypeExpression = authoredTree.GetRoot().DescendantNodes().OfType<TypeOfExpressionSyntax>().Single();
+        var deliveryType = DotNetSourceValues.TypeOf(deliveryTypeExpression, semanticModel);
+        var untypedDeliveryType = DotNetSourceValues.Extract(deliveryTypeExpression, semanticModel);
+        Require(
+            deliveryType is DotNetKnown<ITypeSymbol> { Value.Name: "Delivery" } &&
+            untypedDeliveryType is DotNetKnown<DotNetSourceValue> { Value: DotNetTypeValue { Type.Name: "Delivery" } },
+            "CSC0040",
+            "Bounded typeof extraction did not preserve the exact source type through typed and untyped public helpers.");
+
+        var deliveryCreation = authoredTree.GetRoot().DescendantNodes().OfType<ImplicitObjectCreationExpressionSyntax>().Single(creation => semanticModel.GetTypeInfo(creation).Type?.Name == "Delivery");
+        var deliveryPayload = (DotNetKnown<DotNetPayloadValue>)DotNetSourceValues.Payload(deliveryCreation, semanticModel);
+        var deliveryTagsExpression = deliveryCreation.ArgumentList!.Arguments[1].Expression;
+        var deliveryTags = (DotNetKnown<DotNetCollectionValue>)DotNetSourceValues.Collection(deliveryTagsExpression, semanticModel);
+        Require(
+            deliveryPayload.Value.Values.Select(value => value.Name).SequenceEqual(["Name", "Tags"], StringComparer.Ordinal) &&
+            deliveryPayload.Value.Values[1].Value is DotNetCollectionValue nestedTags &&
+            nestedTags.Values.Select(element => ((DotNetConstantValue)element.Value).Value).SequenceEqual(["source", "exact"]) &&
+            deliveryTags.Value.Values.All(element => element.Source.IsInSource),
+            "CSC0036",
+            "Bounded payload and collection extraction did not preserve formal order, nested values, or source locations.");
+
         var invocationMethod = DotNetInvocations.MethodFor(invocation, semanticModel)!;
         var invocationName = DotNetInvocations.ArgumentForParameter(invocation, invocationMethod, "name", semanticModel)!;
         var invocationRoot = DotNetInvocations.ReceiverRootParameter(invocation, invocationMethod, semanticModel)!;
@@ -737,6 +827,8 @@ internal static class Program
             "CSC0007",
             "The exact authored Vogen validation hook was not preserved as a named validation fact.");
         Require(vogenContribution.Diagnostics.Count == 0, "CSC0008", "Representable Vogen source reported semantic loss.");
+        var vogenFactsHash = Sha256(JsonSerializer.SerializeToUtf8Bytes(vogenContribution.Facts.Cast<object>().ToArray(), _serializerOptions));
+        var vogenDiagnosticsHash = Sha256(JsonSerializer.SerializeToUtf8Bytes(vogenContribution.Diagnostics, _serializerOptions));
 
         var externalContribution = contributions.Single(contribution => contribution.Adapter.Id == ExternalAdapterId);
         var eventFact = externalContribution.Facts.OfType<ArtifactFact>().Single();
@@ -855,6 +947,8 @@ internal static class Program
         var generatedFromReversedContributions = new ScreenplayDefinitionGenerator().Generate(
             allContributions.Reverse(),
             new ScreenplayGenerationOptions { Domain = "Ordering" });
+        var generatedSourceHash = Sha256(Encoding.UTF8.GetBytes(generated.Source));
+        var reversedGeneratedSourceHash = Sha256(Encoding.UTF8.GetBytes(generatedFromReversedContributions.Source));
         Require(generated.IsSuccess, "CSC0010", "The composed Screenplay did not pass compiler verification.");
         Require(
             generated.Diagnostics.Count == 0 &&
@@ -867,6 +961,13 @@ internal static class Program
             generated.Source == generatedFromReversedContributions.Source && generatedFromReversedContributions.IsSuccess,
             "CSC0012",
             "Generated source changed when adapter contribution order changed.");
+        Require(
+            vogenFactsHash == ExpectedVogenFactsHash &&
+            vogenDiagnosticsHash == ExpectedVogenDiagnosticsHash &&
+            generatedSourceHash == ExpectedGeneratedSourceHash &&
+            reversedGeneratedSourceHash == ExpectedGeneratedSourceHash,
+            "CSC0038",
+            $"Stable byte hashes changed. Vogen facts actual: {vogenFactsHash}; Vogen diagnostics actual: {vogenDiagnosticsHash}; generated source actual: {generatedSourceHash}; reversed generated source actual: {reversedGeneratedSourceHash}.");
         var admittedSpecification = generated.Graph.Specifications.Single();
         Require(
             admittedSpecification.Definition.Name == "RegisteringCustomer" &&
@@ -980,6 +1081,8 @@ internal static class Program
             .Split(Path.PathSeparator)
             .Select(path => MetadataReference.CreateFromFile(path))
             .ToArray();
+
+    static string Sha256(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
 
     static void Require(bool condition, string code, string message)
     {

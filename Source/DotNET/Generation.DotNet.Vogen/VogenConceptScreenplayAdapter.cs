@@ -147,7 +147,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
                 RuleIdentity = ValidationRuleIdentity,
                 Kind = ConceptValidationRuleKind.NamedPredicate,
                 Predicate = ValidationPredicate,
-                Message = ConstantInvalidMessage(project.Compilation, validation),
+                Message = ConstantInvalidMessage(project, validationType, validation),
                 ImplementationFile = evidence.Source?.Path
             }
         });
@@ -290,46 +290,50 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter
             Explanation = explanation
         };
 
-    static string? ConstantInvalidMessage(Compilation compilation, AuthoredMethod validation)
+    static string? ConstantInvalidMessage(
+        DotNetProjectCompilation project,
+        INamedTypeSymbol validationType,
+        AuthoredMethod validation)
     {
-        var operation = compilation.GetSemanticModel(validation.Reference.SyntaxTree).GetOperation(validation.Reference.GetSyntax());
-        if (operation is null)
-        {
-            return null;
-        }
-
-        var invalidInvocations = OperationsIn(operation)
-            .OfType<IInvocationOperation>()
-            .Where(invocation =>
-                invocation.TargetMethod.Name == "Invalid" &&
-                invocation.TargetMethod.IsStatic &&
-                invocation.TargetMethod.ContainingType is { } containingType &&
-                string.Equals(DotNetSubjectIds.MetadataName(containingType), VogenMetadataNames.Validation, StringComparison.Ordinal) &&
-                IsDirectlyReturnedFromValidation(invocation))
+        var semanticModel = project.Compilation.GetSemanticModel(validation.Reference.SyntaxTree);
+        var invalidSignatures = validationType.GetMembers("Invalid")
+            .OfType<IMethodSymbol>()
+            .Where(method => method.MethodKind == MethodKind.Ordinary && method.IsStatic)
+            .Select(DotNetMethodSignatures.From)
+            .ToArray();
+        var invalidInvocations = DotNetSource.AuthoredInvocationsIn(validation.Reference.GetSyntax(), project)
+            .Select(invocation => new
+            {
+                Invocation = invocation,
+                Method = DotNetInvocations.MethodFor(invocation, semanticModel),
+                Operation = semanticModel.GetOperation(invocation) as IInvocationOperation
+            })
+            .Where(candidate =>
+                candidate.Method is not null &&
+                candidate.Operation is not null &&
+                invalidSignatures.Any(signature => DotNetMethodSignatures.Matches(candidate.Method, signature)) &&
+                IsDirectlyReturnedFromValidation(candidate.Operation))
             .ToArray();
         if (invalidInvocations is not [var invalid])
         {
             return null;
         }
 
-        var argument = invalid.Arguments.SingleOrDefault(_ => _.Parameter?.Ordinal == 0);
-        return argument is { IsImplicit: false } &&
-               argument.Value.ConstantValue is { HasValue: true, Value: string message } &&
-               !string.IsNullOrEmpty(message)
-            ? message
-            : null;
-    }
-
-    static IEnumerable<IOperation> OperationsIn(IOperation root)
-    {
-        yield return root;
-        foreach (var child in root.ChildOperations)
+        var definition = DotNetInvocations.DefinitionOf(invalid.Method!);
+        var parameter = definition.Parameters.SingleOrDefault(candidate => candidate.Ordinal == 0);
+        if (parameter is null ||
+            DotNetInvocations.ArgumentForParameter(
+                invalid.Invocation,
+                invalid.Method!,
+                parameter.Name,
+                semanticModel) is not { } argument ||
+            DotNetSourceValues.Constant<string>(argument.Expression, semanticModel) is not DotNetKnown<string> { Value: var message } ||
+            string.IsNullOrEmpty(message))
         {
-            foreach (var descendant in OperationsIn(child))
-            {
-                yield return descendant;
-            }
+            return null;
         }
+
+        return message;
     }
 
     static bool IsDirectlyReturnedFromValidation(IOperation operation)

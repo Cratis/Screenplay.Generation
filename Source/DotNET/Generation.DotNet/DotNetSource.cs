@@ -128,6 +128,54 @@ public static class DotNetSource
         AuthoredAttributesOf(symbol, authoredSyntaxTrees.Contains);
 
     /// <summary>
+    /// Gets every invocation in the host-authoritative authored source, in stable source order.
+    /// </summary>
+    /// <param name="project">The project compilation and authoritative authored-tree set.</param>
+    /// <returns>The authored invocations.</returns>
+    /// <exception cref="DotNetAuthoredSyntaxTreeNotInCompilation">An authoritative tree is absent from the compilation.</exception>
+    /// <exception cref="DotNetSourceTreeNotMapped">An authoritative tree is absent from the explicit source context.</exception>
+    /// <exception cref="DotNetAuthoredSyntaxTreeIdentityNotUnique">Legacy authored trees have missing or duplicate paths.</exception>
+    public static IReadOnlyList<InvocationExpressionSyntax> AuthoredInvocationsIn(DotNetProjectCompilation project) =>
+        AuthoredNodesIn<InvocationExpressionSyntax>(project);
+
+    /// <summary>
+    /// Gets every invocation beneath an authored source scope, in syntax order.
+    /// </summary>
+    /// <param name="scope">The source scope to inspect.</param>
+    /// <param name="project">The project compilation and authoritative authored-tree set.</param>
+    /// <returns>The authored invocations, or an empty list when the scope is not authoritative authored source.</returns>
+    /// <exception cref="DotNetAuthoredSyntaxTreeNotInCompilation">An authoritative tree is absent from the compilation.</exception>
+    /// <exception cref="DotNetSourceTreeNotMapped">An authoritative tree is absent from the explicit source context.</exception>
+    public static IReadOnlyList<InvocationExpressionSyntax> AuthoredInvocationsIn(
+        SyntaxNode scope,
+        DotNetProjectCompilation project) =>
+        AuthoredNodesIn<InvocationExpressionSyntax>(scope, project);
+
+    /// <summary>
+    /// Gets every assignment in the host-authoritative authored source, in stable source order.
+    /// </summary>
+    /// <param name="project">The project compilation and authoritative authored-tree set.</param>
+    /// <returns>The authored assignments.</returns>
+    /// <exception cref="DotNetAuthoredSyntaxTreeNotInCompilation">An authoritative tree is absent from the compilation.</exception>
+    /// <exception cref="DotNetSourceTreeNotMapped">An authoritative tree is absent from the explicit source context.</exception>
+    /// <exception cref="DotNetAuthoredSyntaxTreeIdentityNotUnique">Legacy authored trees have missing or duplicate paths.</exception>
+    public static IReadOnlyList<AssignmentExpressionSyntax> AuthoredAssignmentsIn(DotNetProjectCompilation project) =>
+        AuthoredNodesIn<AssignmentExpressionSyntax>(project);
+
+    /// <summary>
+    /// Gets every assignment beneath an authored source scope, in syntax order.
+    /// </summary>
+    /// <param name="scope">The source scope to inspect.</param>
+    /// <param name="project">The project compilation and authoritative authored-tree set.</param>
+    /// <returns>The authored assignments, or an empty list when the scope is not authoritative authored source.</returns>
+    /// <exception cref="DotNetAuthoredSyntaxTreeNotInCompilation">An authoritative tree is absent from the compilation.</exception>
+    /// <exception cref="DotNetSourceTreeNotMapped">An authoritative tree is absent from the explicit source context.</exception>
+    public static IReadOnlyList<AssignmentExpressionSyntax> AuthoredAssignmentsIn(
+        SyntaxNode scope,
+        DotNetProjectCompilation project) =>
+        AuthoredNodesIn<AssignmentExpressionSyntax>(scope, project);
+
+    /// <summary>
     /// Gets a portable source range for a Roslyn location.
     /// </summary>
     /// <param name="location">The source location.</param>
@@ -299,6 +347,80 @@ public static class DotNetSource
             : null;
 
         return EvidenceFor(location, adapter, project, strength, explanation);
+    }
+
+    static IReadOnlyList<TNode> AuthoredNodesIn<TNode>(DotNetProjectCompilation project)
+        where TNode : SyntaxNode =>
+    [
+        .. AuthoredTreesIn(project)
+            .SelectMany(tree => tree.GetRoot().DescendantNodesAndSelf().OfType<TNode>().OrderBy(node => node.SpanStart))
+    ];
+
+    static IReadOnlyList<TNode> AuthoredNodesIn<TNode>(SyntaxNode scope, DotNetProjectCompilation project)
+        where TNode : SyntaxNode
+    {
+        ValidateScopedAuthoredTrees(project);
+        return project.AuthoredSyntaxTrees.Contains(scope.SyntaxTree)
+            ? [.. scope.DescendantNodesAndSelf().OfType<TNode>().OrderBy(node => node.SpanStart)]
+            : [];
+    }
+
+    static void ValidateScopedAuthoredTrees(DotNetProjectCompilation project)
+    {
+        var compilationTrees = project.Compilation.SyntaxTrees.ToHashSet();
+        foreach (var tree in project.AuthoredSyntaxTrees)
+        {
+            if (!compilationTrees.Contains(tree))
+            {
+                throw new DotNetAuthoredSyntaxTreeNotInCompilation(tree.FilePath);
+            }
+
+            if (project.SourceContext?.Files.ContainsKey(tree) == false)
+            {
+                throw new DotNetSourceTreeNotMapped(tree.FilePath);
+            }
+        }
+    }
+
+    static IReadOnlyList<SyntaxTree> AuthoredTreesIn(DotNetProjectCompilation project)
+    {
+        var compilationTrees = project.Compilation.SyntaxTrees.ToHashSet();
+        foreach (var tree in project.AuthoredSyntaxTrees)
+        {
+            if (!compilationTrees.Contains(tree))
+            {
+                throw new DotNetAuthoredSyntaxTreeNotInCompilation(tree.FilePath);
+            }
+        }
+
+        if (project.SourceContext is null)
+        {
+            var paths = project.AuthoredSyntaxTrees.Select(tree => tree.FilePath.Replace('\\', '/')).ToArray();
+            if (paths.Any(string.IsNullOrWhiteSpace) || paths.Distinct(StringComparer.Ordinal).Count() != paths.Length)
+            {
+                throw new DotNetAuthoredSyntaxTreeIdentityNotUnique();
+            }
+
+            return
+            [
+                .. project.AuthoredSyntaxTrees.OrderBy(tree => tree.FilePath, StringComparer.Ordinal)
+            ];
+        }
+
+        foreach (var tree in project.AuthoredSyntaxTrees)
+        {
+            if (!project.SourceContext.Files.ContainsKey(tree))
+            {
+                throw new DotNetSourceTreeNotMapped(tree.FilePath);
+            }
+        }
+
+        return
+        [
+            .. project.AuthoredSyntaxTrees
+                .OrderBy(tree => project.SourceContext.Files[tree].Identity.Project, StringComparer.Ordinal)
+                .ThenBy(tree => project.SourceContext.Files[tree].Identity.Path, StringComparer.Ordinal)
+        ];
     }
 
     static IReadOnlyList<SyntaxReference> AuthoredDeclarationsOf(
