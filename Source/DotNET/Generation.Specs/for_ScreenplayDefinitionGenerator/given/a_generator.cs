@@ -1,6 +1,10 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections;
+using System.Globalization;
+using System.Reflection;
+
 namespace Cratis.Screenplay.Generation.for_ScreenplayDefinitionGenerator.given;
 
 public class a_generator : Specification
@@ -141,4 +145,97 @@ public class a_generator : Specification
         Adapter = Adapter,
         Facts = facts
     };
+
+    protected static AdapterRunRecord Completed(
+        AdapterIdentity adapter,
+        IReadOnlyList<GenerationFact> facts,
+        IReadOnlyList<GenerationDiagnostic>? diagnostics = null)
+    {
+        var descriptor = new AdapterDescriptor
+        {
+            Identity = adapter,
+            SourceLanguage = AdapterSourceLanguage.SourceIndependent,
+            Category = AdapterCategory.ApplicationFramework
+        };
+        var contribution = new AdapterContributionSnapshot
+        {
+            Descriptor = descriptor,
+            Facts = [.. facts],
+            Diagnostics = diagnostics is null ? [] : [.. diagnostics]
+        };
+        return new AdapterRunRecord
+        {
+            Considered = true,
+            Probed = true,
+            Executed = true,
+            Descriptor = descriptor,
+            Probe = new AdapterProbeApplicable(),
+            Execution = new AdapterExecutionCompleted
+            {
+                Contribution = contribution,
+                Diagnostics = contribution.Diagnostics
+            },
+            Disposition = AdapterRunDisposition.Admitted
+        };
+    }
+
+    protected static AdapterRunSnapshot Snapshot(params AdapterRunRecord[] adapters) => new()
+    {
+        Adapters = [.. adapters],
+        Facts =
+        [
+            .. adapters
+                .SelectMany(record => record.Execution is AdapterExecutionCompleted completed
+                    ? completed.Contribution.Facts
+                    : [])
+                .Select(fact => new GenerationFactRecord { Fact = fact })
+        ]
+    };
+
+    protected static string AdapterRunProjection(object? value)
+    {
+        if (value is null)
+        {
+            return ProjectionNode([null]);
+        }
+
+        if (value is string text)
+        {
+            return ProjectionNode([typeof(string).FullName, text]);
+        }
+
+        if (value is Version version)
+        {
+            return ProjectionNode([typeof(Version).FullName, version.ToString()]);
+        }
+
+        var type = value.GetType();
+        if (type.IsEnum || type.IsPrimitive || value is decimal)
+        {
+            return ProjectionNode([type.FullName, Convert.ToString(value, CultureInfo.InvariantCulture)]);
+        }
+
+        if (value is IEnumerable enumerable)
+        {
+            return ProjectionNode(
+            [
+                type.FullName,
+                .. enumerable.Cast<object?>().Select(AdapterRunProjection)
+            ]);
+        }
+
+        var properties = type
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(property => property.GetIndexParameters().Length == 0)
+            .OrderBy(property => property.Name, StringComparer.Ordinal);
+        return ProjectionNode(
+        [
+            type.FullName,
+            .. properties.Select(property => ProjectionNode([property.Name, AdapterRunProjection(property.GetValue(value))]))
+        ]);
+    }
+
+    static string ProjectionNode(IEnumerable<string?> values) => string.Concat(values.Select(value => value is null
+        ? "-1:"
+        : $"{value.Length.ToString(CultureInfo.InvariantCulture)}:{value}"));
 }

@@ -4,7 +4,7 @@
 
 # Compiles consumers against the compatibility ancestry, then runs those unchanged binaries
 # beside the packages being validated. A separate source consumer compiles only against the
-# current candidate packages and exercises the public 0.7+ composition surface. Together these
+# current candidate packages and exercises the public 0.15+ composition and adapter-run surface. Together these
 # catch binary breaks that a source rebuild hides and ensure the current package set is usable.
 #
 # Usage: verify-package-consumers.sh [current-version] [local-package-feed]
@@ -292,6 +292,9 @@ cat >"$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" <<PROJECT
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Cratis.Screenplay.Generation.Contracts" Version="$CURRENT_VERSION" />
@@ -387,6 +390,8 @@ internal static class Program
             unknown.Failures.SequenceEqual([failure]),
             "CSC0037",
             "The named Failures constructor argument did not retain an immutable failure snapshot.");
+        ExercisePublicAdapterContracts();
+        ExerciseCandidatePackageClosure();
 
         var authoredTree = CSharpSyntaxTree.ParseText(
             """
@@ -741,6 +746,8 @@ internal static class Program
             "The shared .NET invocation helpers did not preserve exact method, formal-argument, or receiver-root semantics.");
 
         var customerRegistered = compilation.GetTypeByMetadataName("Ordering.CustomerRegistered")!;
+        ExerciseAdapterRunnerContracts(context, project, customerRegistered);
+        ExerciseVogenModernAndLegacyParity();
         var batchElement = DotNetSymbols.ElementTypeOf(compilation.GetTypeByMetadataName("Ordering.CustomerBatch")!);
         var endpointPolicy = customerRegistered.GetAttributes().Single();
         var handlerType = compilation.GetTypeByMetadataName("Ordering.CustomerHandler")!;
@@ -1076,6 +1083,466 @@ internal static class Program
             "The typed fail-closed Unknown outcome API did not omit and diagnose the affected fact exactly.");
     }
 
+    static void ExercisePublicAdapterContracts()
+    {
+        var descriptor = new AdapterDescriptor
+        {
+            Identity = new AdapterIdentity { Id = "contract-smoke", Version = "1.0.0" },
+            SourceLanguage = AdapterSourceLanguage.SourceIndependent,
+            Category = AdapterCategory.Integration,
+            RequiredApiCapabilities =
+            [
+                new AdapterApiCapability { Id = "contract.api.z" },
+                new AdapterApiCapability { Id = "contract.api.a" }
+            ],
+            EmittedFactCapabilities =
+            [
+                GenerationFactCapability.Relationship,
+                GenerationFactCapability.Artifact
+            ]
+        };
+        Require(
+            (int)AdapterSourceLanguage.Unknown == -1 &&
+            (int)AdapterCategory.Unknown == -1 &&
+            (int)AdapterHostCapability.Unknown == -1 &&
+            (int)GenerationFactCapability.Unknown == -1 &&
+            (int)AdapterRunDisposition.Unknown == -1 &&
+            (int)GenerationFactDisposition.Unknown == -1 &&
+            (int)AdapterContributionAdmissionDiagnosticCode.Unknown == -1 &&
+            (int)GenerationDiagnosticSeverity.Unknown == -1 &&
+            (int)GenerationDiagnosticOutcome.Unknown == -1,
+            "CSC0041",
+            "A new adapter-run or admission discriminator lost its explicit Unknown = -1 sentinel.");
+
+        var descriptorAdmission = AdapterDescriptorAdmission.Admit(descriptor);
+        Require(
+            descriptorAdmission.IsAdmitted &&
+            !ReferenceEquals(descriptorAdmission.Descriptor, descriptor) &&
+            descriptorAdmission.Descriptor.RequiredApiCapabilities.Select(capability => capability.Id)
+                .SequenceEqual(["contract.api.a", "contract.api.z"], StringComparer.Ordinal) &&
+            descriptorAdmission.Descriptor.EmittedFactCapabilities.SequenceEqual(
+                [GenerationFactCapability.Artifact, GenerationFactCapability.Relationship]),
+            "CSC0042",
+            "Public descriptor admission did not deeply freeze and canonicalize the descriptor.");
+
+        var invalidDescriptor = AdapterDescriptorAdmission.Admit(descriptor with
+        {
+            SourceLanguage = AdapterSourceLanguage.Unknown
+        });
+        Require(
+            !invalidDescriptor.IsAdmitted &&
+            invalidDescriptor.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.UnknownEnumValue),
+            "CSC0043",
+            "Public descriptor admission did not reject an explicit Unknown discriminator.");
+
+        var admittedContribution = AdapterContributionAdmission.Admit(
+            descriptorAdmission.Descriptor,
+            new AdapterContribution { Adapter = descriptorAdmission.Descriptor.Identity });
+        Require(
+            admittedContribution.IsAdmitted &&
+            admittedContribution.Snapshot is { Facts.Length: 0, Diagnostics.Length: 0 } &&
+            !ReferenceEquals(admittedContribution.Snapshot.Descriptor, descriptorAdmission.Descriptor),
+            "CSC0044",
+            "Public contribution admission did not return an immutable admitted snapshot.");
+
+        var rejectedContribution = AdapterContributionAdmission.Admit(
+            descriptorAdmission.Descriptor,
+            new AdapterContribution
+            {
+                Adapter = new AdapterIdentity { Id = "another-adapter", Version = "1.0.0" }
+            });
+        Require(
+            !rejectedContribution.IsAdmitted &&
+            rejectedContribution.Snapshot is null &&
+            rejectedContribution.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.ContributionAdapterMismatch),
+            "CSC0045",
+            "Public contribution admission did not reject an identity mismatch atomically.");
+    }
+
+    static void ExerciseCandidatePackageClosure()
+    {
+        var assemblyNames = new[]
+        {
+            typeof(AdapterDescriptor).Assembly.GetName().Name,
+            typeof(ScreenplayDefinitionGenerator).Assembly.GetName().Name,
+            typeof(DotNetAdapterRunner).Assembly.GetName().Name,
+            typeof(VogenConceptScreenplayAdapter).Assembly.GetName().Name
+        };
+        Require(
+            assemblyNames.Length == 4 &&
+            assemblyNames.Distinct(StringComparer.Ordinal).Count() == 4 &&
+            assemblyNames.ToHashSet(StringComparer.Ordinal).SetEquals(
+            [
+                "Cratis.Screenplay.Generation.Contracts",
+                "Cratis.Screenplay.Generation",
+                "Cratis.Screenplay.Generation.DotNet",
+                "Cratis.Screenplay.Generation.DotNet.Vogen"
+            ]),
+            "CSC0046",
+            "The runtime dependency closure did not load all four candidate package assemblies independently.");
+    }
+
+    static void ExerciseAdapterRunnerContracts(
+        DotNetAnalysisContext context,
+        DotNetProjectCompilation project,
+        INamedTypeSymbol mappedType)
+    {
+        var duplicateFirst = new DescribedFakeAdapter(Descriptor("duplicate-smoke", "2.0.0"));
+        var duplicateSecond = new DescribedFakeAdapter(Descriptor("duplicate-smoke", "1.0.0"));
+        var duplicateSnapshot = DotNetAdapterRunner.Run(
+            [
+                DotNetAdapterRegistration.For(duplicateFirst),
+                DotNetAdapterRegistration.For(duplicateSecond)
+            ],
+            new DotNetAnalysisContext([]),
+            new DotNetAdapterOptions());
+        Require(
+            duplicateFirst.ProbeCount + duplicateSecond.ProbeCount == 0 &&
+            duplicateFirst.AnalyzeCount + duplicateSecond.AnalyzeCount == 0 &&
+            duplicateSnapshot.Adapters.All(record =>
+                record.Disposition == AdapterRunDisposition.RosterRejected &&
+                !record.Probed &&
+                !record.Executed) &&
+            duplicateSnapshot.Diagnostics.All(diagnostic =>
+                diagnostic.Code == DotNetAdapterGenerationDiagnosticCodes.DuplicateAdapterId),
+            "CSC0047",
+            "Duplicate adapter IDs were not rejected deterministically before callbacks.");
+
+        var independent = new DescribedFakeAdapter(Descriptor("source-independent"));
+        var independentSnapshot = DotNetAdapterRunner.Run(
+            [DotNetAdapterRegistration.For(independent)],
+            new DotNetAnalysisContext([]),
+            new DotNetAdapterOptions());
+        Require(
+            independent.ProbeCount == 1 &&
+            independent.AnalyzeCount == 1 &&
+            independentSnapshot.Adapters.Single().Disposition == AdapterRunDisposition.Admitted,
+            "CSC0048",
+            "A host-free source-independent adapter did not execute exactly once against an empty context.");
+
+        var applicable = new DescribedFakeAdapter(Descriptor("applicable-smoke"));
+        var notApplicable = new DescribedFakeAdapter(Descriptor("not-applicable-smoke"))
+        {
+            ProbeResult = new AdapterProbeNotApplicable()
+        };
+        var blocked = new DescribedFakeAdapter(Descriptor("blocked-smoke"))
+        {
+            ProbeResult = new AdapterProbeBlocked
+            {
+                Diagnostics =
+                [
+                    new GenerationDiagnostic
+                    {
+                        Code = "PACKAGEBLOCK001",
+                        Severity = GenerationDiagnosticSeverity.Error,
+                        Message = "The adapter recognized source but cannot analyze it safely"
+                    }
+                ]
+            }
+        };
+        var legacy = new LegacyFakeAdapter(
+            new AdapterIdentity { Id = "legacy-smoke", Version = "1.0.0" });
+        var mixedSnapshot = DotNetAdapterRunner.Run(
+            [
+                DotNetAdapterRegistration.For(blocked),
+                DotNetAdapterRegistration.ForLegacy(legacy),
+                DotNetAdapterRegistration.For(notApplicable),
+                DotNetAdapterRegistration.For(applicable)
+            ],
+            context,
+            new DotNetAdapterOptions());
+        Require(
+            applicable.ProbeCount == 1 && applicable.AnalyzeCount == 1 &&
+            notApplicable.ProbeCount == 1 && notApplicable.AnalyzeCount == 0 &&
+            blocked.ProbeCount == 1 && blocked.AnalyzeCount == 0 &&
+            legacy.CanAnalyzeCount == 1 && legacy.AnalyzeCount == 1 &&
+            mixedSnapshot.Adapters.Single(record => record.Descriptor.Identity.Id == "applicable-smoke").Disposition == AdapterRunDisposition.Admitted &&
+            mixedSnapshot.Adapters.Single(record => record.Descriptor.Identity.Id == "not-applicable-smoke").Disposition == AdapterRunDisposition.NotApplicable &&
+            mixedSnapshot.Adapters.Single(record => record.Descriptor.Identity.Id == "blocked-smoke").Disposition == AdapterRunDisposition.Blocked &&
+            mixedSnapshot.Adapters.Single(record => record.Descriptor.Identity.Id == "legacy-smoke").Descriptor.Category == AdapterCategory.Legacy &&
+            mixedSnapshot.Adapters.Single(record => record.Descriptor.Identity.Id == "legacy-smoke").Disposition == AdapterRunDisposition.Admitted,
+            "CSC0049",
+            "Modern applicable, not-applicable, blocked, or legacy callbacks violated exactly-once runner semantics.");
+
+        var mappedIdentity = new AdapterIdentity { Id = "runner-mapped", Version = "1.0.0" };
+        var mappedApi = new AdapterApiCapability { Id = "runner-mapped.customer-event" };
+        var mappedEvidence = DotNetSource.EvidenceFor(
+            mappedType,
+            mappedIdentity,
+            project,
+            EvidenceStrength.Exact,
+            "The mapped authored event declaration is exact");
+        var mappedSubject = project.SubjectForType(mappedType);
+        var mappedKey = new ArtifactKey { Subject = mappedSubject, Kind = ArtifactKind.Event };
+        var mutableFacts = new List<GenerationFact>
+        {
+            new ArtifactFact
+            {
+                Id = new FactId { Value = "runner-mapped:artifact:customer-registered" },
+                Subject = mappedSubject,
+                Evidence = mappedEvidence,
+                Definition = new ArtifactDefinition
+                {
+                    Key = mappedKey,
+                    Name = "CustomerRegistered",
+                    File = mappedEvidence.Source?.Path
+                }
+            },
+            new ArtifactPlacementFact
+            {
+                Id = new FactId { Value = "runner-mapped:placement:customer-registered" },
+                Subject = mappedSubject,
+                Evidence = mappedEvidence,
+                Artifact = mappedKey,
+                Placement = new ArtifactPlacement
+                {
+                    Module = "Package",
+                    Features = ["Adapters"],
+                    Slice = "Run",
+                    SliceKind = GenerationSliceKind.StateChange
+                }
+            }
+        };
+        var mutableDiagnostics = new List<GenerationDiagnostic>
+        {
+            new()
+            {
+                Code = "RUNNERSMOKE001",
+                Severity = GenerationDiagnosticSeverity.Information,
+                Message = "The package consumer admitted a stable mapped contribution",
+                Source = mappedEvidence.Source,
+                Subject = mappedSubject
+            }
+        };
+        var mappedContribution = new AdapterContribution
+        {
+            Adapter = mappedIdentity,
+            Facts = mutableFacts,
+            Diagnostics = mutableDiagnostics
+        };
+        var mappedDescriptor = Descriptor(
+            mappedIdentity.Id,
+            mappedIdentity.Version,
+            AdapterSourceLanguage.CSharp,
+            AdapterCategory.ApplicationFramework,
+            [
+                AdapterHostCapability.AuthoredSource,
+                AdapterHostCapability.StableSourceLocations,
+                AdapterHostCapability.SemanticAnalysis
+            ],
+            [mappedApi],
+            [GenerationFactCapability.Artifact, GenerationFactCapability.ArtifactPlacement]);
+        var probeEvidence = new AdapterProbeEvidence
+        {
+            Description = "The stable mapped customer event API is available",
+            ApiCapability = mappedApi,
+            Source = mappedEvidence.Source,
+            Subject = mappedSubject
+        };
+        var mappedAdapter = new DescribedFakeAdapter(mappedDescriptor)
+        {
+            ProbeResult = new AdapterProbeApplicable { Evidence = [probeEvidence] },
+            Contribution = mappedContribution
+        };
+        var mappedSnapshot = DotNetAdapterRunner.Run(
+            [DotNetAdapterRegistration.For(mappedAdapter)],
+            context,
+            new DotNetAdapterOptions());
+        Require(
+            mappedAdapter.ProbeCount == 1 &&
+            mappedAdapter.AnalyzeCount == 1 &&
+            mappedSnapshot.Adapters.Single().Disposition == AdapterRunDisposition.Admitted &&
+            mappedSnapshot.Facts.Length == 2 &&
+            mappedSnapshot.Facts.All(record => record.Disposition == GenerationFactDisposition.Unknown) &&
+            mappedSnapshot.Facts.All(record => record.Fact.Evidence.Source?.FileIdentity is not null),
+            "CSC0050",
+            "The deterministic runner did not admit a stable mapped .NET contribution exactly once.");
+
+        var generationOptions = new ScreenplayGenerationOptions { Domain = "PackageConsumer" };
+        var generator = new ScreenplayDefinitionGenerator();
+        var generatedFromContribution = generator.Generate([mappedContribution], generationOptions);
+        var originalFact = mutableFacts[0];
+        var completed = (AdapterExecutionCompleted)mappedSnapshot.Adapters.Single().Execution;
+        mutableFacts.Clear();
+        mutableDiagnostics.Clear();
+        Require(
+            mappedSnapshot.Facts.Length == 2 &&
+            completed.Contribution.Facts.Length == 2 &&
+            completed.Contribution.Diagnostics.Length == 1 &&
+            !ReferenceEquals(originalFact, mappedSnapshot.Facts[0].Fact) &&
+            !ReferenceEquals(mappedDescriptor, mappedSnapshot.Adapters.Single().Descriptor) &&
+            !ReferenceEquals(probeEvidence, mappedSnapshot.Adapters.Single().Probe.Evidence.Single()),
+            "CSC0051",
+            "Mutating adapter-owned inputs changed the deeply frozen adapter-run snapshot.");
+
+        var generatedFromSnapshot = generator.Generate(mappedSnapshot, generationOptions);
+        Require(
+            generatedFromSnapshot.IsSuccess &&
+            generatedFromSnapshot.Source.Contains("event CustomerRegistered", StringComparison.Ordinal) &&
+            generatedFromSnapshot.Diagnostics.Any(diagnostic => diagnostic.Code == "RUNNERSMOKE001") &&
+            Encoding.UTF8.GetBytes(generatedFromSnapshot.Source)
+                .SequenceEqual(Encoding.UTF8.GetBytes(generatedFromContribution.Source)) &&
+            JsonSerializer.SerializeToUtf8Bytes(generatedFromSnapshot.Diagnostics, _serializerOptions)
+                .SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(generatedFromContribution.Diagnostics, _serializerOptions)),
+            "CSC0052",
+            "Generate(snapshot) changed output or diagnostics compared with the original contribution overload.");
+        Require(
+            generatedFromSnapshot.AdapterRun is not null &&
+            generatedFromSnapshot.AdapterRun.Facts.Length == 2 &&
+            generatedFromSnapshot.AdapterRun.Facts.All(record =>
+                record.Disposition == GenerationFactDisposition.Lowered &&
+                record.Diagnostics.Length == 0) &&
+            generatedFromSnapshot.AdapterRun.Diagnostics.Any(diagnostic => diagnostic.Code == "RUNNERSMOKE001"),
+            "CSC0053",
+            "Generate(snapshot) did not return final lowered fact dispositions and runner diagnostics.");
+    }
+
+    static void ExerciseVogenModernAndLegacyParity()
+    {
+        var apiTree = CSharpSyntaxTree.ParseText(
+            """
+            namespace Vogen;
+
+            [System.AttributeUsage(System.AttributeTargets.Struct)]
+            public sealed class ValueObjectAttribute<T> : System.Attribute;
+
+            public sealed class Validation
+            {
+                public static Validation Ok { get; } = new();
+                public static Validation Invalid(string message)
+                {
+                    _ = message;
+                    return new();
+                }
+            }
+            """,
+            path: "/api/Vogen.SharedTypes.cs");
+        var apiCompilation = CSharpCompilation.Create(
+            "Vogen.SharedTypes",
+            [apiTree],
+            TrustedPlatformReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var apiImage = new MemoryStream();
+        var apiEmit = apiCompilation.Emit(apiImage);
+        Require(
+            apiEmit.Success,
+            "CSC0054",
+            $"The in-memory exact Vogen API failed to compile: {string.Join(" | ", apiEmit.Diagnostics)}");
+
+        var authoredTree = CSharpSyntaxTree.ParseText(
+            """
+            namespace ModernOrdering;
+
+            [Vogen.ValueObject<string>]
+            public readonly partial record struct CustomerCode
+            {
+                private static Vogen.Validation Validate(string value) =>
+                    string.IsNullOrWhiteSpace(value)
+                        ? Vogen.Validation.Invalid("Required")
+                        : Vogen.Validation.Ok;
+            }
+            """,
+            path: "/consumer/Concepts/CustomerCode.cs");
+        var compilation = CSharpCompilation.Create(
+            "ModernOrdering",
+            [authoredTree],
+            TrustedPlatformReferences().Append(MetadataReference.CreateFromImage(apiImage.ToArray())),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var errors = compilation.GetDiagnostics()
+            .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ToArray();
+        Require(
+            errors.Length == 0,
+            "CSC0055",
+            $"The modern Vogen package-consumer compilation was invalid: {string.Join(" | ", errors.Select(error => error.ToString()))}");
+
+        var sourceContext = DotNetSourcePaths.Create(
+            "ModernOrdering/ModernOrdering",
+            new DotNetSourcePathPolicy
+            {
+                DisplayRoot = DotNetSourceDisplayRoot.Workspace,
+                CasePolicy = DotNetSourcePathCasePolicy.Ordinal
+            },
+            [
+                new DotNetSourceDocument
+                {
+                    SyntaxTree = authoredTree,
+                    ProjectRelativePath = "Concepts/CustomerCode.cs",
+                    WorkspaceRelativePath = "Concepts/CustomerCode.cs"
+                }
+            ]);
+        var context = new DotNetAnalysisContext(
+        [
+            new DotNetProjectCompilation
+            {
+                Name = "ModernOrdering",
+                Compilation = compilation,
+                SourceContext = sourceContext,
+                AuthoredSyntaxTrees = new HashSet<SyntaxTree> { authoredTree }
+            }
+        ]);
+        var modernAdapter = new VogenConceptScreenplayAdapter();
+        IDescribedDotNetScreenplayAdapter modernContract = modernAdapter;
+        var probe = modernContract.Probe(context);
+        Require(
+            modernContract.Descriptor.Category == AdapterCategory.Concepts &&
+            modernContract.Descriptor.SourceLanguage == AdapterSourceLanguage.CSharp &&
+            modernContract.Descriptor.RequiredHostCapabilities.Contains(AdapterHostCapability.StableSourceLocations) &&
+            modernContract.Descriptor.RequiredApiCapabilities.Contains(VogenAdapterApiCapabilities.ValueObjectDeclaration) &&
+            modernContract.Descriptor.EmittedFactCapabilities.SequenceEqual(
+                [
+                    GenerationFactCapability.Artifact,
+                    GenerationFactCapability.ConceptRepresentation,
+                    GenerationFactCapability.ConceptValidationRule
+                ]) &&
+            probe is AdapterProbeApplicable &&
+            probe.Evidence.Any(evidence => evidence.ApiCapability == VogenAdapterApiCapabilities.ValueObjectDeclaration) &&
+            probe.Evidence.Any(evidence => evidence.Source?.FileIdentity is not null),
+            "CSC0056",
+            "The Vogen modern descriptor or structured probe lost its declared capabilities or stable evidence.");
+
+        var modernSnapshot = DotNetAdapterRunner.Run(
+            [DotNetAdapterRegistration.For(modernAdapter)],
+            context,
+            new DotNetAdapterOptions());
+        var legacyAdapter = new VogenConceptScreenplayAdapter();
+        IDotNetScreenplayAdapter legacyContract = legacyAdapter;
+        var legacySnapshot = DotNetAdapterRunner.Run(
+            [DotNetAdapterRegistration.ForLegacy(legacyContract)],
+            context,
+            new DotNetAdapterOptions());
+        var modernContribution = ((AdapterExecutionCompleted)modernSnapshot.Adapters.Single().Execution).Contribution;
+        var legacyContribution = ((AdapterExecutionCompleted)legacySnapshot.Adapters.Single().Execution).Contribution;
+        Require(
+            modernSnapshot.Adapters.Single().Disposition == AdapterRunDisposition.Admitted &&
+            legacySnapshot.Adapters.Single().Disposition == AdapterRunDisposition.Admitted &&
+            JsonSerializer.SerializeToUtf8Bytes(modernContribution.Facts.Cast<object>().ToArray(), _serializerOptions)
+                .SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(legacyContribution.Facts.Cast<object>().ToArray(), _serializerOptions)) &&
+            JsonSerializer.SerializeToUtf8Bytes(modernContribution.Diagnostics, _serializerOptions)
+                .SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(legacyContribution.Diagnostics, _serializerOptions)),
+            "CSC0057",
+            "The Vogen modern and legacy registrations did not produce byte-identical contributions.");
+    }
+
+    static AdapterDescriptor Descriptor(
+        string id,
+        string version = "1.0.0",
+        AdapterSourceLanguage language = AdapterSourceLanguage.SourceIndependent,
+        AdapterCategory category = AdapterCategory.Integration,
+        IEnumerable<AdapterHostCapability>? hostCapabilities = null,
+        IEnumerable<AdapterApiCapability>? apiCapabilities = null,
+        IEnumerable<GenerationFactCapability>? factCapabilities = null) => new()
+        {
+            Identity = new AdapterIdentity { Id = id, Version = version },
+            SourceLanguage = language,
+            Category = category,
+            RequiredHostCapabilities = hostCapabilities is null ? [] : [.. hostCapabilities],
+            RequiredApiCapabilities = apiCapabilities is null ? [] : [.. apiCapabilities],
+            EmittedFactCapabilities = factCapabilities is null ? [] : [.. factCapabilities]
+        };
+
     static IReadOnlyList<MetadataReference> TrustedPlatformReferences() =>
         ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
             .Split(Path.PathSeparator)
@@ -1161,6 +1628,52 @@ internal static class Program
         }
     }
 
+    sealed class DescribedFakeAdapter(AdapterDescriptor descriptor) : IDescribedDotNetScreenplayAdapter
+    {
+        public AdapterDescriptor Descriptor { get; } = descriptor;
+        public AdapterProbeResult ProbeResult { get; set; } = new AdapterProbeApplicable();
+        public AdapterContribution Contribution { get; set; } = new() { Adapter = descriptor.Identity };
+        public int ProbeCount { get; private set; }
+        public int AnalyzeCount { get; private set; }
+
+        public AdapterProbeResult Probe(DotNetAnalysisContext context)
+        {
+            _ = context;
+            ProbeCount++;
+            return ProbeResult;
+        }
+
+        public AdapterContribution Analyze(DotNetAnalysisContext context, DotNetAdapterOptions options)
+        {
+            _ = context;
+            _ = options;
+            AnalyzeCount++;
+            return Contribution;
+        }
+    }
+
+    sealed class LegacyFakeAdapter(AdapterIdentity identity) : IDotNetScreenplayAdapter
+    {
+        public AdapterIdentity Identity { get; } = identity;
+        public int CanAnalyzeCount { get; private set; }
+        public int AnalyzeCount { get; private set; }
+
+        public bool CanAnalyze(DotNetAnalysisContext context)
+        {
+            _ = context;
+            CanAnalyzeCount++;
+            return true;
+        }
+
+        public AdapterContribution Analyze(DotNetAnalysisContext context, DotNetAdapterOptions options)
+        {
+            _ = context;
+            _ = options;
+            AnalyzeCount++;
+            return new AdapterContribution { Adapter = Identity };
+        }
+    }
+
     sealed class CurrentSourceConsumerFailure(string code, string message) : Exception(message)
     {
         public string Code { get; } = code;
@@ -1179,6 +1692,38 @@ dotnet build "$VOGEN_DIR/VogenBaseline.csproj" --no-restore --configuration Rele
 
 echo "Compiling the current-source consumer only against candidate package version $CURRENT_VERSION..."
 dotnet restore "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --configfile "$WORK_DIR/nuget.config" --nologo
+python3 - "$CURRENT_SOURCE_DIR/obj/project.assets.json" "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" "$CURRENT_VERSION" <<'PYTHON'
+import json
+import pathlib
+import sys
+
+assets_path = pathlib.Path(sys.argv[1])
+project_path = pathlib.Path(sys.argv[2])
+version = sys.argv[3]
+expected = {
+    "Cratis.Screenplay.Generation.Contracts",
+    "Cratis.Screenplay.Generation",
+    "Cratis.Screenplay.Generation.DotNet",
+    "Cratis.Screenplay.Generation.DotNet.Vogen",
+}
+data = json.loads(assets_path.read_text(encoding="utf-8"))
+frameworks = list(data["project"]["frameworks"].values())
+direct = set().union(*(framework["dependencies"].keys() for framework in frameworks))
+if direct != expected:
+    raise SystemExit(f"CSC0058: Current-source direct package references were {sorted(direct)}, expected only {sorted(expected)}")
+
+libraries = data["libraries"]
+for package in expected:
+    key = f"{package}/{version}"
+    if key not in libraries or libraries[key].get("type") != "package":
+        raise SystemExit(f"CSC0059: Candidate package dependency '{key}' is absent or is not a package")
+
+if any(library.get("type") == "project" for library in libraries.values()):
+    raise SystemExit("CSC0060: The current-source dependency closure contains a project reference")
+project_text = project_path.read_text(encoding="utf-8")
+if "<ProjectReference" in project_text or "<Reference Include=" in project_text:
+    raise SystemExit("CSC0061: The current-source consumer contains a project or local assembly reference")
+PYTHON
 dotnet build "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --no-restore --configuration Release --nologo
 dotnet run --project "$CURRENT_SOURCE_DIR/CurrentSourceConsumer.csproj" --no-build --no-restore --configuration Release
 

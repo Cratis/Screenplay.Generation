@@ -15,24 +15,82 @@ internal static class SpecificationSyntaxLowerer
         ResolvedApplicationGraph graph,
         ArtifactPlacement placement,
         Func<ArtifactKey, string?> artifactName,
-        ICollection<GenerationDiagnostic> diagnostics)
+        ICollection<GenerationDiagnostic> diagnostics,
+        ScreenplayLoweringCoverageBuilder coverage)
     {
-        var canonicalPlacement = Canonical.Placement(placement);
+        var structuralPlacement = Structural.Placement(placement);
         var lowered = new List<SpecificationSyntax>();
         foreach (var scenario in graph.Specifications.Where(item =>
-                     Canonical.Placement(item.Placement) == canonicalPlacement))
+                     Structural.Placement(item.Placement) == structuralPlacement))
         {
             if (TryLower(scenario, artifactName, out var specification))
             {
                 lowered.Add(specification!);
+                MarkLowered(scenario, coverage);
             }
             else
             {
-                diagnostics.Add(Unsupported(scenario));
+                var diagnostic = Unsupported(scenario);
+                diagnostics.Add(diagnostic);
+                MarkOmitted(scenario, diagnostic, coverage);
             }
         }
 
         return [.. lowered.OrderBy(item => item.Name, StringComparer.Ordinal)];
+    }
+
+    static void MarkLowered(
+        AdmittedSpecificationScenario scenario,
+        ScreenplayLoweringCoverageBuilder coverage)
+    {
+        coverage.Lowered(GenerationFactSemanticKey.SpecificationScenario(scenario.Definition));
+        foreach (var step in scenario.Steps)
+        {
+            coverage.Lowered(GenerationFactSemanticKey.SpecificationStep(step.Definition));
+            foreach (var value in step.Values)
+            {
+                MarkLowered(value, coverage);
+            }
+        }
+    }
+
+    static void MarkLowered(
+        AdmittedSpecificationValue value,
+        ScreenplayLoweringCoverageBuilder coverage)
+    {
+        coverage.Lowered(GenerationFactSemanticKey.SpecificationValue(value.Definition));
+        foreach (var child in value.Children)
+        {
+            MarkLowered(child, coverage);
+        }
+    }
+
+    static void MarkOmitted(
+        AdmittedSpecificationScenario scenario,
+        GenerationDiagnostic diagnostic,
+        ScreenplayLoweringCoverageBuilder coverage)
+    {
+        coverage.Omitted(GenerationFactSemanticKey.SpecificationScenario(scenario.Definition), diagnostic);
+        foreach (var step in scenario.Steps)
+        {
+            coverage.Omitted(GenerationFactSemanticKey.SpecificationStep(step.Definition), diagnostic);
+            foreach (var value in step.Values)
+            {
+                MarkOmitted(value, diagnostic, coverage);
+            }
+        }
+    }
+
+    static void MarkOmitted(
+        AdmittedSpecificationValue value,
+        GenerationDiagnostic diagnostic,
+        ScreenplayLoweringCoverageBuilder coverage)
+    {
+        coverage.Omitted(GenerationFactSemanticKey.SpecificationValue(value.Definition), diagnostic);
+        foreach (var child in value.Children)
+        {
+            MarkOmitted(child, diagnostic, coverage);
+        }
     }
 
     static bool TryLower(

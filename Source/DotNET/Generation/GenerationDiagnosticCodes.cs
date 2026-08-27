@@ -187,4 +187,24 @@ public static class GenerationDiagnosticCodes
     /// A complete neutral specification uses behavior the current Screenplay syntax cannot represent exactly.
     /// </summary>
     public const string UnsupportedSpecificationLowering = "GEN0038";
+
+    /// <summary>
+    /// A recognized relationship did not contribute to emitted Screenplay syntax.
+    /// </summary>
+    public const string UnsupportedRelationship = "GEN0039";
+
+    /// <summary>
+    /// An admitted fact was omitted without a more specific pipeline diagnostic.
+    /// </summary>
+    public const string OmittedGenerationFact = "GEN0040";
+
+    /// <summary>
+    /// An admitted fact could not be classified by the generation pipeline.
+    /// </summary>
+    public const string UnclassifiedGenerationFact = "GEN0041";
+
+    /// <summary>
+    /// An admitted fact participated in a conflict without a more specific pipeline diagnostic.
+    /// </summary>
+    public const string ConflictingGenerationFact = "GEN0042";
 }

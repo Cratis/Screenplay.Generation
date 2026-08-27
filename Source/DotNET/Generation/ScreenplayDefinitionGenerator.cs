@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Immutable;
 using Cratis.Screenplay.Diagnostics;
 using Cratis.Screenplay.Printing;
 using Cratis.Screenplay.Syntax;
@@ -42,6 +43,11 @@ public sealed record GeneratedScreenplayDefinition
     /// Gets all adapter, resolution, lowering, and verification diagnostics.
     /// </summary>
     public IReadOnlyList<GenerationDiagnostic> Diagnostics { get; init; } = [];
+
+    /// <summary>
+    /// Gets the immutable adapter run with final fact dispositions when generation started from a run snapshot.
+    /// </summary>
+    public AdapterRunSnapshot? AdapterRun { get; init; }
 
     /// <summary>
     /// Gets whether generation completed without errors.
@@ -111,6 +117,134 @@ public sealed class ScreenplayDefinitionGenerator(
         };
     }
 
+    /// <summary>
+    /// Generates one Screenplay document from an immutable adapter run snapshot.
+    /// </summary>
+    /// <param name="snapshot">The immutable source-adapter run snapshot.</param>
+    /// <param name="options">Options controlling the generated document.</param>
+    /// <returns>The generated and verified definition with final fact dispositions.</returns>
+    public GeneratedScreenplayDefinition Generate(
+        AdapterRunSnapshot snapshot,
+        ScreenplayGenerationOptions options)
+    {
+        var canonicalAdapters = CanonicalAdapters(snapshot.Adapters);
+        var completed = canonicalAdapters
+            .Select(record => record.Execution)
+            .OfType<AdapterExecutionCompleted>()
+            .Select(execution => execution.Contribution)
+            .OrderBy(contribution => contribution.Descriptor.Identity.Id, StringComparer.Ordinal)
+            .ThenBy(contribution => contribution.Descriptor.Identity.Version, StringComparer.Ordinal)
+            .ToArray();
+        var contributions = completed.Select(contribution => new AdapterContribution
+        {
+            Adapter = contribution.Descriptor.Identity,
+            Facts = contribution.Facts,
+            Diagnostics = contribution.Diagnostics
+        });
+        var graph = resolver.Resolve(contributions);
+        var lowering = lowerer.Lower(graph, options.Domain);
+        var source = printer.Print(lowering.Application);
+        var verification = compiler.Compile(source);
+        var verificationDiagnostics = VerificationDiagnostics(verification).ToList();
+        if (verification.Success && printer.Print(verification.Value!) != source)
+        {
+            verificationDiagnostics.Add(new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.UnstableRoundTrip,
+                Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
+                Message = "The generated Screenplay document changed after compile and canonical reprint"
+            });
+        }
+
+        var pipelineDiagnostics = graph.Diagnostics
+            .Concat(lowering.Diagnostics)
+            .Concat(verificationDiagnostics)
+            .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
+            .ToArray();
+        var facts = completed
+            .SelectMany(contribution => contribution.Facts.Select(fact => new ProducedFact(contribution.Descriptor.Identity, fact)))
+            .OrderBy(item => item.Producer.Id, StringComparer.Ordinal)
+            .ThenBy(item => item.Producer.Version, StringComparer.Ordinal)
+            .ThenBy(item => item.Fact.Id.Value, StringComparer.Ordinal)
+            .ThenBy(item => item.Fact.Subject.Value, StringComparer.Ordinal)
+            .ThenBy(item => Structural.FactFamily(item.Fact))
+            .ThenBy(item => Structural.FactDefinition(item.Fact), StringComparer.Ordinal)
+            .ThenBy(item => Structural.Evidence(item.Fact.Evidence), StringComparer.Ordinal)
+            .Select(item => item.Fact)
+            .ToArray();
+        var factRecords = GenerationFactDispositionCalculator.Calculate(
+            facts,
+            graph,
+            lowering.Coverage,
+            pipelineDiagnostics);
+        var canonicalFactRecords = AdapterRunCanonicalizer.FactRecords(factRecords);
+        var runnerDiagnostics = RunnerDiagnostics(snapshot.Diagnostics, canonicalAdapters);
+        var dispositionDiagnostics = canonicalFactRecords.SelectMany(record => record.Diagnostics).ToArray();
+        var adapterRun = new AdapterRunSnapshot
+        {
+            Adapters = canonicalAdapters,
+            Facts = canonicalFactRecords,
+            Diagnostics = CanonicalDiagnostics(runnerDiagnostics.Concat(dispositionDiagnostics))
+        };
+        var diagnostics = CanonicalDiagnostics(
+            pipelineDiagnostics
+                .Concat(runnerDiagnostics)
+                .Concat(dispositionDiagnostics));
+
+        return new()
+        {
+            Source = source,
+            Application = lowering.Application,
+            Graph = graph,
+            Diagnostics = diagnostics,
+            AdapterRun = adapterRun
+        };
+    }
+
+    static ImmutableArray<AdapterRunRecord> CanonicalAdapters(IEnumerable<AdapterRunRecord> adapters) =>
+    [
+        .. adapters
+            .Select(AdapterRunCanonicalizer.Adapter)
+            .OrderBy(record => record.Descriptor.Identity.Id, StringComparer.Ordinal)
+            .ThenBy(record => record.Descriptor.Identity.Version, StringComparer.Ordinal)
+            .ThenBy(AdapterRecordKey, StringComparer.Ordinal)
+    ];
+
+    static string AdapterRecordKey(AdapterRunRecord record) => Structural.AdapterRecord(record);
+
+    static ImmutableArray<GenerationDiagnostic> RunnerDiagnostics(
+        IEnumerable<GenerationDiagnostic> diagnostics,
+        IEnumerable<AdapterRunRecord> adapters) =>
+        CanonicalDiagnostics(diagnostics.Concat(adapters.SelectMany(DiagnosticsFrom)));
+
+    static IEnumerable<GenerationDiagnostic> DiagnosticsFrom(AdapterRunRecord record)
+    {
+        if (record.Probe is AdapterProbeBlocked blocked)
+        {
+            foreach (var diagnostic in blocked.Diagnostics)
+            {
+                yield return diagnostic;
+            }
+        }
+
+        foreach (var diagnostic in record.Execution.Diagnostics)
+        {
+            yield return diagnostic;
+        }
+
+        if (record.Execution is AdapterExecutionCompleted completed)
+        {
+            foreach (var diagnostic in completed.Contribution.Diagnostics)
+            {
+                yield return diagnostic;
+            }
+        }
+    }
+
+    static ImmutableArray<GenerationDiagnostic> CanonicalDiagnostics(IEnumerable<GenerationDiagnostic> diagnostics) =>
+        AdapterRunCanonicalizer.Diagnostics(diagnostics);
+
     static IEnumerable<GenerationDiagnostic> VerificationDiagnostics(CompilationResult<ApplicationSyntax> result)
     {
         if (result.Success)
@@ -143,4 +277,6 @@ public sealed class ScreenplayDefinitionGenerator(
             }
         ];
     }
+
+    sealed record ProducedFact(AdapterIdentity Producer, GenerationFact Fact);
 }

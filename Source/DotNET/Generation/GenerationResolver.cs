@@ -77,13 +77,15 @@ public sealed class GenerationResolver
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
-            .GroupBy(_ => Canonical.ArtifactKey(_.Definition.Key), StringComparer.Ordinal)
-            .OrderBy(_ => _.Key, StringComparer.Ordinal)
+            .GroupBy(_ => Structural.ArtifactKey(_.Definition.Key), StringComparer.Ordinal)
+            .OrderBy(_ => Canonical.ArtifactKey(_.First().Definition.Key), StringComparer.Ordinal)
+            .ThenBy(_ => _.Key, StringComparer.Ordinal)
             .Select(group =>
             {
                 var variants = group
-                    .GroupBy(_ => Canonical.Artifact(_.Definition), StringComparer.Ordinal)
-                    .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                    .GroupBy(_ => Structural.Artifact(_.Definition), StringComparer.Ordinal)
+                    .OrderBy(_ => Canonical.Artifact(_.First().Definition), StringComparer.Ordinal)
+                    .ThenBy(_ => _.Key, StringComparer.Ordinal)
                     .Select(_ => new ResolvedArtifactVariant
                     {
                         Definition = _.First().Definition,
@@ -116,8 +118,9 @@ public sealed class GenerationResolver
                 .Select(group =>
                 {
                     var variants = group
-                        .GroupBy(_ => Canonical.ConceptRepresentation(_.Definition), StringComparer.Ordinal)
-                        .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                        .GroupBy(_ => Structural.ConceptRepresentation(_.Definition), StringComparer.Ordinal)
+                        .OrderBy(_ => Canonical.ConceptRepresentation(_.First().Definition), StringComparer.Ordinal)
+                        .ThenBy(_ => _.Key, StringComparer.Ordinal)
                         .Select(_ => new ResolvedConceptRepresentationVariant
                         {
                             Definition = _.First().Definition,
@@ -144,13 +147,15 @@ public sealed class GenerationResolver
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
-                .GroupBy(_ => Canonical.ConceptAttributeKey(_.Definition), StringComparer.Ordinal)
-                .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                .GroupBy(_ => Structural.ConceptAttributeKey(_.Definition), StringComparer.Ordinal)
+                .OrderBy(_ => Canonical.ConceptAttributeKey(_.First().Definition), StringComparer.Ordinal)
+                .ThenBy(_ => _.Key, StringComparer.Ordinal)
                 .Select(group =>
                 {
                     var variants = group
-                        .GroupBy(_ => Canonical.ConceptAttribute(_.Definition), StringComparer.Ordinal)
-                        .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                        .GroupBy(_ => Structural.ConceptAttribute(_.Definition), StringComparer.Ordinal)
+                        .OrderBy(_ => Canonical.ConceptAttribute(_.First().Definition), StringComparer.Ordinal)
+                        .ThenBy(_ => _.Key, StringComparer.Ordinal)
                         .Select(_ => new ResolvedConceptAttributeVariant
                         {
                             Definition = _.First().Definition,
@@ -178,13 +183,15 @@ public sealed class GenerationResolver
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
-                .GroupBy(_ => Canonical.ConceptValidationRuleKey(_.Definition), StringComparer.Ordinal)
-                .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                .GroupBy(_ => Structural.ConceptValidationRuleKey(_.Definition), StringComparer.Ordinal)
+                .OrderBy(_ => Canonical.ConceptValidationRuleKey(_.First().Definition), StringComparer.Ordinal)
+                .ThenBy(_ => _.Key, StringComparer.Ordinal)
                 .Select(group =>
                 {
                     var variants = group
-                        .GroupBy(_ => Canonical.ConceptValidationRule(_.Definition), StringComparer.Ordinal)
-                        .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                        .GroupBy(_ => Structural.ConceptValidationRule(_.Definition), StringComparer.Ordinal)
+                        .OrderBy(_ => Canonical.ConceptValidationRule(_.First().Definition), StringComparer.Ordinal)
+                        .ThenBy(_ => _.Key, StringComparer.Ordinal)
                         .Select(_ => new ResolvedConceptValidationRuleVariant
                         {
                             Definition = _.First().Definition,
@@ -212,13 +219,15 @@ public sealed class GenerationResolver
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
-            .GroupBy(_ => Canonical.ArtifactKey(_.Artifact), StringComparer.Ordinal)
-            .OrderBy(_ => _.Key, StringComparer.Ordinal)
+            .GroupBy(_ => Structural.ArtifactKey(_.Artifact), StringComparer.Ordinal)
+            .OrderBy(_ => Canonical.ArtifactKey(_.First().Artifact), StringComparer.Ordinal)
+            .ThenBy(_ => _.Key, StringComparer.Ordinal)
             .Select(group =>
             {
                 var variants = group
-                    .GroupBy(_ => Canonical.Placement(_.Placement), StringComparer.Ordinal)
-                    .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                    .GroupBy(_ => Structural.Placement(_.Placement), StringComparer.Ordinal)
+                    .OrderBy(_ => Canonical.Placement(_.First().Placement), StringComparer.Ordinal)
+                    .ThenBy(_ => _.Key, StringComparer.Ordinal)
                     .Select(_ => new ResolvedArtifactPlacementVariant
                     {
                         Placement = _.First().Placement,
@@ -245,13 +254,15 @@ public sealed class GenerationResolver
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
-            .GroupBy(_ => Canonical.RelationshipKey(_.Definition.Key), StringComparer.Ordinal)
-            .OrderBy(_ => _.Key, StringComparer.Ordinal)
+            .GroupBy(_ => Structural.RelationshipKey(_.Definition.Key), StringComparer.Ordinal)
+            .OrderBy(_ => Canonical.RelationshipKey(_.First().Definition.Key), StringComparer.Ordinal)
+            .ThenBy(_ => _.Key, StringComparer.Ordinal)
             .Select(group =>
             {
                 var definitions = group
-                    .GroupBy(_ => Canonical.Relationship(_.Definition), StringComparer.Ordinal)
-                    .OrderBy(_ => _.Key, StringComparer.Ordinal)
+                    .GroupBy(_ => Structural.Relationship(_.Definition), StringComparer.Ordinal)
+                    .OrderBy(_ => Canonical.Relationship(_.First().Definition), StringComparer.Ordinal)
+                    .ThenBy(_ => _.Key, StringComparer.Ordinal)
                     .Select(_ => _.First().Definition)
                     .ToArray();
                 var relationship = new ResolvedRelationship
@@ -335,19 +346,7 @@ public sealed class GenerationResolver
                 Subject = _.Facts.OrderBy(fact => fact.Subject.Value, StringComparer.Ordinal).First().Subject
             });
 
-    static string FactDefinition(GenerationFact fact) => fact switch
-    {
-        ArtifactFact artifact => $"artifact:{Canonical.Artifact(artifact.Definition)}",
-        ConceptRepresentationFact representation => $"concept-representation:{Canonical.ConceptRepresentation(representation.Definition)}",
-        ConceptAttributeFact attribute => $"concept-attribute:{Canonical.ConceptAttribute(attribute.Definition)}",
-        ConceptValidationRuleFact validationRule => $"concept-validation-rule:{Canonical.ConceptValidationRule(validationRule.Definition)}",
-        ArtifactPlacementFact placement => $"placement:{Canonical.ArtifactKey(placement.Artifact)}:{Canonical.Placement(placement.Placement)}",
-        RelationshipFact relationship => $"relationship:{Canonical.Relationship(relationship.Definition)}",
-        SpecificationScenarioFact scenario => $"specification-scenario:{Canonical.SpecificationScenario(scenario.Definition)}",
-        SpecificationStepFact step => $"specification-step:{Canonical.SpecificationStep(step.Definition)}",
-        SpecificationValueFact value => $"specification-value:{Canonical.SpecificationValue(value.Definition)}",
-        _ => fact.GetType().FullName ?? fact.GetType().Name
-    };
+    static string FactDefinition(GenerationFact fact) => Structural.FactDefinition(fact);
 
     static GenerationDiagnostic ConflictFor(ResolvedArtifact artifact) => new()
     {

@@ -39,28 +39,30 @@ Keep runtime packages for the framework you analyze out of the adapter whenever 
 Reference one version across all directly referenced Screenplay Generation packages.
 
 :::note
-`v0.14.0` is the current public release. Exact alternate source owners, explicit flat-source compatibility placement, and command-free read-model/query specification lowering are available in that lockstep package set.
+`v0.15.0` is the current public release and package-validation baseline. Exact method signatures, complete bounded source-value extraction, and authoritative invocation and assignment enumeration are included in that lockstep package set. The described-adapter execution boundary is additive on `main`.
 :::
 
-| Capability | Released `0.14.0` | Current `main` |
+| Capability | Released `0.15.0` | Current `main` |
 | --- | ---: | ---: |
-| Adapter, context, and fact contracts | Yes | Yes |
-| Stable source identity | Yes | Yes |
-| Executable specification facts | Yes | Yes |
-| `DotNetConceptFacts` | Yes | Yes |
-| Symbol and invocation helpers | Yes | Yes |
-| Exact normalized method-signature matching | No | Yes |
-| Bounded scalar and `typeof` extraction | No | Yes |
-| Atomic payload and collection extraction | No | Yes |
-| Fixed source snapshots and strict placement | Yes | Yes |
-| Overload-safe method subjects | Yes | Yes |
-| Exact alternate source owners | Yes | Yes |
-| Explicit flat-source compatibility placement | Yes | Yes |
-| Authoritative invocation and assignment enumeration | No | Yes |
+| Adapter, context, neutral fact, evidence, and diagnostic contracts | Yes | Yes |
+| Stable source identity, fixed source snapshots, and strict placement | Yes | Yes |
+| Executable specification facts and `DotNetConceptFacts` | Yes | Yes |
+| Symbol, invocation, and exact normalized signature helpers | Yes | Yes |
+| Bounded scalar, `typeof`, payload, and collection extraction | Yes | Yes |
+| Overload-safe subjects, alternate source owners, and flat compatibility placement | Yes | Yes |
+| Authoritative invocation and assignment enumeration | Yes | Yes |
+| Legacy `IDotNetScreenplayAdapter` | Yes | Yes |
+| Descriptors, structured probes, and atomic public admission | No | Yes |
+| Explicit modern/legacy registration and deterministic .NET runner | No | Yes |
+| Immutable adapter-run snapshots and `Generate(snapshot)` | No | Yes |
+| Per-fact generation dispositions | No | Yes |
+| Vogen modern descriptor/probe with legacy contribution parity | No | Yes |
 
 ## Implement the adapter contract
 
-Implement `IDotNetScreenplayAdapter`:
+The original `IDotNetScreenplayAdapter` remains supported for existing adapters and hosts. New adapters should implement `IDescribedDotNetScreenplayAdapter`. During migration, implement both interfaces over one analysis path: modern hosts receive a descriptor and structured probe, while legacy hosts retain `Identity`, `CanAnalyze()`, and byte-compatible contributions.
+
+A descriptor states what the host is about to trust. Choose the narrow semantic `AdapterCategory` (`ApplicationFramework`, `EventSourcing`, `EventStore`, `Messaging`, `Concepts`, `Validation`, or `Integration`), declare `CSharp` or truly `SourceIndependent` input, bound compatible Generation versions when the adapter has a tested range, list required host services, name exact framework API capabilities that an applicable probe must prove, and list every neutral fact family analysis may emit. `Legacy` is reserved for the compatibility registration synthesized by `ForLegacy(...)`.
 
 ```csharp
 using Cratis.Screenplay.Generation;
@@ -69,19 +71,68 @@ using Microsoft.CodeAnalysis;
 
 namespace Acme.Screenplay;
 
-public sealed class AcmeScreenplayAdapter : IDotNetScreenplayAdapter
+public sealed class AcmeScreenplayAdapter :
+    IDescribedDotNetScreenplayAdapter,
+    IDotNetScreenplayAdapter
 {
-    static readonly AdapterIdentity _identity = new()
+    static readonly AdapterApiCapability _commandDeclarationApi = new()
     {
-        Id = "acme",
-        Version = "1.0.0"
+        Id = "acme.command-declaration"
     };
 
-    public AdapterIdentity Identity => _identity;
+    public AdapterDescriptor Descriptor { get; } = new()
+    {
+        Identity = new AdapterIdentity { Id = "acme", Version = "1.0.0" },
+        SourceLanguage = AdapterSourceLanguage.CSharp,
+        Category = AdapterCategory.ApplicationFramework,
+        RequiredHostCapabilities =
+        [
+            AdapterHostCapability.AuthoredSource,
+            AdapterHostCapability.StableSourceLocations,
+            AdapterHostCapability.SemanticAnalysis
+        ],
+        RequiredApiCapabilities = [_commandDeclarationApi],
+        EmittedFactCapabilities = [GenerationFactCapability.Artifact]
+    };
 
+    // Legacy compatibility surface.
+    public AdapterIdentity Identity => Descriptor.Identity;
+
+    // A blocked modern probe maps to false because the legacy Boolean cannot report why analysis is unsafe.
     public bool CanAnalyze(DotNetAnalysisContext context) =>
-        context.Projects.Any(project =>
-            project.Compilation.GetTypeByMetadataName("Acme.CommandAttribute") is not null);
+        Probe(context) is AdapterProbeApplicable;
+
+    public AdapterProbeResult Probe(DotNetAnalysisContext context)
+    {
+        var declarations = context.Projects
+            .SelectMany(project => new DotNetArtifactCatalog(project.Compilation).Types
+                .SelectMany(type => DotNetSource.AuthoredAttributesOf(type, project.AuthoredSyntaxTrees)
+                    .Where(attribute =>
+                        attribute.AttributeClass is not null &&
+                        DotNetSubjectIds.MetadataName(attribute.AttributeClass) == "Acme.CommandAttribute")
+                    .Select(attribute => (Project: project, Type: type, Attribute: attribute))))
+            .ToArray();
+        if (declarations.Length == 0)
+        {
+            return new AdapterProbeNotApplicable();
+        }
+
+        return new AdapterProbeApplicable
+        {
+            Evidence =
+            [
+                .. declarations.Select(declaration => new AdapterProbeEvidence
+                {
+                    Description = "An authored type uses the exact Acme command declaration API",
+                    ApiCapability = _commandDeclarationApi,
+                    Source = DotNetSource.RangeForProject(
+                        declaration.Attribute.ApplicationSyntaxReference!.GetSyntax().GetLocation(),
+                        declaration.Project),
+                    Subject = declaration.Project.SubjectForType(declaration.Type)
+                })
+            ]
+        };
+    }
 
     public AdapterContribution Analyze(
         DotNetAnalysisContext context,
@@ -143,9 +194,9 @@ public sealed class AcmeScreenplayAdapter : IDotNetScreenplayAdapter
 }
 ```
 
-Keep `CanAnalyze()` cheap, deterministic, and semantic. Package presence alone must not create facts. Return only the facts and diagnostics the adapter can establish from `Analyze()`.
+Keep `Probe()` cheap, deterministic, and semantic. Package presence alone must not make a probe applicable. `AdapterProbeEvidence` can identify an exact required `AdapterApiCapability`, source range, and subject. Return `AdapterProbeBlocked` with valid diagnostics when the source applies but analysis cannot proceed safely. The runner admits and freezes probe evidence before it considers analysis.
 
-This first pass emits only the exact command artifact. Add placement through the fixed source snapshot and shared derivation pipeline in [Derive source placement](#derive-source-placement); do not derive it ad hoc inside artifact discovery.
+The compatibility `CanAnalyze()` above delegates to the modern probe without changing `Analyze()`. Existing binaries can continue to call the legacy interface, while a modern host registers the same adapter with `DotNetAdapterRegistration.For(...)`. This first pass emits only the exact command artifact. Add placement through the fixed source snapshot and shared derivation pipeline in [Derive source placement](#derive-source-placement); do not derive it ad hoc inside artifact discovery.
 
 ## Establish the analysis context in the host
 
@@ -231,6 +282,10 @@ var context = new DotNetAnalysisContext([project]);
 Capture authored trees from `Project.Documents`. Generated filenames and headers are useful corroboration, but they are not source authority. Assign `DotNetProjectRole.Specifications` to specification projects instead of inferring that role from their name.
 
 Use `DotNetSourcePaths.Create(...)` to map project documents into a stable source context. Physical checkout roots must not become identities. Prefer `DotNetSource.EvidenceFor(..., project, ...)` and `DotNetSource.RangeForProject(...)` over the legacy `SourceRoot` overloads.
+
+A modern adapter should declare `AdapterHostCapability.StableSourceLocations` when its probe, facts, or diagnostics depend on portable source identity. The runner then requires every project to expose authoritative authored trees and a complete `DotNetProjectSourceContext`; located probe evidence and contribution ranges must map to those exact trees and include their stable `SourceFileIdentity`. Missing host capability blocks before `Probe()`, malformed or nonauthoritative probe evidence blocks after `Probe()`, and nonauthoritative contribution source rejects that contribution atomically. The modern Vogen descriptor requires this capability. Legacy registrations retain path-only source compatibility.
+
+A truly source-neutral adapter can declare `AdapterSourceLanguage.SourceIndependent`, no host capabilities, and no source ranges. It can run with `new DotNetAnalysisContext([])`. Declaring any host capability intentionally restores host and project-roster gating.
 
 ## Use shared Roslyn mechanics
 
@@ -410,23 +465,68 @@ Tests must assert required artifacts and relationships directly from `Graph` or 
 
 ## Compose and verify once
 
-A host runs each admitted adapter once, keeps contributions separate, and invokes one generator:
+The host supplies an explicit registration roster. There is no package scanning or implicit adapter discovery:
 
 ```csharp
-var contributions = adapters
-    .Where(adapter => adapter.CanAnalyze(context))
-    .Select(adapter => adapter.Analyze(context, options));
+var roster = new DotNetAdapterRegistration[]
+{
+    DotNetAdapterRegistration.For(new AcmeScreenplayAdapter()),
+    DotNetAdapterRegistration.For(new VogenConceptScreenplayAdapter()),
+    DotNetAdapterRegistration.ForLegacy(unchangedLegacyAdapter)
+};
 
+var snapshot = DotNetAdapterRunner.Run(roster, context, options);
 var result = new ScreenplayDefinitionGenerator().Generate(
-    contributions,
+    snapshot,
     new ScreenplayGenerationOptions { Domain = "Ordering" });
 ```
 
-`GeneratedScreenplayDefinition` contains canonical source, syntax, the resolved graph, and all diagnostics. `IsSuccess` means there are no error diagnostics; warnings may still describe semantic loss.
+`DotNetAdapterRunner` canonicalizes the roster and project input, considers every registration once, probes each eligible adapter once, and analyzes each applicable adapter once. `NotApplicable` and `Blocked` adapters never execute. Contributions remain separate and are admitted atomically before the runner returns a deeply frozen `AdapterRunSnapshot`; mutating adapter-owned lists or records after `Run()` cannot change it.
 
-Adapters never call the resolver, lowerer, printer, or compiler themselves. Generation does not discover adapter packages automatically. Direct hosts construct the `IDotNetScreenplayAdapter[]`; package or provider discovery and admission remain host-specific.
+The boundary fails closed at a precise stage:
 
-Adopt a newly required API in this order:
+| Failure | Result |
+| --- | --- |
+| Duplicate adapter ID | Every duplicate registration is `RosterRejected` before probe or analysis |
+| Invalid descriptor | Registration is `RosterRejected` with deterministic descriptor-admission diagnostics |
+| Incompatible Generation version | `Blocked` before probe against the host's loaded `Generation.Contracts` version |
+| Unsupported language or missing host capability | `Blocked` before probe |
+| Ambiguous or duplicate project identity | Source-dependent adapters are `Blocked` before probe; a host-free source-independent adapter may continue |
+| Malformed or nonauthoritative probe evidence, or missing required API evidence | `Blocked` after one probe; analysis does not run |
+| Probe-declared known limitation | `AdapterProbeBlocked` preserves canonical diagnostics; analysis does not run |
+| Malformed, unscoped, undeclared, identity-mismatched, or nonauthoritative contribution | The complete contribution is `ContributionRejected`; no partial facts enter the snapshot |
+| Probe or analysis callback throws | `ExecutionFailed` with a stable boundary diagnostic; exception details and machine paths are not exposed |
+
+`AdapterRunSnapshot.Adapters` preserves each descriptor, structured probe, execution result, and disposition. Its admitted facts initially have `GenerationFactDisposition.Unknown`. `Generate(snapshot, options)` returns a new canonical snapshot in `GeneratedScreenplayDefinition.AdapterRun` with every admitted fact classified:
+
+| Disposition | Meaning |
+| --- | --- |
+| `Lowered` | The fact contributed directly to emitted Screenplay syntax |
+| `ProvenanceOnly` | The assertion was retained as supporting provenance but did not add syntax |
+| `OmittedWithDiagnostic` | Generation omitted the fact and attached the diagnostic that explains why |
+| `Conflicted` | The fact participated in an unresolved competing definition |
+
+The snapshot overload preserves runner, contribution, resolution, lowering, and verification diagnostics. For the same admitted contributions it produces the same canonical bytes as the original `Generate(IEnumerable<AdapterContribution>, ...)` overload. The original overload and `IDotNetScreenplayAdapter` remain supported; use them only when a host does not need the execution record.
+
+`VogenConceptScreenplayAdapter` implements both interfaces. Prefer the modern registration when the host supplies stable mappings:
+
+```csharp
+var modern = DotNetAdapterRunner.Run(
+    [DotNetAdapterRegistration.For(new VogenConceptScreenplayAdapter())],
+    stableContext,
+    options);
+
+var legacy = DotNetAdapterRunner.Run(
+    [DotNetAdapterRegistration.ForLegacy(new VogenConceptScreenplayAdapter())],
+    legacyCompatibleContext,
+    options);
+```
+
+The modern descriptor has category `Concepts`, source language `CSharp`, requires authored source, stable source locations, semantic analysis, and exact Vogen declaration API evidence, and declares its concept fact families. Its probe distinguishes no declarations, safely applicable declarations, and unsafe mappings. Run the modern and legacy registrations separately: both use the `vogen` identity, so placing both in one roster is a deliberate duplicate rejection. When each path is safely applicable, their contribution facts and diagnostics are identical.
+
+This execution snapshot is not a history model. It does not implement issue #19 adapter or fact lineage. It also has no issue #24 serializer or stable fingerprints; keep snapshots in process and compare canonical generated bytes when determinism matters.
+
+Adapters never call the runner, resolver, lowerer, printer, or compiler themselves. Adopt a newly required API in this order:
 
 1. release Screenplay Generation;
 2. upgrade and release the ecosystem adapter;
