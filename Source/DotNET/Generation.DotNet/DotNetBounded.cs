@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
 namespace Cratis.Screenplay.Generation.DotNet;
@@ -84,5 +85,31 @@ public sealed record DotNetKnown<T>(T Value) : DotNetBounded<T>;
 /// Represents a value that could not be proven exactly.
 /// </summary>
 /// <typeparam name="T">The requested value type.</typeparam>
-/// <param name="Failures">The deterministic extraction failures.</param>
-public sealed record DotNetUnknown<T>(IReadOnlyList<DotNetValueFailure> Failures) : DotNetBounded<T>;
+public sealed record DotNetUnknown<T> : DotNetBounded<T>
+{
+    ImmutableArray<DotNetValueFailure> _failures = [];
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DotNetUnknown{T}"/> record.
+    /// </summary>
+    /// <param name="Failures">The deterministic extraction failures.</param>
+    public DotNetUnknown(IReadOnlyList<DotNetValueFailure> Failures)
+    {
+        this.Failures = Failures;
+    }
+
+    /// <summary>
+    /// Gets or initializes an immutable snapshot of the deterministic extraction failures.
+    /// </summary>
+    public IReadOnlyList<DotNetValueFailure> Failures
+    {
+        get => _failures;
+        init => _failures = [.. value];
+    }
+
+    /// <summary>
+    /// Deconstructs the unknown result into its deterministic extraction failures.
+    /// </summary>
+    /// <param name="failures">The immutable deterministic extraction failures.</param>
+    public void Deconstruct(out IReadOnlyList<DotNetValueFailure> failures) => failures = Failures;
+}

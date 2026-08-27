@@ -24,7 +24,7 @@ public class when_additional_value_shapes_are_not_bounded : given.a_compilation
                 {
                     Inspect(dynamicValue?.Value);
                     Inspect(condition switch { true => 1, false => 2 });
-                    Inspect(new object());
+                    Inspect(new object().GetHashCode());
                     Inspect(MissingValue);
                 }
             }

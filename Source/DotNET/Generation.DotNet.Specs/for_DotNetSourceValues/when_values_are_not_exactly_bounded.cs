@@ -45,7 +45,7 @@ public class when_values_are_not_exactly_bounded : given.a_compilation
         ];
     }
 
-    [Fact] void should_classify_each_unknown_shape_deterministically() => _failures.Select(_ => _.Kind).ShouldEqual([DotNetValueFailureKind.Computed, DotNetValueFailureKind.Conditional, DotNetValueFailureKind.Dynamic, DotNetValueFailureKind.Unbound, DotNetValueFailureKind.Ambiguous]);
+    [Fact] void should_classify_each_unknown_shape_deterministically() => _failures.Select(_ => _.Kind).ShouldEqual([DotNetValueFailureKind.Computed, DotNetValueFailureKind.Conditional, DotNetValueFailureKind.Dynamic, DotNetValueFailureKind.Unbound, DotNetValueFailureKind.Unbound]);
     [Fact] void should_retain_exact_source_locations() => _failures.Select(_ => (_.Source.GetLineSpan().StartLinePosition.Line + 1, _.Source.GetLineSpan().StartLinePosition.Character + 1)).ShouldEqual([(12, 17), (13, 17), (14, 17), (15, 17), (16, 17)]);
     [Fact] void should_expose_no_partial_values() => _failures.Length.ShouldEqual(5);
 }

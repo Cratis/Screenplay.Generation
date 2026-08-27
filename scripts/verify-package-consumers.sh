@@ -370,6 +370,14 @@ internal static class Program
             }.Kind == ConceptAttributeKind.Named,
             "CSC0020",
             "The additive concept attribute discriminator did not preserve the legacy named default.");
+        var failure = new DotNetValueFailure(DotNetValueFailureKind.Computed, Location.None, "Computed");
+        var mutableFailures = new List<DotNetValueFailure> { failure };
+        var unknown = new DotNetUnknown<int>(Failures: mutableFailures);
+        mutableFailures.Clear();
+        Require(
+            unknown.Failures.SequenceEqual([failure]),
+            "CSC0037",
+            "The named Failures constructor argument did not retain an immutable failure snapshot.");
 
         var authoredTree = CSharpSyntaxTree.ParseText(
             """
@@ -413,6 +421,7 @@ internal static class Program
 
                 [EndpointPolicy(Required = true)]
                 public sealed record CustomerRegistered(CustomerCode CustomerCode);
+                public sealed record Delivery(string Name, string[] Tags);
                 public sealed class CustomerBatch : System.Collections.Generic.List<CustomerRegistered>;
                 public sealed class CustomerOptions;
                 public static class CustomerOptionsExtensions
@@ -425,6 +434,7 @@ internal static class Program
                     public static void Load(CustomerRegistered request, int version) => _ = (request, version);
                     public static void Validate(CustomerCode request) => _ = request;
                     public static void Configure(CustomerOptions options) => options.Configure(name: "consumer");
+                    public static Delivery BuildDelivery() => new("Screenplay", new[] { "source", "exact" });
                 }
             }
             """,
@@ -663,6 +673,18 @@ internal static class Program
             authoredAssignments.Any(candidate => candidate.SyntaxTree == scopedAssignments[0].SyntaxTree && candidate.Span == scopedAssignments[0].Span),
             "CSC0035",
             "Authoritative invocation and assignment enumeration admitted generated source or lost exact scoped source.");
+
+        var deliveryCreation = authoredTree.GetRoot().DescendantNodes().OfType<ImplicitObjectCreationExpressionSyntax>().Single(creation => semanticModel.GetTypeInfo(creation).Type?.Name == "Delivery");
+        var deliveryPayload = (DotNetKnown<DotNetPayloadValue>)DotNetSourceValues.Payload(deliveryCreation, semanticModel);
+        var deliveryTagsExpression = deliveryCreation.ArgumentList!.Arguments[1].Expression;
+        var deliveryTags = (DotNetKnown<DotNetCollectionValue>)DotNetSourceValues.Collection(deliveryTagsExpression, semanticModel);
+        Require(
+            deliveryPayload.Value.Values.Select(value => value.Name).SequenceEqual(["Name", "Tags"], StringComparer.Ordinal) &&
+            deliveryPayload.Value.Values[1].Value is DotNetCollectionValue nestedTags &&
+            nestedTags.Values.Select(element => ((DotNetConstantValue)element.Value).Value).SequenceEqual(["source", "exact"]) &&
+            deliveryTags.Value.Values.All(element => element.Source.IsInSource),
+            "CSC0036",
+            "Bounded payload and collection extraction did not preserve formal order, nested values, or source locations.");
 
         var invocationMethod = DotNetInvocations.MethodFor(invocation, semanticModel)!;
         var invocationName = DotNetInvocations.ArgumentForParameter(invocation, invocationMethod, "name", semanticModel)!;

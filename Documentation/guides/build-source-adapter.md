@@ -51,6 +51,7 @@ Reference one version across all directly referenced Screenplay Generation packa
 | Symbol and invocation helpers | Yes | Yes |
 | Exact normalized method-signature matching | No | Yes |
 | Bounded scalar and `typeof` extraction | No | Yes |
+| Atomic payload and collection extraction | No | Yes |
 | Fixed source snapshots and strict placement | Yes | Yes |
 | Overload-safe method subjects | Yes | Yes |
 | Exact alternate source owners | Yes | Yes |
@@ -240,14 +241,16 @@ Prefer semantic helpers over adapter-specific syntax utilities:
 - `DotNetSymbols` handles metadata-name attributes and interfaces, collection elements, named arguments, and companion method families;
 - `DotNetInvocations` resolves exact direct and reduced methods, formal-parameter arguments, and bounded receiver roots;
 - `DotNetMethodSignatures` captures and matches exact normalized containing type, nullability, method/static/extension/generic/return/ref, and ordered parameter/ref/`params`/receiver shape;
-- `DotNetSourceValues` returns `DotNetKnown<T>` only for exact bounded constants/types and `DotNetUnknown<T>` with deterministic failures otherwise;
+- `DotNetSourceValues` returns `DotNetKnown<T>` only for exact bounded constants, types, payloads, and collections and `DotNetUnknown<T>` with deterministic failures otherwise;
 - `DotNetSource` establishes authored declarations, attributes, evidence, and ranges.
 
 `DotNetInvocations.MethodFor(...)` returns `null` when Roslyn has no exact symbol. Do not use candidate symbols to guess through a broken compilation. Use `DefinitionOf(...)` before matching generic extension metadata, `ArgumentForParameter(...)` with the owning semantic model instead of positional assumptions, and `ReceiverRootParameter(...)` only for a bounded direct parameter-root check. Omitted optional parameters, expanded `params` arguments, aliases, invocation results, and unqualified instance receivers resolve to `null` rather than a partial guess.
 
 Create a `DotNetMethodSignature` from the exact allowlisted method symbol available to the analyzed compilation, then match bound candidates with `DotNetMethodSignatures.Matches(...)`. The descriptor retains nullability and symbol identity, so it is intentionally compilation-bound; do not reconstruct expected signatures from display strings, aliases, short names, or symbols from an unrelated compilation.
 
-Use `DotNetSourceValues.Extract(...)` or the typed `Constant<T>(...)` / `TypeOf(...)` helpers instead of reading `ConstantValue` directly. Pattern-match `DotNetKnown<T>` and publish dependent facts only from its value; a `DotNetUnknown<T>` exposes deterministic failures and no partial value. Typed constants are limited to an exact primitive, string, or null runtime type. Source enum constants stay as exact `IFieldSymbol` values through untyped extraction so aliases are preserved; they are never exposed as underlying numbers by `Constant<T>`.
+Use `DotNetSourceValues.Extract(...)` or the typed `Constant<T>(...)` / `TypeOf(...)` / `Payload(...)` / `Collection(...)` helpers instead of reading `ConstantValue` or walking initializer syntax directly. Pattern-match `DotNetKnown<T>` and publish dependent facts only from its value; a `DotNetUnknown<T>` exposes every deterministic child failure and no partial value. Typed constants are limited to an exact primitive, string, or null runtime type. Source enum constants stay as exact `IFieldSymbol` values through untyped extraction so aliases are preserved; they are never exposed as underlying numbers by `Constant<T>`.
+
+Payloads order constructor values by formal parameter and initializer values by authored order. Every payload constructor parameter must be supplied explicitly; expanded `params`, omitted optional values, indirect/index initializers, duplicate members, or one unknown nested child make the complete payload unknown. Collections preserve each element's exact location and support explicit or implicit arrays whose constructed outer rank is one, including recursively exact jagged arrays, plus collection expressions and direct collection initializers whose `Add` operation has exactly one authored argument. Compiler-supplied optional or `params` constructor and `Add` arguments are runtime effects, not authored collection elements, and remain allowed when the initializer entry authors exactly one `Add` argument. Computed or mismatched dimensions, invalid type or conversion binding, multi-argument `Add` entries, opaque spreads, and any unknown nested element fail the whole collection atomically. A payload or collection shape failure does not stop inspection of explicit authored arguments, right-hand sides, or elements: every deterministic child failure is reported without publishing partial values.
 
 Adapter discovery depends on compiler symbols and semantic models, not preferred source formatting. Keep one reusable source fixture with semantically valid generated, decompiler-style, fully qualified, explicitly cast, and otherwise non-idiomatic C#. Its supported facts must resolve without extra loss.
 
