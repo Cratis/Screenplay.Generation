@@ -20,26 +20,30 @@ See [Build a .NET source adapter](Documentation/guides/build-source-adapter.md) 
 
 ## Public baseline and current main
 
-`0.15.0` is the current public lockstep release and package-validation baseline. The adapter execution boundary is additive on `main`.
+`0.16.0` is the current public lockstep release and package-validation baseline. Granular type-use derivation is additive on `main`.
 
-| Capability | Released `0.15.0` | Current `main` |
+| Capability | Released `0.16.0` | Current `main` |
 | --- | ---: | ---: |
 | Adapter, context, neutral fact, evidence, and diagnostic contracts | Yes | Yes |
 | Stable source identity, fixed source snapshots, and strict placement | Yes | Yes |
 | Exact method signatures and bounded scalar, payload, and collection extraction | Yes | Yes |
 | Authoritative invocation and assignment enumeration | Yes | Yes |
 | Legacy `IDotNetScreenplayAdapter` | Yes | Yes |
-| Descriptors, structured probes, and atomic public admission | No | Yes |
-| Explicit modern/legacy registration and deterministic .NET runner | No | Yes |
-| Immutable adapter-run snapshots and `Generate(snapshot)` | No | Yes |
-| Per-fact generation dispositions | No | Yes |
-| Vogen modern descriptor/probe with legacy contribution parity | No | Yes |
+| Descriptors, structured probes, and atomic public admission | Yes | Yes |
+| Explicit modern/legacy registration and deterministic .NET runner | Yes | Yes |
+| Immutable adapter-run snapshots and `Generate(snapshot)` | Yes | Yes |
+| Per-fact generation dispositions | Yes | Yes |
+| Vogen modern descriptor/probe with legacy contribution parity | Yes | Yes |
+| Granular artifact/member/type-use/binding/role facts | No | Yes |
+| Fixed-snapshot derivation rule and input/evidence lineage | No | Yes |
+| Exact nested .NET type-use fact emission | No | Yes |
 
 ## Architecture
 
 ```text
 source adapter
-  -> typed facts and evidence
+  -> admitted typed facts and evidence
+  -> fixed-snapshot derivation and lineage
   -> resolved application graph
   -> lowerable Screenplay model
   -> Screenplay AST
@@ -62,7 +66,7 @@ Duplicate adapter IDs are rejected before probe or analysis. Invalid descriptors
 
 A modern `SourceIndependent` adapter with no host requirements can run against an empty .NET context. A source adapter that declares `StableSourceLocations` requires every authored tree to have an authoritative `DotNetProjectSourceContext` mapping, and every located probe, fact, and diagnostic must use that mapping. The modern Vogen path requires stable locations; its legacy interface remains available for compatibility.
 
-Pass the frozen snapshot to `ScreenplayDefinitionGenerator.Generate(snapshot, options)` to preserve runner diagnostics and receive final fact dispositions: `Lowered`, `ProvenanceOnly`, `OmittedWithDiagnostic`, or `Conflicted`. This snapshot records one run only. It does not add issue #19 adapter/fact lineage, and it does not add issue #24 serialization or fingerprints.
+Pass the frozen snapshot to `ScreenplayDefinitionGenerator.Generate(snapshot, options)` to preserve runner diagnostics and receive final fact dispositions: `Lowered`, `ProvenanceOnly`, `OmittedWithDiagnostic`, or `Conflicted`. Generation runs one closed derivation pass over the fixed admitted base facts, attaches stable rule/input/evidence lineage under `AdapterRunSnapshot.Derivation`, and applies exact member bindings as granular overlays. The snapshot records one run only; it does not add issue #24 serialization or fingerprints.
 
 ### Adapter syntax robustness
 
@@ -139,7 +143,15 @@ Generated members never provide primary evidence. The adapter never infers ident
 
 Adapters can contribute `ArtifactKind.Concept` together with independently proven `ConceptRepresentationFact`, `ConceptAttributeFact`, and `ConceptValidationRuleFact` assertions. Primitive/enumeration representations, named attributes, and named external predicate rules resolve deterministically and lower to top-level Screenplay concepts without module placement.
 
-`TypeReferenceDefinition.Subject` binds an artifact property to the exact concept subject rather than a simple display name. Missing, conflicting, unsupported, or same-named concept definitions produce stable diagnostics; generation never falls back to `String`.
+`TypeReferenceDefinition.Subject` continues to bind an aggregate artifact property directly when one adapter proves the exact target. Missing, conflicting, unsupported, or same-named concept definitions produce stable diagnostics; generation never falls back to `String`.
+
+## Granular type uses and derivation
+
+Adapters that establish different facets independently can emit `ArtifactDeclarationFact`, `ArtifactMemberDeclarationFact`, `ArtifactMemberTypeUseFact`, and `ArtifactMemberRoleFact` without repeating a complete `ArtifactFact`. `TypeUseDefinition.Shape` orders optional and collection wrappers from outermost to the terminal `Named` node, so optional elements, optional collections, and nested collections remain distinct.
+
+Generation runs the built-in `cratis.screenplay.type-use-binding@1.0.0` rule once over one fixed admitted base snapshot. It joins only exact subjects, never display names, adapter IDs, registration order, Roslyn symbols, or another adapter instance. A derived `TypeUseBindingFact` retains canonical input `FactId` values and complete evidence in `GenerationFactLineage`. Conflicting, incomplete, foreign-owned, or unsupported inputs remain diagnosed without a winner or partial artifact.
+
+.NET adapters keep compatibility aggregate properties unbound with `DotNetTypeShapes.PropertiesOf(type)` and append `DotNetTypeUseFacts.Emit(...)`. `TypeUseFor(...)` preserves exact nested use-site shape and terminal source subject; an optional role callback emits only roles explicitly established by source-framework semantics. Non-.NET and source-independent frontends contribute the same contracts directly.
 
 Concept validation stays independent from identity, representation, attributes, and optionality. A rule uses an adapter-authored `RuleIdentity` for deterministic resolution, while `Predicate` is the authored predicate name emitted by lowering. Adapters contribute framework-neutral data and provenance only; they never reference Screenplay syntax:
 
@@ -187,7 +199,7 @@ dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Art
 ./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
 
-Package validation runs during pack against the latest released API baseline, `0.15.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, shared symbol helpers, declared concept nomination, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
+Package validation runs during pack against the latest released API baseline, `0.16.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, shared symbol helpers, declared concept nomination, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
 
 All builds require zero errors and zero warnings. Generated Screenplay output must compile and remain stable through print/compile/print.
 

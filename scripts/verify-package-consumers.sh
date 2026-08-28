@@ -4,7 +4,7 @@
 
 # Compiles consumers against the compatibility ancestry, then runs those unchanged binaries
 # beside the packages being validated. A separate source consumer compiles only against the
-# current candidate packages and exercises the public 0.15+ composition and adapter-run surface. Together these
+# current candidate packages and exercises the public 0.16+ composition and adapter-run surface. Together these
 # catch binary breaks that a source rebuild hides and ensure the current package set is usable.
 #
 # Usage: verify-package-consumers.sh [current-version] [local-package-feed]
@@ -361,6 +361,8 @@ internal static class Program
             (int)GenerationPrimitiveKind.Unknown == -1 &&
             (int)ConceptAttributeKind.Unknown == -1 &&
             (int)ConceptValidationRuleKind.Unknown == -1 &&
+            (int)TypeUseShapeKind.Unknown == -1 &&
+            (int)ArtifactMemberRoleKind.Unknown == -1 &&
             (int)EvidenceStrength.Unknown == -1 &&
             (int)DotNetProjectRole.Unknown == -1 &&
             (int)DotNetProjectRole.Application == 0 &&
@@ -371,7 +373,18 @@ internal static class Program
             (int)GenerationSliceKind.Translate == 3 &&
             (int)ArtifactKind.Command == 3 &&
             (int)ArtifactKind.Query == 8 &&
-            (int)ArtifactKind.Reducer == 10,
+            (int)ArtifactKind.Reducer == 10 &&
+            (int)GenerationFactCapability.SpecificationValue == 8 &&
+            (int)GenerationFactCapability.ArtifactDeclaration == 9 &&
+            (int)GenerationFactCapability.ArtifactMemberDeclaration == 10 &&
+            (int)GenerationFactCapability.ArtifactMemberTypeUse == 11 &&
+            (int)GenerationFactCapability.TypeUseBinding == 12 &&
+            (int)GenerationFactCapability.ArtifactMemberRole == 13 &&
+            (int)TypeUseShapeKind.Named == 0 &&
+            (int)TypeUseShapeKind.Optional == 1 &&
+            (int)TypeUseShapeKind.Collection == 2 &&
+            (int)ArtifactMemberRoleKind.Identifier == 0 &&
+            (int)ArtifactMemberRoleKind.EventSourceIdentifier == 1,
             "CSC0019",
             "The additive public Unknown discriminator values are unavailable or were renumbered.");
         Require(
@@ -392,8 +405,9 @@ internal static class Program
             "The named Failures constructor argument did not retain an immutable failure snapshot.");
         ExercisePublicAdapterContracts();
         ExerciseCandidatePackageClosure();
+        ExerciseSourceIndependentGranularFrontend();
 
-        var authoredTree = CSharpSyntaxTree.ParseText(
+        var vogenApiTree = CSharpSyntaxTree.ParseText(
             """
             namespace Vogen
             {
@@ -413,7 +427,23 @@ internal static class Program
                     }
                 }
             }
+            """,
+            path: "/api/Vogen.SharedTypes.cs");
+        var vogenApiCompilation = CSharpCompilation.Create(
+            "Vogen.SharedTypes",
+            [vogenApiTree],
+            TrustedPlatformReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var vogenApiImage = new MemoryStream();
+        var vogenApiEmit = vogenApiCompilation.Emit(vogenApiImage);
+        Require(
+            vogenApiEmit.Success,
+            "CSC0066",
+            $"The exact Vogen API failed to compile: {string.Join(" | ", vogenApiEmit.Diagnostics)}");
 
+        var authoredTree = CSharpSyntaxTree.ParseText(
+            new string('\n', 19) +
+            """
             namespace Ordering
             {
                 [Vogen.ValueObject<string>]
@@ -470,7 +500,7 @@ internal static class Program
         var compilation = CSharpCompilation.Create(
             "Ordering",
             [authoredTree, generatedLookalikeTree],
-            TrustedPlatformReferences(),
+            TrustedPlatformReferences().Append(MetadataReference.CreateFromImage(vogenApiImage.ToArray())),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         var compilationErrors = compilation.GetDiagnostics()
             .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
@@ -841,9 +871,34 @@ internal static class Program
         var eventFact = externalContribution.Facts.OfType<ArtifactFact>().Single();
         var eventType = eventFact.Definition.Properties.Single().Type;
         Require(
-            eventType.Name == "UnresolvedCustomerCode" && eventType.Subject == concept.Subject,
+            eventType.Name == "CustomerCode" && eventType.Subject is null &&
+            externalContribution.Facts.OfType<ArtifactMemberTypeUseFact>().Single().Definition.Type.ObservedTypeSubject == concept.Subject,
             "CSC0009",
-            "The external adapter did not bind TypeReferenceDefinition.Subject to the exact concept subject.");
+            "The external adapter did not keep aggregate type use unbound while contributing the exact observed concept subject independently.");
+        var modernSnapshot = DotNetAdapterRunner.Run(
+            [
+                DotNetAdapterRegistration.For((IDescribedDotNetScreenplayAdapter)adapters[0]),
+                DotNetAdapterRegistration.For((IDescribedDotNetScreenplayAdapter)adapters[1])
+            ],
+            context,
+            new DotNetAdapterOptions());
+        var modernGenerated = new ScreenplayDefinitionGenerator().Generate(
+            modernSnapshot,
+            new ScreenplayGenerationOptions { Domain = "Ordering" });
+        var directGenerated = new ScreenplayDefinitionGenerator().Generate(
+            contributions,
+            new ScreenplayGenerationOptions { Domain = "Ordering" });
+        Require(
+            modernSnapshot.Adapters.All(record => record.Disposition == AdapterRunDisposition.Admitted) &&
+            modernSnapshot.Adapters.Single(record => record.Descriptor.Identity.Id == ExternalAdapterId)
+                .Descriptor.EmittedFactCapabilities.Contains(GenerationFactCapability.ArtifactMemberDeclaration) &&
+            modernSnapshot.Adapters.Single(record => record.Descriptor.Identity.Id == ExternalAdapterId)
+                .Descriptor.EmittedFactCapabilities.Contains(GenerationFactCapability.ArtifactMemberTypeUse) &&
+            modernGenerated.IsSuccess &&
+            modernGenerated.Source == directGenerated.Source &&
+            modernGenerated.AdapterRun!.Derivation!.Facts.Single().Disposition == GenerationFactDisposition.Lowered,
+            "CSC0065",
+            "The modern external and Vogen adapters were not admitted, derived, and lowered with direct-path parity.");
 
         var specificationAdapter = new AdapterIdentity { Id = "specification-smoke", Version = "1.0.0" };
         var commandSubject = new SubjectId { Value = "dotnet://Ordering/Ordering/RegisterCustomer" };
@@ -947,6 +1002,39 @@ internal static class Program
             ]
         };
         AdapterContribution[] allContributions = [.. contributions, specificationContribution];
+        var derivation = GenerationFactDerivation.Derive(new AdapterRunSnapshot
+        {
+            Facts =
+            [
+                .. allContributions
+                    .SelectMany(contribution => contribution.Facts)
+                    .Select(fact => new GenerationFactRecord { Fact = fact })
+            ]
+        });
+        var derivedBindingRecord = derivation.Facts.Single();
+        var derivedBinding = (TypeUseBindingFact)derivedBindingRecord.Fact;
+        var expectedLineageFacts = new GenerationFact[]
+        {
+            eventFact,
+            externalContribution.Facts.OfType<ArtifactMemberDeclarationFact>().Single(),
+            externalContribution.Facts.OfType<ArtifactMemberTypeUseFact>().Single(),
+            concept
+        }.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).ToArray();
+        Require(
+            derivation.Rules.Single().Rule == new GenerationDerivationRuleIdentity
+            {
+                Id = "cratis.screenplay.type-use-binding",
+                Version = "1.0.0"
+            } &&
+            derivedBinding.Definition.Member.Artifact == eventFact.Definition.Key &&
+            derivedBinding.Definition.Member.Name == "customerCode" &&
+            derivedBinding.Definition.Target == concept.Definition.Key &&
+            derivedBindingRecord.Lineage is { Inputs.Length: 4, Evidence.Length: 4 } lineage &&
+            lineage.Inputs.Select(input => input.Value)
+                .SequenceEqual(expectedLineageFacts.Select(fact => fact.Id.Value), StringComparer.Ordinal) &&
+            lineage.Evidence.SequenceEqual(expectedLineageFacts.Select(fact => fact.Evidence)),
+            "CSC0062",
+            "Fixed-snapshot derivation did not bind the independent external type use to the exact Vogen concept with complete lineage.");
 
         var generated = new ScreenplayDefinitionGenerator().Generate(
             allContributions,
@@ -1182,6 +1270,144 @@ internal static class Program
             ]),
             "CSC0046",
             "The runtime dependency closure did not load all four candidate package assemblies independently.");
+    }
+
+    static void ExerciseSourceIndependentGranularFrontend()
+    {
+        var adapter = new AdapterIdentity { Id = "typescript-smoke", Version = "1.0.0" };
+        var eventSubject = new SubjectId { Value = "typescript://catalog/events/CustomerRegistered" };
+        var conceptSubject = new SubjectId { Value = "typescript://catalog/concepts/CustomerCode" };
+        var artifact = new ArtifactKey { Subject = eventSubject, Kind = ArtifactKind.Event };
+        var member = new ArtifactMemberKey { Artifact = artifact, Name = "customerCode" };
+        var evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact };
+        var descriptor = new AdapterDescriptor
+        {
+            Identity = adapter,
+            SourceLanguage = AdapterSourceLanguage.SourceIndependent,
+            Category = AdapterCategory.Integration,
+            EmittedFactCapabilities =
+            [
+                GenerationFactCapability.Artifact,
+                GenerationFactCapability.ArtifactPlacement,
+                GenerationFactCapability.ConceptRepresentation,
+                GenerationFactCapability.ArtifactDeclaration,
+                GenerationFactCapability.ArtifactMemberDeclaration,
+                GenerationFactCapability.ArtifactMemberTypeUse
+            ]
+        };
+        var contribution = new AdapterContribution
+        {
+            Adapter = adapter,
+            Facts =
+            [
+                new ArtifactDeclarationFact
+                {
+                    Id = new FactId { Value = "typescript-smoke:event" },
+                    Subject = eventSubject,
+                    Evidence = evidence,
+                    Definition = new ArtifactDeclarationDefinition
+                    {
+                        Artifact = artifact,
+                        Name = "CustomerRegistered"
+                    }
+                },
+                new ArtifactMemberDeclarationFact
+                {
+                    Id = new FactId { Value = "typescript-smoke:member" },
+                    Subject = eventSubject,
+                    Evidence = evidence,
+                    Definition = new ArtifactMemberDeclarationDefinition
+                    {
+                        Member = member,
+                        DeclarationOrder = 0
+                    }
+                },
+                new ArtifactMemberTypeUseFact
+                {
+                    Id = new FactId { Value = "typescript-smoke:type-use" },
+                    Subject = eventSubject,
+                    Evidence = evidence,
+                    Definition = new ArtifactMemberTypeUseDefinition
+                    {
+                        Member = member,
+                        Type = new TypeUseDefinition
+                        {
+                            Name = "CustomerCode",
+                            ObservedTypeSubject = conceptSubject
+                        }
+                    }
+                },
+                new ArtifactPlacementFact
+                {
+                    Id = new FactId { Value = "typescript-smoke:placement" },
+                    Subject = eventSubject,
+                    Evidence = evidence,
+                    Artifact = artifact,
+                    Placement = new ArtifactPlacement
+                    {
+                        Module = "Customers",
+                        Features = ["Registration"],
+                        Slice = "Register",
+                        SliceKind = GenerationSliceKind.StateChange
+                    }
+                },
+                new ArtifactFact
+                {
+                    Id = new FactId { Value = "typescript-smoke:concept" },
+                    Subject = conceptSubject,
+                    Evidence = evidence,
+                    Definition = new ArtifactDefinition
+                    {
+                        Key = new ArtifactKey { Subject = conceptSubject, Kind = ArtifactKind.Concept },
+                        Name = "CustomerCode"
+                    }
+                },
+                new ConceptRepresentationFact
+                {
+                    Id = new FactId { Value = "typescript-smoke:representation" },
+                    Subject = conceptSubject,
+                    Evidence = evidence,
+                    Definition = new ConceptRepresentationDefinition
+                    {
+                        Concept = conceptSubject,
+                        Kind = ConceptRepresentationKind.Primitive,
+                        Primitive = GenerationPrimitiveKind.Text
+                    }
+                }
+            ]
+        };
+        var admission = AdapterContributionAdmission.Admit(descriptor, contribution);
+        Require(admission.IsAdmitted, "CSC0063", "The source-independent granular frontend was not admitted atomically.");
+        var admitted = admission.Snapshot!;
+        var snapshot = new AdapterRunSnapshot
+        {
+            Adapters =
+            [
+                new AdapterRunRecord
+                {
+                    Considered = true,
+                    Probed = true,
+                    Executed = true,
+                    Descriptor = admitted.Descriptor,
+                    Probe = new AdapterProbeApplicable(),
+                    Execution = new AdapterExecutionCompleted { Contribution = admitted },
+                    Disposition = AdapterRunDisposition.Admitted
+                }
+            ],
+            Facts = [.. admitted.Facts.Select(fact => new GenerationFactRecord { Fact = fact })]
+        };
+        var generated = new ScreenplayDefinitionGenerator().Generate(
+            snapshot,
+            new ScreenplayGenerationOptions { Domain = "Catalog" });
+        var binding = (TypeUseBindingFact)generated.AdapterRun!.Derivation!.Facts.Single().Fact;
+        Require(
+            generated.IsSuccess &&
+            generated.Source.Contains("customerCode CustomerCode", StringComparison.Ordinal) &&
+            binding.Definition.Target.Subject == conceptSubject &&
+            generated.AdapterRun.Facts.Concat(generated.AdapterRun.Derivation.Facts)
+                .All(record => record.Disposition != GenerationFactDisposition.Unknown),
+            "CSC0064",
+            "The source-independent granular frontend did not derive, lower, and classify its exact subject binding.");
     }
 
     static void ExerciseAdapterRunnerContracts(
@@ -1559,13 +1785,68 @@ internal static class Program
         }
     }
 
-    sealed class ExternalCustomerAdapter : IDotNetScreenplayAdapter
+    sealed class ExternalCustomerAdapter : IDescribedDotNetScreenplayAdapter, IDotNetScreenplayAdapter
     {
-        public AdapterIdentity Identity { get; } = new() { Id = ExternalAdapterId, Version = "0.7.0" };
+        static readonly AdapterApiCapability _customerEventApi = new()
+        {
+            Id = "external-smoke.customer-registered"
+        };
 
-        public bool CanAnalyze(DotNetAnalysisContext context) =>
-            context.Projects.Any(project =>
-                project.Compilation.GetTypeByMetadataName("Ordering.CustomerRegistered") is not null);
+        public AdapterDescriptor Descriptor { get; } = new()
+        {
+            Identity = new AdapterIdentity { Id = ExternalAdapterId, Version = "0.7.0" },
+            SourceLanguage = AdapterSourceLanguage.CSharp,
+            Category = AdapterCategory.ApplicationFramework,
+            RequiredHostCapabilities =
+            [
+                AdapterHostCapability.AuthoredSource,
+                AdapterHostCapability.StableSourceLocations,
+                AdapterHostCapability.SemanticAnalysis
+            ],
+            RequiredApiCapabilities = [_customerEventApi],
+            EmittedFactCapabilities =
+            [
+                GenerationFactCapability.Artifact,
+                GenerationFactCapability.ArtifactPlacement,
+                GenerationFactCapability.ArtifactMemberDeclaration,
+                GenerationFactCapability.ArtifactMemberTypeUse
+            ]
+        };
+
+        public AdapterIdentity Identity => Descriptor.Identity;
+
+        public bool CanAnalyze(DotNetAnalysisContext context) => Probe(context) is AdapterProbeApplicable;
+
+        public AdapterProbeResult Probe(DotNetAnalysisContext context)
+        {
+            var declaration = context.Projects
+                .Select(project => new
+                {
+                    Project = project,
+                    Type = project.Compilation.GetTypeByMetadataName("Ordering.CustomerRegistered")
+                })
+                .SingleOrDefault(candidate => candidate.Type is not null);
+            if (declaration is null)
+            {
+                return new AdapterProbeNotApplicable();
+            }
+
+            return new AdapterProbeApplicable
+            {
+                Evidence =
+                [
+                    new AdapterProbeEvidence
+                    {
+                        Description = "The authored customer event declaration is available",
+                        ApiCapability = _customerEventApi,
+                        Subject = declaration.Project.SubjectForType(declaration.Type!),
+                        Source = DotNetSource.RangeForProject(
+                            declaration.Type!.DeclaringSyntaxReferences.Single().GetSyntax().GetLocation(),
+                            declaration.Project)
+                    }
+                ]
+            };
+        }
 
         public AdapterContribution Analyze(DotNetAnalysisContext context, DotNetAdapterOptions options)
         {
@@ -1575,10 +1856,14 @@ internal static class Program
             var eventType = project.Compilation.GetTypeByMetadataName("Ordering.CustomerRegistered");
             Require(conceptType is not null, "CSC0017", "The external adapter could not resolve CustomerCode.");
             Require(eventType is not null, "CSC0018", "The external adapter could not resolve CustomerRegistered.");
-            var conceptSubject = project.SubjectForType(conceptType!);
             var eventSubject = project.SubjectForType(eventType!);
             var eventKey = new ArtifactKey { Subject = eventSubject, Kind = ArtifactKind.Event };
-            var evidence = new Evidence { Adapter = Identity, Strength = EvidenceStrength.Exact };
+            var evidence = DotNetSource.EvidenceFor(
+                eventType!,
+                Identity,
+                project,
+                EvidenceStrength.Exact,
+                "The authored customer event declares its exact member type uses");
 
             return new AdapterContribution
             {
@@ -1595,20 +1880,10 @@ internal static class Program
                             Key = eventKey,
                             Name = "CustomerRegistered",
                             File = "Customers/Register/CustomerRegistered.cs",
-                            Properties =
-                            [
-                                new PropertyDefinition
-                                {
-                                    Name = "customerCode",
-                                    Type = new TypeReferenceDefinition
-                                    {
-                                        Name = "UnresolvedCustomerCode",
-                                        Subject = conceptSubject
-                                    }
-                                }
-                            ]
+                            Properties = DotNetTypeShapes.PropertiesOf(eventType!)
                         }
                     },
+                    .. DotNetTypeUseFacts.Emit(eventType!, eventKey, context, evidence),
                     new ArtifactPlacementFact
                     {
                         Id = new FactId { Value = "external-smoke:placement:customer-registered" },
