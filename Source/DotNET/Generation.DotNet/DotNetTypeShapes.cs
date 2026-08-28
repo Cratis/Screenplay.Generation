@@ -27,6 +27,51 @@ public static class DotNetTypeShapes
         CreateTypeReference(type, context.SubjectForType);
 
     /// <summary>
+    /// Gets the exact optionality and collection shape of a Roslyn type use.
+    /// </summary>
+    /// <param name="type">The Roslyn type at the use site.</param>
+    /// <param name="context">The analyzed project context used to resolve the terminal source subject.</param>
+    /// <returns>The exact source-neutral type use from outermost wrapper to terminal named type.</returns>
+    public static TypeUseDefinition TypeUseFor(ITypeSymbol type, DotNetAnalysisContext context)
+    {
+        var shape = new List<TypeUseShapeKind>();
+        var current = type;
+        while (true)
+        {
+            if (current is INamedTypeSymbol nullable &&
+                nullable.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+            {
+                shape.Add(TypeUseShapeKind.Optional);
+                current = nullable.TypeArguments[0];
+                continue;
+            }
+
+            if (current.NullableAnnotation == NullableAnnotation.Annotated)
+            {
+                shape.Add(TypeUseShapeKind.Optional);
+                current = current.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
+                continue;
+            }
+
+            var (elementType, isCollection) = CollectionElementOf(current);
+            if (isCollection)
+            {
+                shape.Add(TypeUseShapeKind.Collection);
+                current = elementType;
+                continue;
+            }
+
+            shape.Add(TypeUseShapeKind.Named);
+            return new TypeUseDefinition
+            {
+                Name = TypeName(current),
+                ObservedTypeSubject = current is INamedTypeSymbol named ? context.SubjectForType(named) : null,
+                Shape = shape
+            };
+        }
+    }
+
+    /// <summary>
     /// Gets the public readable instance properties of a source type in declaration order.
     /// </summary>
     /// <param name="type">The source type.</param>
@@ -41,6 +86,19 @@ public static class DotNetTypeShapes
     /// <returns>The property definitions.</returns>
     public static IReadOnlyList<PropertyDefinition> PropertiesOf(INamedTypeSymbol type, DotNetAnalysisContext context) =>
         PropertiesOf(type, propertyType => TypeReferenceFor(propertyType, context));
+
+    internal static IReadOnlyList<IPropertySymbol> PublicReadablePropertiesOf(INamedTypeSymbol type) =>
+    [
+        .. type.GetMembers()
+            .OfType<IPropertySymbol>()
+            .Where(_ => !_.IsStatic && !_.IsIndexer && _.DeclaredAccessibility == Accessibility.Public && _.GetMethod?.DeclaredAccessibility == Accessibility.Public)
+            .OrderBy(SourceOrder)
+            .ThenBy(_ => _.Name, StringComparer.Ordinal)
+    ];
+
+    internal static string PropertyName(string name) => name.Length == 0
+        ? name
+        : $"{char.ToLowerInvariant(name[0])}{name[1..]}";
 
     static TypeReferenceDefinition CreateTypeReference(
         ITypeSymbol type,
@@ -68,11 +126,7 @@ public static class DotNetTypeShapes
         INamedTypeSymbol type,
         Func<ITypeSymbol, TypeReferenceDefinition> typeReferenceFor) =>
     [
-        .. type.GetMembers()
-            .OfType<IPropertySymbol>()
-            .Where(_ => !_.IsStatic && !_.IsIndexer && _.DeclaredAccessibility == Accessibility.Public && _.GetMethod?.DeclaredAccessibility == Accessibility.Public)
-            .OrderBy(SourceOrder)
-            .ThenBy(_ => _.Name, StringComparer.Ordinal)
+        .. PublicReadablePropertiesOf(type)
             .Select(_ => new PropertyDefinition
             {
                 Name = PropertyName(_.Name),
@@ -118,10 +172,6 @@ public static class DotNetTypeShapes
         .Select(_ => _.SourceSpan.Start)
         .DefaultIfEmpty(int.MaxValue)
         .Min();
-
-    static string PropertyName(string name) => name.Length == 0
-        ? name
-        : $"{char.ToLowerInvariant(name[0])}{name[1..]}";
 }
 
 /// <summary>
