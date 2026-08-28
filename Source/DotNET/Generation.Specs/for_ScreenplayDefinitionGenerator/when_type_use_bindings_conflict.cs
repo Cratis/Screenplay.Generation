@@ -90,12 +90,10 @@ public class when_type_use_bindings_conflict : given.a_generator
 
     [Fact] void should_fail_closed() => _result.IsSuccess.ShouldBeFalse();
     [Fact] void should_report_the_binding_conflict() => _result.Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain(GenerationDiagnosticCodes.ConflictingArtifactMember);
-    [Fact] void should_not_choose_either_target_subject() => Event().Definition.Properties.Single().Type.Subject.ShouldBeNull();
+    [Fact] void should_omit_the_artifact_instead_of_choosing_either_target() => _result.Graph.Artifacts.Any(artifact => artifact.Key.Kind == ArtifactKind.Event).ShouldBeFalse();
     [Fact] void should_conflict_the_direct_binding() => DirectBinding().Disposition.ShouldEqual(GenerationFactDisposition.Conflicted);
     [Fact] void should_conflict_the_derived_binding() => DerivedBinding().Disposition.ShouldEqual(GenerationFactDisposition.Conflicted);
     [Fact] void should_associate_the_same_conflict_with_both_bindings() => DirectBinding().Diagnostics.Select(diagnostic => diagnostic.Code).Concat(DerivedBinding().Diagnostics.Select(diagnostic => diagnostic.Code)).ShouldContainOnly(GenerationDiagnosticCodes.ConflictingArtifactMember, GenerationDiagnosticCodes.ConflictingArtifactMember);
-
-    ResolvedArtifactVariant Event() => _result.Graph.Artifacts.Single(artifact => artifact.Key.Kind == ArtifactKind.Event).Variants.Single();
 
     GenerationFactRecord DirectBinding() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "application:legacy-binding");
 

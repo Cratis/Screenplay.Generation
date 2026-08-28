@@ -111,12 +111,10 @@ public class when_identifier_roles_conflict : given.a_generator
 
     [Fact] void should_fail_closed() => _result.IsSuccess.ShouldBeFalse();
     [Fact] void should_report_the_role_conflict() => _result.Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain(GenerationDiagnosticCodes.ConflictingArtifactMember);
-    [Fact] void should_not_choose_either_role() => Command().Definition.Properties.Single().IsIdentifier.ShouldBeFalse();
+    [Fact] void should_omit_the_command_instead_of_choosing_either_role() => _result.Graph.Artifacts.Any(artifact => artifact.Key.Kind == ArtifactKind.Command).ShouldBeFalse();
     [Fact] void should_conflict_both_role_facts() => Dispositions().ShouldContainOnly(GenerationFactDisposition.Conflicted, GenerationFactDisposition.Conflicted);
     [Fact] void should_not_emit_identifier_semantics() => _result.Source.ShouldNotContain("orderId Uuid identifier");
     [Fact] void should_not_associate_a_quoted_member_name_with_an_unrelated_legacy_fact_id() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "orderId").Disposition.ShouldEqual(GenerationFactDisposition.Lowered);
-
-    ResolvedArtifactVariant Command() => _result.Graph.Artifacts.Single(artifact => artifact.Key.Kind == ArtifactKind.Command).Variants.Single();
 
     GenerationFactDisposition[] Dispositions() =>
     [

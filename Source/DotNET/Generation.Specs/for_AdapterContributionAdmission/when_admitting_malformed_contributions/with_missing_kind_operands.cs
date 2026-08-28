@@ -10,6 +10,22 @@ public class with_missing_kind_operands : given.a_contribution
     void Because()
     {
         var facts = EveryFact();
+        var artifact = (ArtifactFact)facts[0];
+        var firstProperty = artifact.Definition.Properties[0];
+        facts[0] = artifact with
+        {
+            Definition = artifact.Definition with
+            {
+                Properties =
+                [
+                    firstProperty with
+                    {
+                        Type = firstProperty.Type with { Subject = null }
+                    },
+                    .. artifact.Definition.Properties.Skip(1)
+                ]
+            }
+        };
         var representation = (ConceptRepresentationFact)facts[8];
         facts[8] = representation with
         {
@@ -33,5 +49,5 @@ public class with_missing_kind_operands : given.a_contribution
     }
 
     [Fact] void should_reject_the_whole_contribution() => _result.Snapshot.ShouldBeNull();
-    [Fact] void should_report_each_missing_or_invalid_kind_operand() => _result.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.InvalidKindOperand).ShouldEqual(3);
+    [Fact] void should_report_each_missing_or_invalid_kind_operand() => _result.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.InvalidKindOperand).ShouldEqual(4);
 }

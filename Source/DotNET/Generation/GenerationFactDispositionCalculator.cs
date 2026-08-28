@@ -258,7 +258,14 @@ internal static class GenerationFactDispositionCalculator
 
         var lowered = appliedVariants.Any(variant =>
             coverage.Lowered.Contains(GenerationFactSemanticKey.Artifact(variant.Definition)));
-        var disposition = fact is TypeUseBindingFact or ArtifactMemberRoleFact && lowered
+        var contributesSyntax = fact switch
+        {
+            TypeUseBindingFact => lowered,
+            ArtifactMemberRoleFact role =>
+                lowered && role.Definition.Role == ArtifactMemberRoleKind.EventSourceIdentifier,
+            _ => false
+        };
+        var disposition = contributesSyntax
             ? GenerationFactDisposition.Lowered
             : GenerationFactDisposition.ProvenanceOnly;
         return new GenerationFactRecord
@@ -383,7 +390,8 @@ internal static class GenerationFactDispositionCalculator
         string.Equals(code, GenerationDiagnosticCodes.UnsupportedTypeUseShape, StringComparison.Ordinal) ||
         string.Equals(code, GenerationDiagnosticCodes.ConflictingArtifactMember, StringComparison.Ordinal) ||
         string.Equals(code, GenerationDiagnosticCodes.IncompleteArtifactMember, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.InvalidGranularFactOwnership, StringComparison.Ordinal);
+        string.Equals(code, GenerationDiagnosticCodes.InvalidGranularFactOwnership, StringComparison.Ordinal) ||
+        string.Equals(code, GenerationDiagnosticCodes.MissingTypeUseBindingTarget, StringComparison.Ordinal);
 
     static bool HasSupportedDiscriminators(GenerationFact fact)
     {

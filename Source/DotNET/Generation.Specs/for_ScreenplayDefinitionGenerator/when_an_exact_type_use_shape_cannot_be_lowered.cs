@@ -14,15 +14,28 @@ public class when_an_exact_type_use_shape_cannot_be_lowered : given.a_generator
         var evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact };
         var facts = new GenerationFact[]
         {
-            new ArtifactDeclarationFact
+            new ArtifactFact
             {
-                Id = new FactId { Value = "critter-stack:declaration" },
+                Id = new FactId { Value = "critter-stack:legacy-artifact" },
                 Subject = subject,
                 Evidence = evidence,
-                Definition = new ArtifactDeclarationDefinition
+                Definition = new ArtifactDefinition
                 {
-                    Artifact = artifact,
-                    Name = "CustomerRegistered"
+                    Key = artifact,
+                    Name = "CustomerRegistered",
+                    Properties =
+                    [
+                        new PropertyDefinition
+                        {
+                            Name = "codes",
+                            Type = new TypeReferenceDefinition
+                            {
+                                Name = "String",
+                                IsCollection = true,
+                                IsOptional = true
+                            }
+                        }
+                    ]
                 }
             },
             new ArtifactMemberDeclarationFact
@@ -79,9 +92,11 @@ public class when_an_exact_type_use_shape_cannot_be_lowered : given.a_generator
     [Fact] void should_fail_closed() => _result.IsSuccess.ShouldBeFalse();
     [Fact] void should_report_the_exact_shape_as_unsupported() => _result.Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain(GenerationDiagnosticCodes.UnsupportedTypeUseShape);
     [Fact] void should_omit_the_incomplete_granular_only_artifact_atomically() => _result.Graph.Artifacts.Any(artifact => artifact.Key.Kind == ArtifactKind.Event).ShouldBeFalse();
+    [Fact] void should_not_emit_the_flattened_legacy_artifact() => _result.Source.ShouldNotContain("event CustomerRegistered");
     [Fact] void should_not_emit_the_unsupported_member() => _result.Source.ShouldNotContain("codes String");
     [Fact] void should_omit_the_type_use_with_its_diagnostic() => TypeUseRecord().Disposition.ShouldEqual(GenerationFactDisposition.OmittedWithDiagnostic);
     [Fact] void should_associate_the_shape_diagnostic_with_the_type_use() => TypeUseRecord().Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain(GenerationDiagnosticCodes.UnsupportedTypeUseShape);
+    [Fact] void should_omit_the_complete_legacy_fact_as_diagnosed_provenance() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "critter-stack:legacy-artifact").Disposition.ShouldEqual(GenerationFactDisposition.OmittedWithDiagnostic);
 
     GenerationFactRecord TypeUseRecord() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "critter-stack:type-use");
 }

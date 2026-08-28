@@ -8,6 +8,7 @@ static class GenerationFactDiscriminatorValidator
     public static GenerationFactDiscriminatorValidationResult Validate(IEnumerable<GenerationFact> facts)
     {
         var validFacts = new List<GenerationFact>();
+        var rejectedFacts = new List<GenerationFact>();
         var diagnostics = new List<GenerationDiagnostic>();
 
         foreach (var fact in facts)
@@ -19,6 +20,10 @@ static class GenerationFactDiscriminatorValidator
             {
                 case ArtifactFact artifact:
                     ValidateArtifactKind(fact, artifact.Definition.Key.Kind, diagnostics);
+                    foreach (var property in artifact.Definition.Properties)
+                    {
+                        ValidateTypeReference(fact, property.Type, diagnostics);
+                    }
                     break;
                 case ArtifactPlacementFact placement:
                     ValidateArtifactKind(fact, placement.Artifact.Kind, diagnostics);
@@ -71,6 +76,10 @@ static class GenerationFactDiscriminatorValidator
                     break;
                 case SpecificationValueFact value:
                     ValidateSpecificationValueKind(fact, value.Definition.Kind, diagnostics);
+                    if (value.Definition.Type is not null)
+                    {
+                        ValidateTypeReference(fact, value.Definition.Type, diagnostics);
+                    }
                     break;
             }
 
@@ -78,9 +87,13 @@ static class GenerationFactDiscriminatorValidator
             {
                 validFacts.Add(fact);
             }
+            else
+            {
+                rejectedFacts.Add(fact);
+            }
         }
 
-        return new([.. validFacts], [.. diagnostics]);
+        return new([.. validFacts], [.. rejectedFacts], [.. diagnostics]);
     }
 
     static void ValidateArtifactKind(GenerationFact fact, ArtifactKind kind, List<GenerationDiagnostic> diagnostics)
@@ -93,6 +106,17 @@ static class GenerationFactDiscriminatorValidator
                 nameof(ArtifactKind),
                 (int)kind,
                 kind == ArtifactKind.Unknown));
+        }
+    }
+
+    static void ValidateTypeReference(
+        GenerationFact fact,
+        TypeReferenceDefinition type,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        if (type.TargetArtifactKind is { } targetArtifactKind)
+        {
+            ValidateArtifactKind(fact, targetArtifactKind, diagnostics);
         }
     }
 
@@ -114,7 +138,8 @@ static class GenerationFactDiscriminatorValidator
         IEnumerable<TypeUseShapeKind> shape,
         List<GenerationDiagnostic> diagnostics)
     {
-        foreach (var kind in shape)
+        var nodes = shape.ToArray();
+        foreach (var kind in nodes)
         {
             if (kind == TypeUseShapeKind.Unknown || !Enum.IsDefined(kind))
             {
@@ -126,7 +151,31 @@ static class GenerationFactDiscriminatorValidator
                     kind == TypeUseShapeKind.Unknown));
             }
         }
+
+        var nodesAreDefined = nodes.All(kind =>
+            kind != TypeUseShapeKind.Unknown && Enum.IsDefined(kind));
+        var hasExactNamedTerminal = nodes.Length > 0 &&
+                                    nodes[^1] == TypeUseShapeKind.Named &&
+                                    nodes[..^1].All(kind => kind != TypeUseShapeKind.Named);
+        if (nodesAreDefined && !hasExactNamedTerminal)
+        {
+            diagnostics.Add(new GenerationDiagnostic
+            {
+                Code = GenerationDiagnosticCodes.UnsupportedTypeUseShape,
+                Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = nodes.Length == 0
+                    ? GenerationDiagnosticOutcome.Unknown
+                    : GenerationDiagnosticOutcome.Unsupported,
+                Message = $"Fact '{fact.Id.Value}' uses malformed exact type-use shape '{Shape(nodes)}'; the affected fact was omitted",
+                Source = fact.Evidence.Source,
+                Subject = fact.Subject
+            });
+        }
     }
+
+    static string Shape(TypeUseShapeKind[] shape) => shape.Length == 0
+        ? "<empty>"
+        : string.Join(" -> ", shape);
 
     static void ValidateArtifactMemberRole(
         GenerationFact fact,
@@ -295,4 +344,5 @@ static class GenerationFactDiscriminatorValidator
 
 sealed record GenerationFactDiscriminatorValidationResult(
     GenerationFact[] Facts,
+    GenerationFact[] RejectedFacts,
     GenerationDiagnostic[] Diagnostics);

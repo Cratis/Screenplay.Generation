@@ -17,6 +17,7 @@ static class Canonical
                 _.Name,
                 _.Type.Name,
                 _.Type.Subject?.Value,
+                Invariant(_.Type.TargetArtifactKind is null ? null : (int)_.Type.TargetArtifactKind.Value),
                 _.Type.IsCollection.ToString(),
                 _.Type.IsOptional.ToString(),
                 _.IsIdentifier.ToString())));
@@ -153,6 +154,7 @@ static class Canonical
         : Structural(
             type.Name,
             type.Subject?.Value,
+            Invariant(type.TargetArtifactKind is null ? null : (int)type.TargetArtifactKind.Value),
             type.IsCollection.ToString(),
             type.IsOptional.ToString());
 

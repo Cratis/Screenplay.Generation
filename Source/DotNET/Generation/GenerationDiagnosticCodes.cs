@@ -267,4 +267,9 @@ public static class GenerationDiagnosticCodes
     /// A granular fact's asserted subject does not equal its nested artifact owner.
     /// </summary>
     public const string InvalidGranularFactOwnership = "GEN0054";
+
+    /// <summary>
+    /// A type-use binding targets an artifact role that was not declared for the exact subject.
+    /// </summary>
+    public const string MissingTypeUseBindingTarget = "GEN0055";
 }

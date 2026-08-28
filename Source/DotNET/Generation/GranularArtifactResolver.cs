@@ -7,22 +7,38 @@ static class GranularArtifactResolver
 {
     public static ArtifactFact[] Resolve(
         IReadOnlyList<GenerationFact> facts,
+        IReadOnlyList<GenerationFact> rejectedFacts,
         List<GenerationDiagnostic> diagnostics)
     {
+        var blockedArtifacts = rejectedFacts
+            .Select(fact => new { Fact = fact, Member = MemberFor(fact) })
+            .Where(item => item.Member is not null && item.Fact.Subject == item.Member.Artifact.Subject)
+            .Select(item => item.Member!.Artifact)
+            .ToHashSet();
         var legacy = facts.OfType<ArtifactFact>().ToArray();
         var granular = ValidGranularFacts(facts.Where(IsGranularArtifactFact), diagnostics);
         if (granular.Length == 0)
         {
-            return legacy;
+            return [.. legacy.Where(fact => !blockedArtifacts.Contains(fact.Definition.Key))];
         }
 
-        var variants = DeclarationVariants(legacy, granular.OfType<ArtifactDeclarationFact>());
+        var granularDeclarations = granular.OfType<ArtifactDeclarationFact>().ToArray();
+        var declaredArtifacts = legacy.Select(fact => fact.Definition.Key)
+            .Concat(granularDeclarations.Select(fact => fact.Definition.Artifact))
+            .Distinct()
+            .ToHashSet();
+        var variants = DeclarationVariants(legacy, granularDeclarations);
         var effective = new List<ArtifactFact>();
         foreach (var variant in variants
                      .OrderBy(candidate => Structural.ArtifactKey(candidate.Definition.Key), StringComparer.Ordinal)
                      .ThenBy(candidate => Structural.Artifact(candidate.Definition), StringComparer.Ordinal))
         {
-            var overlaid = ApplyMembers(variant, granular, diagnostics);
+            if (blockedArtifacts.Contains(variant.Definition.Key))
+            {
+                continue;
+            }
+
+            var overlaid = ApplyMembers(variant, granular, declaredArtifacts, diagnostics);
             if (overlaid is not null)
             {
                 foreach (var support in CanonicalFacts(overlaid.Supports))
@@ -93,6 +109,7 @@ static class GranularArtifactResolver
     static ArtifactVariant? ApplyMembers(
         ArtifactVariant variant,
         IReadOnlyList<GenerationFact> granular,
+        HashSet<ArtifactKey> declaredArtifacts,
         List<GenerationDiagnostic> diagnostics)
     {
         var key = variant.Definition.Key;
@@ -199,7 +216,11 @@ static class GranularArtifactResolver
                     continue;
                 }
 
-                type = granularType with { Subject = type?.Subject };
+                type = granularType with
+                {
+                    Subject = type?.Subject,
+                    TargetArtifactKind = type?.TargetArtifactKind
+                };
             }
 
             if (type is null)
@@ -251,8 +272,22 @@ static class GranularArtifactResolver
             if (bindingVariants.Length == 1)
             {
                 var binding = bindingVariants[0].OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
+                if (!declaredArtifacts.Contains(binding.Definition.Target))
+                {
+                    AddDiagnostic(
+                        diagnostics,
+                        GenerationDiagnosticCodes.MissingTypeUseBindingTarget,
+                        GenerationDiagnosticOutcome.Unknown,
+                        key.Subject,
+                        bindingVariants[0],
+                        $"Artifact member '{memberName}' binds undeclared target role '{binding.Definition.Target.Kind}' for subject '{binding.Definition.Target.Subject.Value}'");
+                    failed = true;
+                    continue;
+                }
+
                 var target = binding.Definition.Target.Subject;
                 if ((type.Subject is not null && type.Subject != target) ||
+                    (type.TargetArtifactKind is not null && type.TargetArtifactKind != binding.Definition.Target.Kind) ||
                     (typeUse?.Definition.Type.ObservedTypeSubject is not null && typeUse.Definition.Type.ObservedTypeSubject != target))
                 {
                     AddDiagnostic(
@@ -266,7 +301,11 @@ static class GranularArtifactResolver
                     continue;
                 }
 
-                type = type with { Subject = target };
+                type = type with
+                {
+                    Subject = target,
+                    TargetArtifactKind = binding.Definition.Target.Kind
+                };
             }
 
             var roleFacts = currentFacts.OfType<ArtifactMemberRoleFact>().ToArray();
@@ -284,7 +323,8 @@ static class GranularArtifactResolver
                 continue;
             }
 
-            var isIdentifier = existing?.Property.IsIdentifier == true || roleVariants.Length == 1;
+            var isIdentifier = existing?.Property.IsIdentifier == true ||
+                               roleVariants.SingleOrDefault() == ArtifactMemberRoleKind.EventSourceIdentifier;
             properties[memberName] = new OrderedProperty(
                 orders[0],
                 new PropertyDefinition
@@ -320,9 +360,7 @@ static class GranularArtifactResolver
 
         if (failed)
         {
-            return variant.Supports.Exists(fact => fact is ArtifactFact)
-                ? variant
-                : null;
+            return null;
         }
 
         return new ArtifactVariant(
@@ -465,7 +503,9 @@ static class GranularArtifactResolver
         });
     }
 
-    static string Shape(TypeUseDefinition type) => string.Join('(', type.Shape) + new string(')', type.Shape.Count - 1);
+    static string Shape(TypeUseDefinition type) => type.Shape.Count == 0
+        ? "<empty>"
+        : string.Join(" -> ", type.Shape);
 
     sealed record OrderedProperty(int Order, PropertyDefinition Property);
 

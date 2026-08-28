@@ -229,6 +229,7 @@ static class Structural
         Node(
             type.Name,
             type.Subject?.Value,
+            NullableInteger(type.TargetArtifactKind is null ? null : (int)type.TargetArtifactKind.Value),
             Boolean(type.IsCollection),
             Boolean(type.IsOptional));
 

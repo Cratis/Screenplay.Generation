@@ -379,6 +379,7 @@ static class AdapterContributionFreezer
         {
             Name = type.Name ?? string.Empty,
             Subject = type.Subject is null ? null : FreezeSubject(type.Subject, $"{path}.Subject", context),
+            TargetArtifactKind = type.TargetArtifactKind,
             IsCollection = type.IsCollection,
             IsOptional = type.IsOptional
         };

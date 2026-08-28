@@ -10,7 +10,12 @@ public class when_mutating_admitted_input : given.a_contribution
         new PropertyDefinition
         {
             Name = "second",
-            Type = new TypeReferenceDefinition { Name = "External", Subject = ExternalSubject }
+            Type = new TypeReferenceDefinition
+            {
+                Name = "External",
+                Subject = ExternalSubject,
+                TargetArtifactKind = ArtifactKind.Concept
+            }
         },
         new PropertyDefinition
         {

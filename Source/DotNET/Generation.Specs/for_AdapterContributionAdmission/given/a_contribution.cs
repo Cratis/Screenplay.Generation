@@ -79,7 +79,12 @@ public class a_contribution : Specification
                         new PropertyDefinition
                         {
                             Name = "second",
-                            Type = new TypeReferenceDefinition { Name = "External", Subject = ExternalSubject }
+                            Type = new TypeReferenceDefinition
+                            {
+                                Name = "External",
+                                Subject = ExternalSubject,
+                                TargetArtifactKind = ArtifactKind.Concept
+                            }
                         },
                         new PropertyDefinition
                         {

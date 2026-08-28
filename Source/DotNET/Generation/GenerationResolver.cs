@@ -36,7 +36,10 @@ public sealed class GenerationResolver
 
         diagnostics.AddRange(ConflictingFactIdentityDiagnostics(facts));
 
-        var effectiveArtifactFacts = GranularArtifactResolver.Resolve(facts, diagnostics);
+        var effectiveArtifactFacts = GranularArtifactResolver.Resolve(
+            facts,
+            discriminatorValidation.RejectedFacts,
+            diagnostics);
         var artifacts = ResolveArtifacts(effectiveArtifactFacts, diagnostics);
         var conceptRepresentationFacts = facts.OfType<ConceptRepresentationFact>().ToArray();
         diagnostics.AddRange(InvalidConceptFactDiagnostics(conceptRepresentationFacts));

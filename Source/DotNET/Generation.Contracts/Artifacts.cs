@@ -188,6 +188,11 @@ public sealed record TypeReferenceDefinition
     public SubjectId? Subject { get; init; }
 
     /// <summary>
+    /// Gets the exact artifact role of <see cref="Subject"/> when a granular binding established one.
+    /// </summary>
+    public ArtifactKind? TargetArtifactKind { get; init; }
+
+    /// <summary>
     /// Gets whether the value is a collection.
     /// </summary>
     public bool IsCollection { get; init; }

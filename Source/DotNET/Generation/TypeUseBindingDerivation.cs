@@ -126,8 +126,34 @@ static class TypeUseBindingDerivation
             return;
         }
 
+        var legacyTargets = ownerDeclarations
+            .SelectMany(declaration => declaration.Fact is ArtifactFact artifact
+                ? artifact.Definition.Properties
+                    .Where(property => property.Name == member.Name &&
+                                       property.Type.Subject == observedType &&
+                                       property.Type.TargetArtifactKind is not null)
+                    .Select(property => new ArtifactKey
+                    {
+                        Subject = observedType,
+                        Kind = property.Type.TargetArtifactKind!.Value
+                    })
+                : [])
+            .Distinct()
+            .ToArray();
+        if (legacyTargets.Length > 1)
+        {
+            diagnostics.Add(Diagnostic(
+                GenerationDiagnosticCodes.ConflictingTypeUseTarget,
+                GenerationDiagnosticOutcome.Conflict,
+                member,
+                ownerDeclarations.Select(declaration => declaration.Fact).Concat(typeUses),
+                $"Artifact member '{member.Name}' retains incompatible exact legacy target roles"));
+            return;
+        }
+
         var targetDeclarations = declarations
-            .Where(declaration => declaration.Key.Subject == observedType)
+            .Where(declaration => declaration.Key.Subject == observedType &&
+                                  (legacyTargets.Length == 0 || declaration.Key == legacyTargets[0]))
             .ToArray();
         if (targetDeclarations.Length == 0)
         {

@@ -356,6 +356,7 @@ static class AdapterRunCanonicalizer
     {
         Name = type.Name,
         Subject = type.Subject is null ? null : Subject(type.Subject),
+        TargetArtifactKind = type.TargetArtifactKind,
         IsCollection = type.IsCollection,
         IsOptional = type.IsOptional
     };
