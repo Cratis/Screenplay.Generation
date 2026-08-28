@@ -1404,6 +1404,9 @@ internal static class Program
             generated.IsSuccess &&
             generated.Source.Contains("customerCode CustomerCode", StringComparison.Ordinal) &&
             binding.Definition.Target.Subject == conceptSubject &&
+            generated.Graph.Artifacts
+                .Single(resolved => resolved.Key == artifact)
+                .Variants.Single().Definition.Properties.Single().Type.TargetArtifactKind == ArtifactKind.Concept &&
             generated.AdapterRun.Facts.Concat(generated.AdapterRun.Derivation.Facts)
                 .All(record => record.Disposition != GenerationFactDisposition.Unknown),
             "CSC0064",
