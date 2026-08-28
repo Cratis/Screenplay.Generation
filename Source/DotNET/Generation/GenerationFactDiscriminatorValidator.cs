@@ -24,6 +24,24 @@ static class GenerationFactDiscriminatorValidator
                     ValidateArtifactKind(fact, placement.Artifact.Kind, diagnostics);
                     ValidateSliceKind(fact, placement.Placement.SliceKind, diagnostics);
                     break;
+                case ArtifactDeclarationFact declaration:
+                    ValidateArtifactKind(fact, declaration.Definition.Artifact.Kind, diagnostics);
+                    break;
+                case ArtifactMemberDeclarationFact member:
+                    ValidateArtifactKind(fact, member.Definition.Member.Artifact.Kind, diagnostics);
+                    break;
+                case ArtifactMemberTypeUseFact typeUse:
+                    ValidateArtifactKind(fact, typeUse.Definition.Member.Artifact.Kind, diagnostics);
+                    ValidateTypeUseShape(fact, typeUse.Definition.Type.Shape, diagnostics);
+                    break;
+                case TypeUseBindingFact binding:
+                    ValidateArtifactKind(fact, binding.Definition.Member.Artifact.Kind, diagnostics);
+                    ValidateArtifactKind(fact, binding.Definition.Target.Kind, diagnostics);
+                    break;
+                case ArtifactMemberRoleFact role:
+                    ValidateArtifactKind(fact, role.Definition.Member.Artifact.Kind, diagnostics);
+                    ValidateArtifactMemberRole(fact, role.Definition.Role, diagnostics);
+                    break;
                 case RelationshipFact relationship:
                     ValidateRelationshipKind(fact, relationship.Definition.Key.Kind, diagnostics);
                     break;
@@ -88,6 +106,41 @@ static class GenerationFactDiscriminatorValidator
                 nameof(GenerationSliceKind),
                 (int)kind,
                 kind == GenerationSliceKind.Unknown));
+        }
+    }
+
+    static void ValidateTypeUseShape(
+        GenerationFact fact,
+        IEnumerable<TypeUseShapeKind> shape,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        foreach (var kind in shape)
+        {
+            if (kind == TypeUseShapeKind.Unknown || !Enum.IsDefined(kind))
+            {
+                diagnostics.Add(Unsupported(
+                    fact,
+                    GenerationDiagnosticCodes.UnsupportedTypeUseShapeKind,
+                    nameof(TypeUseShapeKind),
+                    (int)kind,
+                    kind == TypeUseShapeKind.Unknown));
+            }
+        }
+    }
+
+    static void ValidateArtifactMemberRole(
+        GenerationFact fact,
+        ArtifactMemberRoleKind role,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        if (role == ArtifactMemberRoleKind.Unknown || !Enum.IsDefined(role))
+        {
+            diagnostics.Add(Unsupported(
+                fact,
+                GenerationDiagnosticCodes.UnsupportedArtifactMemberRoleKind,
+                nameof(ArtifactMemberRoleKind),
+                (int)role,
+                role == ArtifactMemberRoleKind.Unknown));
         }
     }
 

@@ -86,7 +86,16 @@ public sealed class ScreenplayDefinitionGenerator(
         IEnumerable<AdapterContribution> contributions,
         ScreenplayGenerationOptions options)
     {
-        var graph = resolver.Resolve(contributions);
+        var input = contributions.ToArray();
+        var baseFacts = input.SelectMany(contribution => contribution.Facts).ToArray();
+        var derivation = GenerationFactDerivation.Derive(new AdapterRunSnapshot
+        {
+            Facts = [.. baseFacts.Select(fact => new GenerationFactRecord { Fact = fact })]
+        });
+        var graph = resolver.ResolveFacts(
+            baseFacts.Concat(derivation.Facts.Select(record => record.Fact)),
+            input.SelectMany(contribution => contribution.Diagnostics)
+                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)));
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -102,11 +111,10 @@ public sealed class ScreenplayDefinitionGenerator(
             });
         }
 
-        var diagnostics = graph.Diagnostics
-            .Concat(lowering.Diagnostics)
-            .Concat(verificationDiagnostics)
-            .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
-            .ToArray();
+        var diagnostics = CanonicalDiagnostics(
+            graph.Diagnostics
+                .Concat(lowering.Diagnostics)
+                .Concat(verificationDiagnostics));
 
         return new()
         {
@@ -150,13 +158,12 @@ public sealed class ScreenplayDefinitionGenerator(
         {
             Facts = [.. facts.Select(fact => new GenerationFactRecord { Fact = fact })]
         });
-        var contributions = completed.Select(contribution => new AdapterContribution
-        {
-            Adapter = contribution.Descriptor.Identity,
-            Facts = contribution.Facts,
-            Diagnostics = contribution.Diagnostics
-        });
-        var graph = resolver.Resolve(contributions);
+        var derivedFacts = derivation.Facts.Select(record => record.Fact).ToArray();
+        var effectiveFacts = facts.Concat(derivedFacts).ToArray();
+        var graph = resolver.ResolveFacts(
+            effectiveFacts,
+            completed.SelectMany(contribution => contribution.Diagnostics)
+                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)));
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -173,24 +180,32 @@ public sealed class ScreenplayDefinitionGenerator(
         }
 
         var pipelineDiagnostics = graph.Diagnostics
-            .Concat(derivation.Diagnostics)
             .Concat(lowering.Diagnostics)
             .Concat(verificationDiagnostics)
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .ToArray();
+        var inputRecords = facts
+            .Select(fact => new GenerationFactRecord { Fact = fact })
+            .Concat(derivation.Facts)
+            .ToArray();
         var factRecords = GenerationFactDispositionCalculator.Calculate(
-            facts,
+            inputRecords,
             graph,
             lowering.Coverage,
             pipelineDiagnostics);
-        var canonicalFactRecords = AdapterRunCanonicalizer.FactRecords(factRecords);
+        var canonicalFactRecords = AdapterRunCanonicalizer.FactRecords(
+            factRecords.Where(record => record.Lineage is null));
+        var canonicalDerivation = AdapterRunCanonicalizer.Derivation(derivation with
+        {
+            Facts = [.. factRecords.Where(record => record.Lineage is not null)]
+        });
         var runnerDiagnostics = RunnerDiagnostics(snapshot.Diagnostics, canonicalAdapters);
         var dispositionDiagnostics = canonicalFactRecords.SelectMany(record => record.Diagnostics).ToArray();
         var adapterRun = new AdapterRunSnapshot
         {
             Adapters = canonicalAdapters,
             Facts = canonicalFactRecords,
-            Derivation = derivation,
+            Derivation = canonicalDerivation,
             Diagnostics = CanonicalDiagnostics(runnerDiagnostics.Concat(dispositionDiagnostics))
         };
         var diagnostics = CanonicalDiagnostics(

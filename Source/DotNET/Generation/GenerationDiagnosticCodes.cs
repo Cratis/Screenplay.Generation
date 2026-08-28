@@ -247,4 +247,24 @@ public static class GenerationDiagnosticCodes
     /// Incompatible declarations or roles were asserted for one artifact member.
     /// </summary>
     public const string ConflictingArtifactMember = "GEN0050";
+
+    /// <summary>
+    /// An artifact member lacks the declaration or exact type use required for safe lowering.
+    /// </summary>
+    public const string IncompleteArtifactMember = "GEN0051";
+
+    /// <summary>
+    /// A member type use contains an unknown or undefined shape node.
+    /// </summary>
+    public const string UnsupportedTypeUseShapeKind = "GEN0052";
+
+    /// <summary>
+    /// A member role fact contains an unknown or undefined role.
+    /// </summary>
+    public const string UnsupportedArtifactMemberRoleKind = "GEN0053";
+
+    /// <summary>
+    /// A granular fact's asserted subject does not equal its nested artifact owner.
+    /// </summary>
+    public const string InvalidGranularFactOwnership = "GEN0054";
 }

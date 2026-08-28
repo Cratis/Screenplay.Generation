@@ -14,6 +14,11 @@ public sealed record ResolvedArtifactVariant
     public required ArtifactDefinition Definition { get; init; }
 
     /// <summary>
+    /// Gets the canonical fact identities supporting the effective definition.
+    /// </summary>
+    public IReadOnlyList<FactId> SupportingFacts { get; init; } = [];
+
+    /// <summary>
     /// Gets the ordered evidence supporting the definition.
     /// </summary>
     public IReadOnlyList<Evidence> Evidence { get; init; } = [];

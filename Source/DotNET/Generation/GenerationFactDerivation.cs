@@ -17,13 +17,25 @@ public static class GenerationFactDerivation
     /// <returns>An immutable derivation snapshot whose rules consumed only the fixed base fact array.</returns>
     public static GenerationDerivationSnapshot Derive(AdapterRunSnapshot snapshot)
     {
-        var baseFacts = AdapterRunCanonicalizer.FactRecords(snapshot.Facts)
+        var canonicalInput = AdapterRunCanonicalizer.FactRecords(snapshot.Facts);
+        var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(
+            canonicalInput.Select(record => record.Fact));
+        var validationDiagnostics = discriminatorValidation.Diagnostics.ToList();
+        var validFacts = GranularArtifactResolver.ValidFactsForDerivation(
+            discriminatorValidation.Facts,
+            validationDiagnostics);
+        var baseFacts = validFacts
+            .Select(fact => new GenerationFactRecord { Fact = fact })
             .OrderBy(record => record.Fact.Id.Value, StringComparer.Ordinal)
             .ThenBy(record => record.Fact.Subject.Value, StringComparer.Ordinal)
             .ThenBy(record => Structural.FactFamily(record.Fact))
             .ThenBy(record => Structural.FactDefinition(record.Fact), StringComparer.Ordinal)
             .ToImmutableArray();
         var typeUseBindings = TypeUseBindingDerivation.Derive(baseFacts);
+        var diagnostics = validationDiagnostics
+            .Concat(typeUseBindings.Diagnostics)
+            .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
+            .ToImmutableArray();
         var derivation = new GenerationDerivationSnapshot
         {
             Rules =
@@ -37,7 +49,7 @@ public static class GenerationFactDerivation
                 }
             ],
             Facts = typeUseBindings.Facts,
-            Diagnostics = typeUseBindings.Diagnostics
+            Diagnostics = diagnostics
         };
 
         return AdapterRunCanonicalizer.Derivation(derivation);
