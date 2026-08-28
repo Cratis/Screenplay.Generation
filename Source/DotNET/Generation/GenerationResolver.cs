@@ -20,14 +20,27 @@ public sealed class GenerationResolver
             .ThenBy(_ => _.Adapter.Version, StringComparer.Ordinal)
             .ToArray();
         var contributedFacts = orderedContributions.SelectMany(_ => _.Facts).ToArray();
-        var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics).ToList();
+        var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics);
+
+        return ResolveFacts(contributedFacts, diagnostics);
+    }
+
+    internal ResolvedApplicationGraph ResolveFacts(
+        IEnumerable<GenerationFact> contributedFacts,
+        IEnumerable<GenerationDiagnostic> contributedDiagnostics)
+    {
+        var diagnostics = contributedDiagnostics.ToList();
         var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(contributedFacts);
         var facts = discriminatorValidation.Facts;
         diagnostics.AddRange(discriminatorValidation.Diagnostics);
 
         diagnostics.AddRange(ConflictingFactIdentityDiagnostics(facts));
 
-        var artifacts = ResolveArtifacts(facts.OfType<ArtifactFact>(), diagnostics);
+        var effectiveArtifactFacts = GranularArtifactResolver.Resolve(
+            facts,
+            discriminatorValidation.RejectedFacts,
+            diagnostics);
+        var artifacts = ResolveArtifacts(effectiveArtifactFacts, diagnostics);
         var conceptRepresentationFacts = facts.OfType<ConceptRepresentationFact>().ToArray();
         diagnostics.AddRange(InvalidConceptFactDiagnostics(conceptRepresentationFacts));
         var conceptRepresentations = ResolveConceptRepresentations(
@@ -89,6 +102,12 @@ public sealed class GenerationResolver
                     .Select(_ => new ResolvedArtifactVariant
                     {
                         Definition = _.First().Definition,
+                        SupportingFacts =
+                        [
+                            .. _.Select(fact => fact.Id)
+                                .Distinct()
+                                .OrderBy(id => id.Value, StringComparer.Ordinal)
+                        ],
                         Evidence = OrderedEvidence(_.Select(fact => fact.Evidence))
                     })
                     .ToArray();

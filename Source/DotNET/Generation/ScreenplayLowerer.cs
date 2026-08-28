@@ -929,7 +929,9 @@ public sealed class ScreenplayLowerer
             _artifacts.FirstOrDefault(_ => _.Key.Subject == subject && _.Key.Kind == kind)?.Name;
 
         public string TypeName(TypeReferenceDefinition type) =>
-            type.Subject is not null && conceptNames.TryGetValue(type.Subject.Value, out var conceptName)
+            type.Subject is not null &&
+            type.TargetArtifactKind is null or ArtifactKind.Concept &&
+            conceptNames.TryGetValue(type.Subject.Value, out var conceptName)
                 ? conceptName
                 : type.Name;
 

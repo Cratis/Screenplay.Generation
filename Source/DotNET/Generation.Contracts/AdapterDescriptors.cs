@@ -161,7 +161,32 @@ public enum GenerationFactCapability
     /// <summary>
     /// <see cref="SpecificationValueFact"/> facts.
     /// </summary>
-    SpecificationValue = 8
+    SpecificationValue = 8,
+
+    /// <summary>
+    /// <see cref="ArtifactDeclarationFact"/> facts.
+    /// </summary>
+    ArtifactDeclaration = 9,
+
+    /// <summary>
+    /// <see cref="ArtifactMemberDeclarationFact"/> facts.
+    /// </summary>
+    ArtifactMemberDeclaration = 10,
+
+    /// <summary>
+    /// <see cref="ArtifactMemberTypeUseFact"/> facts.
+    /// </summary>
+    ArtifactMemberTypeUse = 11,
+
+    /// <summary>
+    /// <see cref="TypeUseBindingFact"/> facts.
+    /// </summary>
+    TypeUseBinding = 12,
+
+    /// <summary>
+    /// <see cref="ArtifactMemberRoleFact"/> facts.
+    /// </summary>
+    ArtifactMemberRole = 13
 }
 
 /// <summary>

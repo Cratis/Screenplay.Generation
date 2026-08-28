@@ -18,6 +18,21 @@ static class AdapterFactAdmissionValidator
             case ArtifactPlacementFact placement:
                 ArtifactFactAdmissionValidator.Validate(placement, path, context);
                 break;
+            case ArtifactDeclarationFact declaration:
+                GranularFactAdmissionValidator.Validate(declaration, path, context);
+                break;
+            case ArtifactMemberDeclarationFact member:
+                GranularFactAdmissionValidator.Validate(member, path, context);
+                break;
+            case ArtifactMemberTypeUseFact typeUse:
+                GranularFactAdmissionValidator.Validate(typeUse, path, context);
+                break;
+            case TypeUseBindingFact binding:
+                GranularFactAdmissionValidator.Validate(binding, path, context);
+                break;
+            case ArtifactMemberRoleFact role:
+                GranularFactAdmissionValidator.Validate(role, path, context);
+                break;
             case RelationshipFact relationship:
                 RelationshipFactAdmissionValidator.Validate(relationship, path, context);
                 break;

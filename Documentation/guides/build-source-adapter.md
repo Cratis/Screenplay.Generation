@@ -39,10 +39,10 @@ Keep runtime packages for the framework you analyze out of the adapter whenever 
 Reference one version across all directly referenced Screenplay Generation packages.
 
 :::note
-`v0.15.0` is the current public release and package-validation baseline. Exact method signatures, complete bounded source-value extraction, and authoritative invocation and assignment enumeration are included in that lockstep package set. The described-adapter execution boundary is additive on `main`.
+`v0.16.0` is the current public release and package-validation baseline. Described adapters, atomic admission, deterministic runner snapshots, and final fact dispositions are included in that lockstep package set. Granular type-use derivation is additive on `main`.
 :::
 
-| Capability | Released `0.15.0` | Current `main` |
+| Capability | Released `0.16.0` | Current `main` |
 | --- | ---: | ---: |
 | Adapter, context, neutral fact, evidence, and diagnostic contracts | Yes | Yes |
 | Stable source identity, fixed source snapshots, and strict placement | Yes | Yes |
@@ -52,11 +52,14 @@ Reference one version across all directly referenced Screenplay Generation packa
 | Overload-safe subjects, alternate source owners, and flat compatibility placement | Yes | Yes |
 | Authoritative invocation and assignment enumeration | Yes | Yes |
 | Legacy `IDotNetScreenplayAdapter` | Yes | Yes |
-| Descriptors, structured probes, and atomic public admission | No | Yes |
-| Explicit modern/legacy registration and deterministic .NET runner | No | Yes |
-| Immutable adapter-run snapshots and `Generate(snapshot)` | No | Yes |
-| Per-fact generation dispositions | No | Yes |
-| Vogen modern descriptor/probe with legacy contribution parity | No | Yes |
+| Descriptors, structured probes, and atomic public admission | Yes | Yes |
+| Explicit modern/legacy registration and deterministic .NET runner | Yes | Yes |
+| Immutable adapter-run snapshots and `Generate(snapshot)` | Yes | Yes |
+| Per-fact generation dispositions | Yes | Yes |
+| Vogen modern descriptor/probe with legacy contribution parity | Yes | Yes |
+| Granular artifact/member/type-use/binding/role facts | No | Yes |
+| Fixed-snapshot derivation rule and input/evidence lineage | No | Yes |
+| Exact nested .NET type-use fact emission | No | Yes |
 
 ## Implement the adapter contract
 
@@ -92,7 +95,12 @@ public sealed class AcmeScreenplayAdapter :
             AdapterHostCapability.SemanticAnalysis
         ],
         RequiredApiCapabilities = [_commandDeclarationApi],
-        EmittedFactCapabilities = [GenerationFactCapability.Artifact]
+        EmittedFactCapabilities =
+        [
+            GenerationFactCapability.Artifact,
+            GenerationFactCapability.ArtifactMemberDeclaration,
+            GenerationFactCapability.ArtifactMemberTypeUse
+        ]
     };
 
     // Legacy compatibility surface.
@@ -177,10 +185,11 @@ public sealed class AcmeScreenplayAdapter :
                         Key = key,
                         Name = type.Name,
                         File = evidence.Source?.Path,
-                        Properties = DotNetTypeShapes.PropertiesOf(type, context)
+                        Properties = DotNetTypeShapes.PropertiesOf(type)
                     },
                     Evidence = evidence
                 });
+                facts.AddRange(DotNetTypeUseFacts.Emit(type, key, context, evidence));
             }
         }
 
@@ -332,7 +341,11 @@ Fact IDs must be globally stable and unique. Prefix them with the adapter and se
 
 Use the smallest fact vocabulary that says what the source proves:
 
-- `ArtifactFact` — a command, event, read model, projection, reaction, message, handler, concept, or another supported role;
+- `ArtifactFact` — the compatibility aggregate for a command, event, read model, projection, reaction, message, handler, concept, or another supported role;
+- `ArtifactDeclarationFact` and `ArtifactMemberDeclarationFact` — independent artifact metadata and one ordered member declaration without repeating a complete property list;
+- `ArtifactMemberTypeUseFact` — one exact use-site type shape and observed source subject;
+- `TypeUseBindingFact` — an exact member-to-artifact binding, normally produced by fixed-snapshot derivation;
+- `ArtifactMemberRoleFact` — an explicitly established typed identifier or event-source-identifier role;
 - `ArtifactPlacementFact` — module, feature, slice, and independently established slice kind;
 - `RelationshipFact` — handles, reads, produces, consumes, builds, returns, cascades, publishes, starts or appends streams, or document persistence;
 - concept representation, attribute, and validation facts;
@@ -340,7 +353,11 @@ Use the smallest fact vocabulary that says what the source proves:
 
 Do not overload a nearby role. A published message is not a persisted event. A document is not an event-built read model unless source evidence proves the projection. A response is not a cascade.
 
-Use `TypeReferenceDefinition.Subject` when a property targets an exact discovered type or concept. `DotNetTypeShapes.PropertiesOf(type, context)` and `TypeReferenceFor(type, context)` preserve project-qualified type subjects.
+Keep compatibility aggregate properties unbound with `DotNetTypeShapes.PropertiesOf(type)` when another adapter may declare their target concepts. Append `DotNetTypeUseFacts.Emit(type, artifact, context, evidence)` so each member independently records declaration order, exact use-site shape, and the terminal project-qualified source subject. Fixed-snapshot derivation then emits a granular binding without rewriting the aggregate.
+
+`DotNetTypeShapes.TypeUseFor(type, context)` orders shape nodes from the outermost wrapper to the terminal `Named` node. This distinguishes `Collection(Optional(Named))` from `Optional(Collection(Named))` and preserves nested collections. The current Screenplay grammar lowers only the shapes it can express exactly; unsupported distinctions remain diagnosed rather than flattened.
+
+Pass a `roleFor` callback to `DotNetTypeUseFacts.Emit(...)` only when source-framework semantics establish `ArtifactMemberRoleKind.Identifier` or `EventSourceIdentifier`. Never infer either role from a property name or primitive type. `EventSourceIdentifier` lowers through the existing identifier syntax; the distinct ordinary `Identifier` role remains provenance until Screenplay has separate syntax for it. A framework that already knows the exact target inside one adapter may continue setting `TypeReferenceDefinition.Subject` directly with `PropertiesOf(type, context)` or `TypeReferenceFor(type, context)`.
 
 ## Nominate declared concepts
 
@@ -524,7 +541,17 @@ var legacy = DotNetAdapterRunner.Run(
 
 The modern descriptor has category `Concepts`, source language `CSharp`, requires authored source, stable source locations, semantic analysis, and exact Vogen declaration API evidence, and declares its concept fact families. Its probe distinguishes no declarations, safely applicable declarations, and unsafe mappings. Run the modern and legacy registrations separately: both use the `vogen` identity, so placing both in one roster is a deliberate duplicate rejection. When each path is safely applicable, their contribution facts and diagnostics are identical.
 
-This execution snapshot is not a history model. It does not implement issue #19 adapter or fact lineage. It also has no issue #24 serializer or stable fingerprints; keep snapshots in process and compare canonical generated bytes when determinism matters.
+### Derive facts from one fixed admitted snapshot
+
+`GenerationFactDerivation.Derive(...)` runs the closed built-in rule set once over `AdapterRunSnapshot.Facts`. Every rule sees the same deeply frozen base array. A rule never consumes another rule's output, inspects adapter registrations or instances, or reopens source-language state.
+
+The type-use binding rule joins an `ArtifactMemberTypeUseFact` to an exact declared `ArtifactKey`, including its role and subject. It does not join by display name and does not replace the owning artifact's complete property list. Its derived `TypeUseBindingFact` remains separate from the admitted base facts under `AdapterRunSnapshot.Derivation`; the resolved compatibility reference retains the role in `TypeReferenceDefinition.TargetArtifactKind` so a same-subject non-concept can never be substituted as a concept.
+
+Each derived `GenerationFactRecord` carries `GenerationFactLineage`: the stable derivation rule identity and version, canonical input `FactId` references, and complete input evidence. `GenerationDerivationRuleRecord` records the fixed inputs, outputs, and diagnostics for that rule execution. Directly invoking derivation leaves fact dispositions unknown because disposition is a later generation decision. `Generate(snapshot, options)` attaches the derivation result, propagates its diagnostics, resolves admitted and derived granular facets together, and applies an exact member binding as an overlay without publishing a replacement aggregate fact.
+
+Exact subjects can come from any source frontend. A C# member type use can bind a declaration contributed by another adapter, while a source-independent or non-.NET adapter can contribute the same neutral contracts without Roslyn or Screenplay-layout dependencies. Missing, malformed, ambiguous, conflicting, or currently unrepresentable member evidence omits the affected artifact instead of lowering a flattened legacy fallback.
+
+The execution and derivation snapshots are not a history model. They have no issue #24 serializer or stable fingerprints; keep them in process and compare canonical generated bytes when determinism matters.
 
 Adapters never call the runner, resolver, lowerer, printer, or compiler themselves. Adopt a newly required API in this order:
 

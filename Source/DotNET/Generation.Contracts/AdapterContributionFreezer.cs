@@ -195,6 +195,41 @@ static class AdapterContributionFreezer
                 Artifact = FreezeArtifactKey(placement.Artifact, $"{path}.Artifact", context),
                 Placement = FreezePlacement(placement.Placement, $"{path}.Placement", context)
             },
+            ArtifactDeclarationFact declaration => GranularFactFreezer.Freeze(
+                declaration,
+                id,
+                subject,
+                evidence,
+                path,
+                context),
+            ArtifactMemberDeclarationFact member => GranularFactFreezer.Freeze(
+                member,
+                id,
+                subject,
+                evidence,
+                path,
+                context),
+            ArtifactMemberTypeUseFact typeUse => GranularFactFreezer.Freeze(
+                typeUse,
+                id,
+                subject,
+                evidence,
+                path,
+                context),
+            TypeUseBindingFact binding => GranularFactFreezer.Freeze(
+                binding,
+                id,
+                subject,
+                evidence,
+                path,
+                context),
+            ArtifactMemberRoleFact role => GranularFactFreezer.Freeze(
+                role,
+                id,
+                subject,
+                evidence,
+                path,
+                context),
             RelationshipFact relationship => new RelationshipFact
             {
                 Id = id,
@@ -344,6 +379,7 @@ static class AdapterContributionFreezer
         {
             Name = type.Name ?? string.Empty,
             Subject = type.Subject is null ? null : FreezeSubject(type.Subject, $"{path}.Subject", context),
+            TargetArtifactKind = type.TargetArtifactKind,
             IsCollection = type.IsCollection,
             IsOptional = type.IsOptional
         };
@@ -852,6 +888,11 @@ static class AdapterContributionFreezer
         SpecificationScenarioFact => (int)GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => (int)GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => (int)GenerationFactCapability.SpecificationValue,
+        ArtifactDeclarationFact => (int)GenerationFactCapability.ArtifactDeclaration,
+        ArtifactMemberDeclarationFact => (int)GenerationFactCapability.ArtifactMemberDeclaration,
+        ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
+        TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
+        ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
         _ => int.MaxValue
     };
 }

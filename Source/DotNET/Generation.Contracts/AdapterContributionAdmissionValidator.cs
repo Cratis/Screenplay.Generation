@@ -89,6 +89,20 @@ static class AdapterContributionAdmissionValidator
         {
             ValidateSubject(type.Subject, $"{path}.Subject", fact, context);
         }
+
+        if (type.TargetArtifactKind is { } targetArtifactKind)
+        {
+            context.Enum(targetArtifactKind, ArtifactKind.Unknown, $"{path}.TargetArtifactKind", fact, subject);
+            if (type.Subject is null)
+            {
+                context.Add(
+                    AdapterContributionAdmissionDiagnosticCode.InvalidKindOperand,
+                    $"{path}.TargetArtifactKind",
+                    "A target artifact kind requires an exact target subject",
+                    fact,
+                    subject);
+            }
+        }
     }
 
     internal static void ValidateDescriptor(
@@ -487,6 +501,11 @@ static class AdapterContributionAdmissionValidator
         SpecificationScenarioFact => GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => GenerationFactCapability.SpecificationValue,
+        ArtifactDeclarationFact => GenerationFactCapability.ArtifactDeclaration,
+        ArtifactMemberDeclarationFact => GenerationFactCapability.ArtifactMemberDeclaration,
+        ArtifactMemberTypeUseFact => GenerationFactCapability.ArtifactMemberTypeUse,
+        TypeUseBindingFact => GenerationFactCapability.TypeUseBinding,
+        ArtifactMemberRoleFact => GenerationFactCapability.ArtifactMemberRole,
         _ => GenerationFactCapability.Unknown
     };
 }

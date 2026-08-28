@@ -10,5 +10,5 @@ public class with_an_undeclared_fact_capability : given.a_contribution
     void Because() => _result = Admit(Descriptor(GenerationFactCapability.Artifact));
 
     [Fact] void should_reject_the_whole_contribution() => _result.Snapshot.ShouldBeNull();
-    [Fact] void should_report_each_undeclared_runtime_fact_family() => _result.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.UndeclaredFactCapability).ShouldEqual(8);
+    [Fact] void should_report_each_undeclared_runtime_fact_family() => _result.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.UndeclaredFactCapability).ShouldEqual(13);
 }

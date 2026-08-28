@@ -20,6 +20,34 @@ static class Structural
             definition.File,
             Sequence(definition.Properties, Property));
 
+    public static string ArtifactDeclaration(ArtifactDeclarationDefinition definition) =>
+        Node(
+            ArtifactKey(definition.Artifact),
+            definition.Name,
+            definition.Description,
+            definition.File);
+
+    public static string ArtifactMemberKey(ArtifactMemberKey member) =>
+        Node(ArtifactKey(member.Artifact), member.Name);
+
+    public static string ArtifactMemberDeclaration(ArtifactMemberDeclarationDefinition definition) =>
+        Node(ArtifactMemberKey(definition.Member), Integer(definition.DeclarationOrder));
+
+    public static string ArtifactMemberTypeUse(ArtifactMemberTypeUseDefinition definition) =>
+        Node(ArtifactMemberKey(definition.Member), TypeUse(definition.Type));
+
+    public static string TypeUse(TypeUseDefinition definition) =>
+        Node(
+            definition.Name,
+            definition.ObservedTypeSubject?.Value,
+            Sequence(definition.Shape, node => Integer((int)node)));
+
+    public static string TypeUseBinding(TypeUseBindingDefinition definition) =>
+        Node(ArtifactMemberKey(definition.Member), ArtifactKey(definition.Target));
+
+    public static string ArtifactMemberRole(ArtifactMemberRoleDefinition definition) =>
+        Node(ArtifactMemberKey(definition.Member), Integer((int)definition.Role));
+
     public static string Placement(ArtifactPlacement placement) =>
         Node(
             placement.Module,
@@ -100,6 +128,11 @@ static class Structural
     {
         ArtifactFact artifact => Node("artifact", Artifact(artifact.Definition)),
         ArtifactPlacementFact placement => Node("placement", ArtifactKey(placement.Artifact), Placement(placement.Placement)),
+        ArtifactDeclarationFact declaration => Node("artifact-declaration", ArtifactDeclaration(declaration.Definition)),
+        ArtifactMemberDeclarationFact member => Node("artifact-member-declaration", ArtifactMemberDeclaration(member.Definition)),
+        ArtifactMemberTypeUseFact typeUse => Node("artifact-member-type-use", ArtifactMemberTypeUse(typeUse.Definition)),
+        TypeUseBindingFact binding => Node("type-use-binding", TypeUseBinding(binding.Definition)),
+        ArtifactMemberRoleFact role => Node("artifact-member-role", ArtifactMemberRole(role.Definition)),
         RelationshipFact relationship => Node("relationship", Relationship(relationship.Definition)),
         ConceptRepresentationFact representation => Node("concept-representation", ConceptRepresentation(representation.Definition)),
         ConceptAttributeFact attribute => Node("concept-attribute", ConceptAttribute(attribute.Definition)),
@@ -181,6 +214,11 @@ static class Structural
         SpecificationScenarioFact => (int)GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => (int)GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => (int)GenerationFactCapability.SpecificationValue,
+        ArtifactDeclarationFact => (int)GenerationFactCapability.ArtifactDeclaration,
+        ArtifactMemberDeclarationFact => (int)GenerationFactCapability.ArtifactMemberDeclaration,
+        ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
+        TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
+        ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
         _ => int.MaxValue
     };
 
@@ -191,6 +229,7 @@ static class Structural
         Node(
             type.Name,
             type.Subject?.Value,
+            NullableInteger(type.TargetArtifactKind is null ? null : (int)type.TargetArtifactKind.Value),
             Boolean(type.IsCollection),
             Boolean(type.IsOptional));
 

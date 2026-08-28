@@ -10,18 +10,34 @@ public class with_missing_kind_operands : given.a_contribution
     void Because()
     {
         var facts = EveryFact();
-        var representation = (ConceptRepresentationFact)facts[3];
-        facts[3] = representation with
+        var artifact = (ArtifactFact)facts[0];
+        var firstProperty = artifact.Definition.Properties[0];
+        facts[0] = artifact with
+        {
+            Definition = artifact.Definition with
+            {
+                Properties =
+                [
+                    firstProperty with
+                    {
+                        Type = firstProperty.Type with { Subject = null }
+                    },
+                    .. artifact.Definition.Properties.Skip(1)
+                ]
+            }
+        };
+        var representation = (ConceptRepresentationFact)facts[8];
+        facts[8] = representation with
         {
             Definition = representation.Definition with { Primitive = null }
         };
-        var step = (SpecificationStepFact)facts[7];
-        facts[7] = step with
+        var step = (SpecificationStepFact)facts[12];
+        facts[12] = step with
         {
             Definition = step.Definition with { Artifact = null }
         };
-        var value = (SpecificationValueFact)facts[8];
-        facts[8] = value with
+        var value = (SpecificationValueFact)facts[13];
+        facts[13] = value with
         {
             Definition = value.Definition with
             {
@@ -33,5 +49,5 @@ public class with_missing_kind_operands : given.a_contribution
     }
 
     [Fact] void should_reject_the_whole_contribution() => _result.Snapshot.ShouldBeNull();
-    [Fact] void should_report_each_missing_or_invalid_kind_operand() => _result.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.InvalidKindOperand).ShouldEqual(3);
+    [Fact] void should_report_each_missing_or_invalid_kind_operand() => _result.Diagnostics.Count(diagnostic => diagnostic.Code == AdapterContributionAdmissionDiagnosticCode.InvalidKindOperand).ShouldEqual(4);
 }

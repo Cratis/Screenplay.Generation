@@ -11,6 +11,11 @@ internal static class GenerationFactSemanticKey
     {
         ArtifactFact artifact => Artifact(artifact.Definition),
         ArtifactPlacementFact placement => Placement(placement.Artifact, placement.Placement),
+        ArtifactDeclarationFact declaration => ArtifactDeclaration(declaration.Definition),
+        ArtifactMemberDeclarationFact member => ArtifactMemberDeclaration(member.Definition),
+        ArtifactMemberTypeUseFact typeUse => ArtifactMemberTypeUse(typeUse.Definition),
+        TypeUseBindingFact binding => TypeUseBinding(binding.Definition),
+        ArtifactMemberRoleFact role => ArtifactMemberRole(role.Definition),
         RelationshipFact relationship => Relationship(relationship.Definition),
         ConceptRepresentationFact representation => ConceptRepresentation(representation.Definition),
         ConceptAttributeFact attribute => ConceptAttribute(attribute.Definition),
@@ -23,6 +28,21 @@ internal static class GenerationFactSemanticKey
 
     public static string Artifact(ArtifactDefinition definition) =>
         Structural.SemanticKey("artifact", Structural.Artifact(definition));
+
+    public static string ArtifactDeclaration(ArtifactDeclarationDefinition definition) =>
+        Structural.SemanticKey("artifact-declaration", Structural.ArtifactDeclaration(definition));
+
+    public static string ArtifactMemberDeclaration(ArtifactMemberDeclarationDefinition definition) =>
+        Structural.SemanticKey("artifact-member-declaration", Structural.ArtifactMemberDeclaration(definition));
+
+    public static string ArtifactMemberTypeUse(ArtifactMemberTypeUseDefinition definition) =>
+        Structural.SemanticKey("artifact-member-type-use", Structural.ArtifactMemberTypeUse(definition));
+
+    public static string TypeUseBinding(TypeUseBindingDefinition definition) =>
+        Structural.SemanticKey("type-use-binding", Structural.TypeUseBinding(definition));
+
+    public static string ArtifactMemberRole(ArtifactMemberRoleDefinition definition) =>
+        Structural.SemanticKey("artifact-member-role", Structural.ArtifactMemberRole(definition));
 
     public static string Placement(ArtifactKey artifact, ArtifactPlacement placement) =>
         Structural.SemanticKey("placement", Structural.ArtifactKey(artifact), Structural.Placement(placement));

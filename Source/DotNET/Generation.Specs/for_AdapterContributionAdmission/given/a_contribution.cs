@@ -46,13 +46,19 @@ public class a_contribution : Specification
         GenerationFactCapability.ConceptAttribute,
         GenerationFactCapability.SpecificationStep,
         GenerationFactCapability.ConceptRepresentation,
+        GenerationFactCapability.ArtifactDeclaration,
+        GenerationFactCapability.ArtifactMemberDeclaration,
+        GenerationFactCapability.ArtifactMemberTypeUse,
+        GenerationFactCapability.TypeUseBinding,
+        GenerationFactCapability.ArtifactMemberRole,
         GenerationFactCapability.Artifact
     ];
 
     protected static List<GenerationFact> EveryFact(
         IReadOnlyList<PropertyDefinition>? properties = null,
         IReadOnlyList<SpecificationStepKey>? scenarioSteps = null,
-        IReadOnlyList<string>? valuePath = null)
+        IReadOnlyList<string>? valuePath = null,
+        IReadOnlyList<TypeUseShapeKind>? typeUseShape = null)
     {
         var scenarioKey = ScenarioKey();
         var stepKey = StepKey();
@@ -73,7 +79,12 @@ public class a_contribution : Specification
                         new PropertyDefinition
                         {
                             Name = "second",
-                            Type = new TypeReferenceDefinition { Name = "External", Subject = ExternalSubject }
+                            Type = new TypeReferenceDefinition
+                            {
+                                Name = "External",
+                                Subject = ExternalSubject,
+                                TargetArtifactKind = ArtifactKind.Concept
+                            }
                         },
                         new PropertyDefinition
                         {
@@ -95,6 +106,66 @@ public class a_contribution : Specification
                     Features = ["Registration", "Commands"],
                     Slice = "Register",
                     SliceKind = GenerationSliceKind.StateChange
+                }
+            },
+            new ArtifactDeclarationFact
+            {
+                Id = Id("artifact-declaration"),
+                Subject = ArtifactSubject,
+                Evidence = Evidence(),
+                Definition = new ArtifactDeclarationDefinition
+                {
+                    Artifact = ArtifactKey(ArtifactSubject, ArtifactKind.Command),
+                    Name = "Register"
+                }
+            },
+            new ArtifactMemberDeclarationFact
+            {
+                Id = Id("artifact-member"),
+                Subject = ArtifactSubject,
+                Evidence = Evidence(),
+                Definition = new ArtifactMemberDeclarationDefinition
+                {
+                    Member = MemberKey("second"),
+                    DeclarationOrder = 0
+                }
+            },
+            new ArtifactMemberTypeUseFact
+            {
+                Id = Id("artifact-member-type-use"),
+                Subject = ArtifactSubject,
+                Evidence = Evidence(),
+                Definition = new ArtifactMemberTypeUseDefinition
+                {
+                    Member = MemberKey("second"),
+                    Type = new TypeUseDefinition
+                    {
+                        Name = "External",
+                        ObservedTypeSubject = ExternalSubject,
+                        Shape = typeUseShape ?? [TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named]
+                    }
+                }
+            },
+            new TypeUseBindingFact
+            {
+                Id = Id("type-use-binding"),
+                Subject = ArtifactSubject,
+                Evidence = Evidence(),
+                Definition = new TypeUseBindingDefinition
+                {
+                    Member = MemberKey("second"),
+                    Target = ArtifactKey(ExternalSubject, ArtifactKind.Concept)
+                }
+            },
+            new ArtifactMemberRoleFact
+            {
+                Id = Id("artifact-member-role"),
+                Subject = ArtifactSubject,
+                Evidence = Evidence(),
+                Definition = new ArtifactMemberRoleDefinition
+                {
+                    Member = MemberKey("second"),
+                    Role = ArtifactMemberRoleKind.Identifier
                 }
             },
             new RelationshipFact
@@ -245,6 +316,12 @@ public class a_contribution : Specification
     {
         Subject = subject,
         Kind = kind
+    };
+
+    protected static ArtifactMemberKey MemberKey(string name) => new()
+    {
+        Artifact = ArtifactKey(ArtifactSubject, ArtifactKind.Command),
+        Name = name
     };
 
     protected static SpecificationScenarioKey ScenarioKey() => new() { Scenario = ScenarioSubject };
