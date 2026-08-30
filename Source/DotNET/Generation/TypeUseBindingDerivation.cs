@@ -328,6 +328,7 @@ static class TypeUseBindingDerivation
             Severity = GenerationDiagnosticSeverity.Error,
             Outcome = outcome,
             Message = $"{message}. Input facts: {identities}",
+            Facts = [.. canonicalInputs.Select(input => input.Id)],
             Source = canonicalInputs.FirstOrDefault()?.Evidence.Source,
             Subject = member.Artifact.Subject
         };

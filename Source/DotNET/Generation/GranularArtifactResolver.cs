@@ -48,7 +48,10 @@ static class GranularArtifactResolver
                         Id = support.Id,
                         Subject = overlaid.Definition.Key.Subject,
                         Evidence = support.Evidence,
-                        Definition = overlaid.Definition
+                        Definition = overlaid.Definition with
+                        {
+                            File = RealizationFileFor(support) ?? overlaid.Definition.File
+                        }
                     });
                 }
             }
@@ -75,7 +78,14 @@ static class GranularArtifactResolver
     {
         var variants = legacy
             .GroupBy(fact => Structural.Artifact(fact.Definition), StringComparer.Ordinal)
-            .Select(group => new ArtifactVariant(group.First().Definition, [.. group]))
+            .Select(group =>
+            {
+                var ordered = group
+                    .OrderBy(fact => Canonical.Artifact(fact.Definition), StringComparer.Ordinal)
+                    .ThenBy(fact => fact.Id.Value, StringComparer.Ordinal)
+                    .ToArray();
+                return new ArtifactVariant(ordered[0].Definition, [.. ordered]);
+            })
             .ToList();
         foreach (var declaration in granular.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal))
         {
@@ -439,6 +449,7 @@ static class GranularArtifactResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unknown,
                 Message = $"Granular fact '{fact.Id.Value}' describes artifact owner '{owner?.Value}' but asserts subject '{fact.Subject.Value}'; the fact was omitted",
+                Facts = [fact.Id],
                 Source = fact.Evidence.Source,
                 Subject = fact.Subject
             });
@@ -446,6 +457,13 @@ static class GranularArtifactResolver
 
         return [.. valid];
     }
+
+    static string? RealizationFileFor(GenerationFact fact) => fact switch
+    {
+        ArtifactFact artifact => artifact.Definition.File,
+        ArtifactDeclarationFact declaration => declaration.Definition.File,
+        _ => null
+    };
 
     static ArtifactMemberKey? MemberFor(GenerationFact fact) => fact switch
     {
@@ -498,6 +516,7 @@ static class GranularArtifactResolver
             Severity = GenerationDiagnosticSeverity.Error,
             Outcome = outcome,
             Message = $"{message}. Input facts: {string.Join(", ", inputs.Select(fact => $"'{fact.Id.Value}'"))}",
+            Facts = [.. inputs.Select(fact => fact.Id)],
             Source = inputs.FirstOrDefault()?.Evidence.Source,
             Subject = subject
         });

@@ -66,12 +66,13 @@ public class when_projects_are_supplied_in_different_orders : given.a_vogen_comp
     [Fact] void should_keep_fact_json_byte_deterministic() => _firstFactsJson.SequenceEqual(_secondFactsJson).ShouldBeTrue();
     [Fact] void should_keep_diagnostic_json_byte_deterministic() => _firstDiagnosticsJson.SequenceEqual(_secondDiagnosticsJson).ShouldBeTrue();
     [Fact] void should_keep_fact_json_bytes_stable() => Hash(_firstFactsJson).ShouldEqual("A90824EAE8A0487FE3BB380BA8493DF7C173260D20F8DCEB1BEE4A4A0865E14C");
-    [Fact] void should_keep_diagnostic_json_bytes_stable() => Hash(_firstDiagnosticsJson).ShouldEqual("2E11A67968DA865CA18FEC0AA04F2A521E8BFCBB85010652DDE8DFF71980F5E7");
+    [Fact] void should_keep_diagnostic_json_bytes_stable() => Hash(_firstDiagnosticsJson).ShouldEqual("C5D7F5E3C9C34EAF5BBF364621DAA0A02A07B3B6665151FF8EDB61772C3CEBF0");
     [Fact] void should_keep_same_named_types_as_distinct_subjects() => _first.Facts.OfType<ArtifactFact>().Select(_ => _.Subject.Value).ShouldContainOnly("dotnet://Project.A/Shared/Shared.Code", "dotnet://Project.B/Shared/Shared.Code");
     [Fact] void should_assign_unique_deterministic_fact_ids() => _first.Facts.Select(_ => _.Id.Value).Distinct(StringComparer.Ordinal).Count().ShouldEqual(6);
     [Fact] void should_keep_exact_authored_evidence_for_both_subjects() => _first.Facts.All(_ => _.Evidence.Strength == EvidenceStrength.Exact && _.Evidence.Source is not null).ShouldBeTrue();
     [Fact] void should_keep_both_authored_validation_rules() => _first.Facts.OfType<ConceptValidationRuleFact>().Select(_ => _.Definition.Predicate).ShouldEqual(["Validate", "Validate"]);
     [Fact] void should_keep_loss_diagnostics_deterministic() => _first.Diagnostics.Select(_ => _.Code).ShouldEqual([VogenGenerationDiagnosticCodes.InputNormalizationNotRepresented, VogenGenerationDiagnosticCodes.NamedInstanceNotRepresented]);
+    [Fact] void should_not_invent_fact_links_for_adapter_owned_loss() => _first.Diagnostics.All(diagnostic => diagnostic.Facts.IsEmpty).ShouldBeTrue();
 
     static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
 }

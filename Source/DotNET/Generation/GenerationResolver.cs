@@ -99,16 +99,30 @@ public sealed class GenerationResolver
                     .GroupBy(_ => Structural.Artifact(_.Definition), StringComparer.Ordinal)
                     .OrderBy(_ => Canonical.Artifact(_.First().Definition), StringComparer.Ordinal)
                     .ThenBy(_ => _.Key, StringComparer.Ordinal)
-                    .Select(_ => new ResolvedArtifactVariant
+                    .Select(variantGroup =>
                     {
-                        Definition = _.First().Definition,
-                        SupportingFacts =
-                        [
-                            .. _.Select(fact => fact.Id)
-                                .Distinct()
-                                .OrderBy(id => id.Value, StringComparer.Ordinal)
-                        ],
-                        Evidence = OrderedEvidence(_.Select(fact => fact.Evidence))
+                        var orderedFacts = variantGroup
+                            .OrderBy(fact => Canonical.Artifact(fact.Definition), StringComparer.Ordinal)
+                            .ThenBy(fact => fact.Id.Value, StringComparer.Ordinal)
+                            .ToArray();
+                        return new ResolvedArtifactVariant
+                        {
+                            Definition = orderedFacts[0].Definition,
+                            Files =
+                            [
+                                .. orderedFacts.Select(fact => fact.Definition.File)
+                                    .Distinct(StringComparer.Ordinal)
+                                    .OrderBy(file => file is null ? 0 : 1)
+                                    .ThenBy(file => file, StringComparer.Ordinal)
+                            ],
+                            SupportingFacts =
+                            [
+                                .. orderedFacts.Select(fact => fact.Id)
+                                    .Distinct()
+                                    .OrderBy(id => id.Value, StringComparer.Ordinal)
+                            ],
+                            Evidence = OrderedEvidence(orderedFacts.Select(fact => fact.Evidence))
+                        };
                     })
                     .ToArray();
 
@@ -211,10 +225,24 @@ public sealed class GenerationResolver
                         .GroupBy(_ => Structural.ConceptValidationRule(_.Definition), StringComparer.Ordinal)
                         .OrderBy(_ => Canonical.ConceptValidationRule(_.First().Definition), StringComparer.Ordinal)
                         .ThenBy(_ => _.Key, StringComparer.Ordinal)
-                        .Select(_ => new ResolvedConceptValidationRuleVariant
+                        .Select(variantGroup =>
                         {
-                            Definition = _.First().Definition,
-                            Evidence = OrderedEvidence(_.Select(fact => fact.Evidence))
+                            var orderedFacts = variantGroup
+                                .OrderBy(fact => Canonical.ConceptValidationRule(fact.Definition), StringComparer.Ordinal)
+                                .ThenBy(fact => fact.Id.Value, StringComparer.Ordinal)
+                                .ToArray();
+                            return new ResolvedConceptValidationRuleVariant
+                            {
+                                Definition = orderedFacts[0].Definition,
+                                ImplementationFiles =
+                                [
+                                    .. orderedFacts.Select(fact => fact.Definition.ImplementationFile)
+                                        .Distinct(StringComparer.Ordinal)
+                                        .OrderBy(file => file is null ? 0 : 1)
+                                        .ThenBy(file => file, StringComparer.Ordinal)
+                                ],
+                                Evidence = OrderedEvidence(orderedFacts.Select(fact => fact.Evidence))
+                            };
                         })
                         .ToArray();
                     var rule = new ResolvedConceptValidationRule
@@ -309,6 +337,7 @@ public sealed class GenerationResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept representation fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
+                Facts = [_.Id],
                 Source = _.Evidence.Source,
                 Subject = _.Subject
             });
@@ -322,6 +351,7 @@ public sealed class GenerationResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept attribute fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
+                Facts = [_.Id],
                 Source = _.Evidence.Source,
                 Subject = _.Subject
             });
@@ -335,6 +365,7 @@ public sealed class GenerationResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept validation rule fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
+                Facts = [_.Id],
                 Source = _.Evidence.Source,
                 Subject = _.Subject
             });
@@ -361,6 +392,7 @@ public sealed class GenerationResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Conflict,
                 Message = $"Fact identity '{_.Id}' was reused for {_.Definitions.Length} different semantic assertions",
+                Facts = [new FactId { Value = _.Id }],
                 Source = FirstSource(_.Facts.Select(fact => fact.Evidence)),
                 Subject = _.Facts.OrderBy(fact => fact.Subject.Value, StringComparer.Ordinal).First().Subject
             });

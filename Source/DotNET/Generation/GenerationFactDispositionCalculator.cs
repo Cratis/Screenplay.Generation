@@ -120,6 +120,7 @@ internal static class GenerationFactDispositionCalculator
             Severity = GenerationDiagnosticSeverity.Error,
             Outcome = GenerationDiagnosticOutcome.Unknown,
             Message = $"Admitted fact '{fact.Id.Value}' uses unclassifiable fact type '{fact.GetType().FullName}'",
+            Facts = [fact.Id],
             Source = fact.Evidence.Source,
             Subject = fact.Subject
         };
@@ -149,6 +150,7 @@ internal static class GenerationFactDispositionCalculator
                     Severity = GenerationDiagnosticSeverity.Error,
                     Outcome = GenerationDiagnosticOutcome.Conflict,
                     Message = $"Admitted fact '{fact.Id.Value}' participated in an unresolved semantic conflict",
+                    Facts = [fact.Id],
                     Source = fact.Evidence.Source,
                     Subject = DiagnosticSubject(fact)
                 }
@@ -177,6 +179,7 @@ internal static class GenerationFactDispositionCalculator
                 Severity = GenerationDiagnosticSeverity.Warning,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Relationship '{relationship.Definition.Key.Kind}' from '{relationship.Definition.Key.Source.Value}' to '{relationship.Definition.Key.Target.Value}' did not contribute to emitted Screenplay syntax and was omitted",
+                Facts = [fact.Id],
                 Source = fact.Evidence.Source,
                 Subject = relationship.Definition.Key.Source
             });
@@ -190,6 +193,7 @@ internal static class GenerationFactDispositionCalculator
                 Severity = GenerationDiagnosticSeverity.Warning,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Admitted {FactFamily(fact)} fact '{fact.Id.Value}' did not contribute to emitted Screenplay syntax and was omitted",
+                Facts = [fact.Id],
                 Source = fact.Evidence.Source,
                 Subject = DiagnosticSubject(fact)
             });
@@ -213,12 +217,12 @@ internal static class GenerationFactDispositionCalculator
         {
             foreach (var diagnostic in loweringDiagnostics)
             {
-                yield return diagnostic;
+                yield return Associate(diagnostic, fact.Id);
             }
         }
 
         foreach (var diagnostic in diagnostics.Where(diagnostic =>
-                     diagnostic.Outcome is not null && HasExactFactIdentity(diagnostic, fact.Id.Value)))
+                     diagnostic.Outcome is not null && diagnostic.Facts.Any(link => link == fact.Id)))
         {
             yield return diagnostic;
         }
@@ -356,42 +360,16 @@ internal static class GenerationFactDispositionCalculator
         return resolved.EffectiveVariants.All(_ => Structural.Placement(_.Placement) != placement);
     }
 
-    static bool HasExactFactIdentity(GenerationDiagnostic diagnostic, string factId) =>
-        diagnostic.Message.Contains($"Fact '{factId}'", StringComparison.Ordinal) ||
-        diagnostic.Message.Contains($"fact '{factId}'", StringComparison.Ordinal) ||
-        diagnostic.Message.Contains($"Fact identity '{factId}'", StringComparison.Ordinal) ||
-        (IsGranularDiagnostic(diagnostic.Code) && InputFactIds(diagnostic.Message).Contains(factId, StringComparer.Ordinal));
-
-    static string[] InputFactIds(string message)
+    static GenerationDiagnostic Associate(GenerationDiagnostic diagnostic, FactId fact) => diagnostic with
     {
-        const string marker = "Input facts: ";
-        var markerIndex = message.LastIndexOf(marker, StringComparison.Ordinal);
-        if (markerIndex < 0)
-        {
-            return [];
-        }
-
-        return
+        Facts =
         [
-            .. message[(markerIndex + marker.Length)..]
-                .Split(", ", StringSplitOptions.RemoveEmptyEntries)
-                .Where(value => value.Length >= 2 && value[0] == '\'' && value[^1] == '\'')
-                .Select(value => value[1..^1])
-        ];
-    }
-
-    static bool IsGranularDiagnostic(string code) =>
-        string.Equals(code, GenerationDiagnosticCodes.MissingTypeUseOwner, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.MissingTypeUseMember, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.MissingTypeUseTarget, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.ConflictingMemberTypeUse, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.ConflictingTypeUseTarget, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.ConflictingTypeUseDeclaration, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.UnsupportedTypeUseShape, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.ConflictingArtifactMember, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.IncompleteArtifactMember, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.InvalidGranularFactOwnership, StringComparison.Ordinal) ||
-        string.Equals(code, GenerationDiagnosticCodes.MissingTypeUseBindingTarget, StringComparison.Ordinal);
+            .. diagnostic.Facts
+                .Append(fact)
+                .Distinct()
+                .OrderBy(link => link.Value, StringComparer.Ordinal)
+        ]
+    };
 
     static bool HasSupportedDiscriminators(GenerationFact fact)
     {

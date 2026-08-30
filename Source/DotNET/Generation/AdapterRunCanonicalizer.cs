@@ -316,6 +316,13 @@ static class AdapterRunCanonicalizer
         Severity = diagnostic.Severity,
         Message = diagnostic.Message,
         Outcome = diagnostic.Outcome,
+        Facts =
+        [
+            .. diagnostic.Facts
+                .Select(fact => new FactId { Value = fact.Value })
+                .Distinct()
+                .OrderBy(fact => fact.Value, StringComparer.Ordinal)
+        ],
         Source = diagnostic.Source is null ? null : Source(diagnostic.Source),
         Subject = diagnostic.Subject is null ? null : Subject(diagnostic.Subject)
     };
