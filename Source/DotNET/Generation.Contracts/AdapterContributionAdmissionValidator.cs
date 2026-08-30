@@ -21,9 +21,16 @@ static class AdapterContributionAdmissionValidator
             ValidateFact(input.Descriptor, fact, sourceAuthorityValidator, context);
         }
 
+        var factIds = input.Facts.Select(fact => fact.Id.Value).ToHashSet(StringComparer.Ordinal);
         for (var index = 0; index < input.Diagnostics.Length; index++)
         {
-            ValidateDiagnostic(input.Diagnostics[index], index, sourceAuthorityValidator, context);
+            ValidateDiagnostic(
+                input.Descriptor.Identity.Id,
+                factIds,
+                input.Diagnostics[index],
+                index,
+                sourceAuthorityValidator,
+                context);
         }
     }
 
@@ -291,6 +298,8 @@ static class AdapterContributionAdmissionValidator
     }
 
     static void ValidateDiagnostic(
+        string adapterId,
+        HashSet<string> admittedFactIds,
         GenerationDiagnostic diagnostic,
         int index,
         ISourceAuthorityValidator? sourceAuthorityValidator,
@@ -320,6 +329,38 @@ static class AdapterContributionAdmissionValidator
                 AdapterContributionAdmissionDiagnosticCode.UndefinedEnumValue,
                 $"{path}.Outcome",
                 $"{path}.Outcome contains undefined {nameof(GenerationDiagnosticOutcome)} value '{(int)outcome}'");
+        }
+
+        var linkedFactIds = new HashSet<string>(StringComparer.Ordinal);
+        var factPrefix = $"{adapterId}:";
+        for (var factIndex = 0; factIndex < diagnostic.Facts.Length; factIndex++)
+        {
+            var linkedFact = diagnostic.Facts[factIndex];
+            var factPath = $"{path}.Facts[{factIndex}]";
+            if (!AdapterContributionText.IsNormalized(linkedFact.Value, false) ||
+                linkedFact.Value.Length == factPrefix.Length ||
+                !linkedFact.Value.StartsWith(factPrefix, StringComparison.Ordinal))
+            {
+                context.Add(
+                    AdapterContributionAdmissionDiagnosticCode.InvalidContributionDiagnostic,
+                    factPath,
+                    $"Contribution diagnostic fact identity '{linkedFact.Value}' must be normalized and scoped beneath producer '{adapterId}:'");
+            }
+            else if (!admittedFactIds.Contains(linkedFact.Value))
+            {
+                context.Add(
+                    AdapterContributionAdmissionDiagnosticCode.InvalidContributionDiagnostic,
+                    factPath,
+                    $"Contribution diagnostic references fact '{linkedFact.Value}' that is not part of the contribution");
+            }
+
+            if (!linkedFactIds.Add(linkedFact.Value))
+            {
+                context.Add(
+                    AdapterContributionAdmissionDiagnosticCode.InvalidContributionDiagnostic,
+                    factPath,
+                    $"Contribution diagnostic references fact '{linkedFact.Value}' more than once");
+            }
         }
 
         if (diagnostic.Subject is not null)

@@ -309,6 +309,7 @@ public sealed class GenerationResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept representation fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
+                Facts = [_.Id],
                 Source = _.Evidence.Source,
                 Subject = _.Subject
             });
@@ -322,6 +323,7 @@ public sealed class GenerationResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept attribute fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
+                Facts = [_.Id],
                 Source = _.Evidence.Source,
                 Subject = _.Subject
             });
@@ -335,6 +337,7 @@ public sealed class GenerationResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Concept validation rule fact '{_.Id.Value}' targets '{_.Definition.Concept.Value}' but asserts subject '{_.Subject.Value}'",
+                Facts = [_.Id],
                 Source = _.Evidence.Source,
                 Subject = _.Subject
             });
@@ -361,6 +364,7 @@ public sealed class GenerationResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Conflict,
                 Message = $"Fact identity '{_.Id}' was reused for {_.Definitions.Length} different semantic assertions",
+                Facts = [new FactId { Value = _.Id }],
                 Source = FirstSource(_.Facts.Select(fact => fact.Evidence)),
                 Subject = _.Facts.OrderBy(fact => fact.Subject.Value, StringComparer.Ordinal).First().Subject
             });

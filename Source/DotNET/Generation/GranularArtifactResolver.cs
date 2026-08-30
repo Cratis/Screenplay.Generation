@@ -439,6 +439,7 @@ static class GranularArtifactResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unknown,
                 Message = $"Granular fact '{fact.Id.Value}' describes artifact owner '{owner?.Value}' but asserts subject '{fact.Subject.Value}'; the fact was omitted",
+                Facts = [fact.Id],
                 Source = fact.Evidence.Source,
                 Subject = fact.Subject
             });
@@ -498,6 +499,7 @@ static class GranularArtifactResolver
             Severity = GenerationDiagnosticSeverity.Error,
             Outcome = outcome,
             Message = $"{message}. Input facts: {string.Join(", ", inputs.Select(fact => $"'{fact.Id.Value}'"))}",
+            Facts = [.. inputs.Select(fact => fact.Id)],
             Source = inputs.FirstOrDefault()?.Evidence.Source,
             Subject = subject
         });

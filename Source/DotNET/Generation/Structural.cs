@@ -164,6 +164,7 @@ static class Structural
             Integer((int)diagnostic.Severity),
             diagnostic.Message,
             NullableInteger(diagnostic.Outcome is null ? null : (int)diagnostic.Outcome.Value),
+            Sequence(diagnostic.Facts.OrderBy(fact => fact.Value, StringComparer.Ordinal), fact => fact.Value),
             diagnostic.Source is null ? null : Source(diagnostic.Source),
             diagnostic.Subject?.Value);
 

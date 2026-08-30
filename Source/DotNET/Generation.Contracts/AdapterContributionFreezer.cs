@@ -814,6 +814,7 @@ static class AdapterContributionFreezer
                 Severity = diagnostic.Severity,
                 Message = diagnostic.Message ?? string.Empty,
                 Outcome = diagnostic.Outcome,
+                Facts = FreezeDiagnosticFacts(diagnostic.Facts, $"{path}.Facts", context),
                 Source = diagnostic.Source is null ? null : FreezeSource(diagnostic.Source),
                 Subject = diagnostic.Subject is null ? null : FreezeSubject(diagnostic.Subject, $"{path}.Subject", context)
             });
@@ -833,7 +834,38 @@ static class AdapterContributionFreezer
                 .ThenBy(diagnostic => diagnostic.Source?.EndLine)
                 .ThenBy(diagnostic => diagnostic.Source?.EndColumn)
                 .ThenBy(diagnostic => diagnostic.Subject?.Value, StringComparer.Ordinal)
+                .ThenBy(diagnostic => string.Join('\0', diagnostic.Facts.Select(fact => fact.Value)), StringComparer.Ordinal)
                 .ThenBy(diagnostic => diagnostic.Message, StringComparer.Ordinal)
+        ];
+    }
+
+    static ImmutableArray<FactId> FreezeDiagnosticFacts(
+        ImmutableArray<FactId> facts,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
+        if (facts.IsDefault)
+        {
+            context.NullCollection(path);
+            return [];
+        }
+
+        var frozen = ImmutableArray.CreateBuilder<FactId>();
+        for (var index = 0; index < facts.Length; index++)
+        {
+            var fact = facts[index];
+            if (fact is null)
+            {
+                context.Missing($"{path}[{index}]");
+                continue;
+            }
+
+            frozen.Add(new FactId { Value = fact.Value ?? string.Empty });
+        }
+
+        return
+        [
+            .. frozen.OrderBy(fact => fact.Value, StringComparer.Ordinal)
         ];
     }
 

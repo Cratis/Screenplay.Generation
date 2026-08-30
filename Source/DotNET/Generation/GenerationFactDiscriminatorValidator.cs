@@ -167,6 +167,7 @@ static class GenerationFactDiscriminatorValidator
                     ? GenerationDiagnosticOutcome.Unknown
                     : GenerationDiagnosticOutcome.Unsupported,
                 Message = $"Fact '{fact.Id.Value}' uses malformed exact type-use shape '{Shape(nodes)}'; the affected fact was omitted",
+                Facts = [fact.Id],
                 Source = fact.Evidence.Source,
                 Subject = fact.Subject
             });
@@ -337,6 +338,7 @@ static class GenerationFactDiscriminatorValidator
         Severity = GenerationDiagnosticSeverity.Warning,
         Outcome = isUnknown ? GenerationDiagnosticOutcome.Unknown : GenerationDiagnosticOutcome.Unsupported,
         Message = $"Fact '{fact.Id.Value}' from adapter '{fact.Evidence.Adapter.Id}' uses {(isUnknown ? "unknown" : "undefined")} {discriminator} value '{value}'; the affected fact was omitted",
+        Facts = [fact.Id],
         Source = fact.Evidence.Source,
         Subject = fact.Subject
     };

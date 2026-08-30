@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Immutable;
+
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>
@@ -74,6 +76,14 @@ public sealed record GenerationDiagnostic
     /// Gets the typed semantic outcome, when the diagnostic describes an unknown, conflict, or unsupported result.
     /// </summary>
     public GenerationDiagnosticOutcome? Outcome { get; init; }
+
+    /// <summary>
+    /// Gets the canonical identities of facts directly affected by this diagnostic.
+    /// </summary>
+    /// <remarks>
+    /// Human-readable <see cref="Message"/> text is presentation only and must never be parsed for fact identity.
+    /// </remarks>
+    public ImmutableArray<FactId> Facts { get; init; } = [];
 
     /// <summary>
     /// Gets the source range associated with the diagnostic, when available.

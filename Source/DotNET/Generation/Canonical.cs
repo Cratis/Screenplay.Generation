@@ -144,6 +144,7 @@ static class Canonical
             diagnostic.Subject?.Value,
             diagnostic.Message,
             Invariant(outcome),
+            string.Join(Separator, diagnostic.Facts.Select(fact => fact.Value).Order(StringComparer.Ordinal)),
             identity is null ? "0" : "1",
             identity?.Project,
             identity?.Path);
