@@ -6,7 +6,7 @@ namespace Cratis.Screenplay.Generation.for_GenerationFactDerivation;
 public class when_an_observed_subject_has_conflicting_declarations : given.a_derivation
 {
     GenerationDerivationSnapshot _roles = null!;
-    GenerationDerivationSnapshot _variants = null!;
+    GenerationDerivationSnapshot _realizations = null!;
 
     void Because()
     {
@@ -31,13 +31,13 @@ public class when_an_observed_subject_has_conflicting_declarations : given.a_der
             TypeUse("customerCode", ConceptSubject, "type-use")
         };
         _roles = Derive([.. common, concept, composite]);
-        _variants = Derive([.. common, concept, alternate]);
+        _realizations = Derive([.. common, concept, alternate]);
     }
 
     [Fact] void should_not_choose_one_artifact_role() => _roles.Facts.ShouldBeEmpty();
     [Fact] void should_report_incompatible_target_roles() => Codes(_roles).ShouldContain(GenerationDiagnosticCodes.ConflictingTypeUseTarget);
-    [Fact] void should_not_choose_one_declaration_variant() => _variants.Facts.ShouldBeEmpty();
-    [Fact] void should_report_incompatible_target_declarations() => Codes(_variants).ShouldContain(GenerationDiagnosticCodes.ConflictingTypeUseDeclaration);
+    [Fact] void should_derive_across_file_only_realization_variants() => _realizations.Facts.Length.ShouldEqual(1);
+    [Fact] void should_not_report_file_only_declarations_as_semantic_conflicts() => _realizations.Diagnostics.ShouldBeEmpty();
 
     static IEnumerable<string> Codes(GenerationDerivationSnapshot snapshot) =>
         snapshot.Diagnostics.Select(diagnostic => diagnostic.Code);

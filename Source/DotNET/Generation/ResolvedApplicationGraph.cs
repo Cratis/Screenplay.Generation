@@ -14,6 +14,11 @@ public sealed record ResolvedArtifactVariant
     public required ArtifactDefinition Definition { get; init; }
 
     /// <summary>
+    /// Gets the canonical logical source files asserting this semantic definition.
+    /// </summary>
+    public IReadOnlyList<string?> Files { get; init; } = [];
+
+    /// <summary>
     /// Gets the canonical fact identities supporting the effective definition.
     /// </summary>
     public IReadOnlyList<FactId> SupportingFacts { get; init; } = [];
@@ -214,6 +219,11 @@ public sealed record ResolvedConceptValidationRuleVariant
     /// Gets the asserted concept validation rule.
     /// </summary>
     public required ConceptValidationRuleDefinition Definition { get; init; }
+
+    /// <summary>
+    /// Gets the canonical implementation files asserting this semantic rule.
+    /// </summary>
+    public IReadOnlyList<string?> ImplementationFiles { get; init; } = [];
 
     /// <summary>
     /// Gets the ordered evidence supporting the rule.

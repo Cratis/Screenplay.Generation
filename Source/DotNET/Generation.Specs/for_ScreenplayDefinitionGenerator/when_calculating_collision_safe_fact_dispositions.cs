@@ -32,7 +32,8 @@ public class when_calculating_collision_safe_fact_dispositions : given.a_generat
             new ScreenplayGenerationOptions { Domain = "Banking" });
     }
 
-    [Fact] void should_conflict_null_and_empty_artifact_files_independently() => Dispositions("artifact:null", "artifact:empty").ShouldContainOnly(GenerationFactDisposition.Conflicted, GenerationFactDisposition.Conflicted);
+    [Fact] void should_omit_semantically_equal_unplaced_artifacts_independently() => Dispositions("artifact:null", "artifact:empty").ShouldContainOnly(GenerationFactDisposition.OmittedWithDiagnostic, GenerationFactDisposition.OmittedWithDiagnostic);
+    [Fact] void should_not_report_a_semantic_conflict_for_null_and_empty_files() => Records("artifact:null", "artifact:empty").SelectMany(record => record.Diagnostics).Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict).ShouldBeFalse();
     [Fact] void should_conflict_null_and_empty_relationship_members_independently() => Dispositions("relationship:null", "relationship:empty-source").ShouldContainOnly(GenerationFactDisposition.Conflicted, GenerationFactDisposition.Conflicted);
     [Fact] void should_omit_separator_bearing_relationship_keys_independently() => Dispositions("relationship:separator-target", "relationship:separator-discriminator").ShouldContainOnly(GenerationFactDisposition.OmittedWithDiagnostic, GenerationFactDisposition.OmittedWithDiagnostic);
     [Fact] void should_not_report_a_conflict_for_separator_bearing_relationship_keys() => Records("relationship:separator-target", "relationship:separator-discriminator").SelectMany(_ => _.Diagnostics).Any(_ => _.Outcome == GenerationDiagnosticOutcome.Conflict).ShouldBeFalse();

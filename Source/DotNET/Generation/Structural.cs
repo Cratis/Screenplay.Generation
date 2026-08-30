@@ -17,15 +17,13 @@ static class Structural
             ArtifactKey(definition.Key),
             definition.Name,
             definition.Description,
-            definition.File,
             Sequence(definition.Properties, Property));
 
     public static string ArtifactDeclaration(ArtifactDeclarationDefinition definition) =>
         Node(
             ArtifactKey(definition.Artifact),
             definition.Name,
-            definition.Description,
-            definition.File);
+            definition.Description);
 
     public static string ArtifactMemberKey(ArtifactMemberKey member) =>
         Node(ArtifactKey(member.Artifact), member.Name);
@@ -87,8 +85,7 @@ static class Structural
             ConceptValidationRuleKey(definition),
             Integer((int)definition.Kind),
             definition.Predicate,
-            definition.Message,
-            definition.ImplementationFile);
+            definition.Message);
 
     public static string SpecificationScenarioKey(SpecificationScenarioKey key) =>
         Node(key.Scenario.Value);

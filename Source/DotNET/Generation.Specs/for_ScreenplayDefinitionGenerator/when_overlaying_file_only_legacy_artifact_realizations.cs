@@ -3,7 +3,7 @@
 
 namespace Cratis.Screenplay.Generation.for_ScreenplayDefinitionGenerator;
 
-public class when_overlayed_legacy_artifact_variants_conflict : given.a_generator
+public class when_overlaying_file_only_legacy_artifact_realizations : given.a_generator
 {
     GeneratedScreenplayDefinition _result = null!;
 
@@ -85,10 +85,11 @@ public class when_overlayed_legacy_artifact_variants_conflict : given.a_generato
             new ScreenplayGenerationOptions { Domain = "Ordering" });
     }
 
-    [Fact] void should_retain_both_effective_overlay_variants_as_a_conflict() => Event().IsConflicted.ShouldBeTrue();
-    [Fact] void should_bind_both_effective_variants_without_selecting_one() => Event().Variants.All(variant => variant.Definition.Properties.Single().Type.Subject!.Value == "dotnet://Ordering/Concepts.CustomerCode").ShouldBeTrue();
-    [Fact] void should_conflict_both_complete_legacy_support_facts() => Dispositions("event:first", "event:second").ShouldContainOnly(GenerationFactDisposition.Conflicted, GenerationFactDisposition.Conflicted);
-    [Fact] void should_conflict_the_binding_supporting_both_variants() => Dispositions("event:binding").ShouldContainOnly(GenerationFactDisposition.Conflicted);
+    [Fact] void should_retain_one_effective_semantic_variant() => Event().Variants.Count.ShouldEqual(1);
+    [Fact] void should_retain_both_file_realizations() => Event().Variants.Single().Files.ShouldEqual("Events/First.cs", "Events/Second.cs");
+    [Fact] void should_bind_the_effective_semantic_variant() => Event().Variants.Single().Definition.Properties.Single().Type.Subject!.Value.ShouldEqual("dotnet://Ordering/Concepts.CustomerCode");
+    [Fact] void should_retain_both_complete_legacy_support_facts_as_provenance() => Dispositions("event:first", "event:second").ShouldContainOnly(GenerationFactDisposition.ProvenanceOnly, GenerationFactDisposition.ProvenanceOnly);
+    [Fact] void should_lower_the_binding_supporting_the_effective_variant() => Dispositions("event:binding").ShouldContainOnly(GenerationFactDisposition.Lowered);
 
     ResolvedArtifact Event() => _result.Graph.Artifacts.Single(artifact => artifact.Key.Kind == ArtifactKind.Event);
 

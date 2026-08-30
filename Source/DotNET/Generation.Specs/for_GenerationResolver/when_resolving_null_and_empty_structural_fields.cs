@@ -28,8 +28,11 @@ public class when_resolving_null_and_empty_structural_fields : given.facts
         ]);
     }
 
-    [Fact] void should_retain_null_and_empty_artifact_files_as_distinct_variants() => _result.Artifacts.Single().Variants.Count.ShouldEqual(2);
-    [Fact] void should_conflict_null_and_empty_artifact_files() => _result.Artifacts.Single().IsConflicted.ShouldBeTrue();
+    [Fact] void should_retain_one_semantic_artifact_variant() => _result.Artifacts.Single().Variants.Count.ShouldEqual(1);
+    [Fact] void should_retain_both_artifact_file_realizations() => _result.Artifacts.Single().Variants.Single().Files.Count.ShouldEqual(2);
+    [Fact] void should_retain_the_null_artifact_file_realization() => _result.Artifacts.Single().Variants.Single().Files[0].ShouldBeNull();
+    [Fact] void should_retain_the_empty_artifact_file_realization() => _result.Artifacts.Single().Variants.Single().Files[1].ShouldEqual(string.Empty);
+    [Fact] void should_not_conflict_null_and_empty_artifact_files_semantically() => _result.Artifacts.Single().IsConflicted.ShouldBeFalse();
     [Fact] void should_retain_null_and_empty_relationship_members_as_distinct_variants() => _result.Relationships.Single().Definitions.Count.ShouldEqual(3);
     [Fact] void should_conflict_null_and_empty_relationship_members() => _result.Relationships.Single().IsConflicted.ShouldBeTrue();
 
