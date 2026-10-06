@@ -49,9 +49,9 @@ public class when_generating_from_adapter_run_snapshots_in_different_orders : gi
     [Fact] void should_preserve_the_existing_contribution_source_hash() => Hash(_contribution.Source).ShouldEqual(ExpectedContributionHash);
     [Fact] void should_leave_the_contribution_result_without_an_adapter_run() => _contribution.AdapterRun.ShouldBeNull();
     [Fact] void should_generate_the_same_source_as_the_contribution_overload() => _forward.Source.ShouldEqual(_contribution.Source);
-    [Fact] void should_preserve_the_contribution_diagnostics() => _forward.Diagnostics.ShouldContainOnly(_contribution.Diagnostics);
+    [Fact] void should_preserve_the_contribution_diagnostics() => AdapterRunProjection(_forward.Diagnostics).ShouldEqual(AdapterRunProjection(_contribution.Diagnostics));
     [Fact] void should_generate_identical_source_after_reversing_adapters_and_facts() => _reverse.Source.ShouldEqual(_forward.Source);
-    [Fact] void should_generate_identical_diagnostics_after_reversing_adapters_and_facts() => _reverse.Diagnostics.ShouldContainOnly(_forward.Diagnostics);
+    [Fact] void should_generate_identical_diagnostics_after_reversing_adapters_and_facts() => AdapterRunProjection(_reverse.Diagnostics).ShouldEqual(AdapterRunProjection(_forward.Diagnostics));
     [Fact] void should_return_recursively_identical_canonical_adapter_runs() => AdapterRunProjection(_reverse.AdapterRun).ShouldEqual(AdapterRunProjection(_forward.AdapterRun));
     [Fact] void should_classify_every_admitted_fact_as_lowered() => _forward.AdapterRun!.Facts.All(record => record.Disposition == GenerationFactDisposition.Lowered).ShouldBeTrue();
     [Fact] void should_have_no_unknown_fact_dispositions() => _forward.AdapterRun!.Facts.Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();

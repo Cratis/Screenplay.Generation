@@ -123,7 +123,7 @@ public class when_lowering_granular_type_use_binding : given.a_generator
     [Fact] void should_leave_the_contribution_overload_without_an_adapter_run() => _contribution.AdapterRun.ShouldBeNull();
     [Fact] void should_materialize_one_effective_event_property() => Event().Definition.Properties.Select(property => property.Name).ShouldEqual(["customerCode"]);
     [Fact] void should_bind_the_effective_property_to_the_exact_concept_subject() => Event().Definition.Properties.Single().Type.Subject!.Value.ShouldEqual("dotnet://Ordering/Concepts.CustomerCode");
-    [Fact] void should_preserve_exact_optionality_in_screenplay() => _result.Source.ShouldContain("customerCode CustomerCode?");
+    [Fact] void should_preserve_exact_optionality_in_screenplay() => _result.Source.ShouldContain("customerCode CustomerCode optional");
     [Fact] void should_retain_the_declaration_as_provenance() => Disposition("application:event").ShouldEqual(GenerationFactDisposition.ProvenanceOnly);
     [Fact] void should_retain_the_member_declaration_as_provenance() => Disposition("application:member").ShouldEqual(GenerationFactDisposition.ProvenanceOnly);
     [Fact] void should_retain_the_type_use_as_provenance() => Disposition("application:type-use").ShouldEqual(GenerationFactDisposition.ProvenanceOnly);
