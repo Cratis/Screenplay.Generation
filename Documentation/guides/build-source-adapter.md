@@ -476,7 +476,7 @@ Authored extension '<type>' uses '<hook surface>' and may alter <scope>; the rec
 
 This reports bounded default recovery without treating the entire framework as unrecognized. Do not interpret arbitrary policy bodies.
 
-A host must always display every diagnostic, even when `IsSuccess` is `true`. Errors block publication. Hosts choose whether warnings block adoption, but they must not hide them. Information diagnostics describe known bounded loss.
+A host must always display every diagnostic, even when `IsSuccess` is `true`. Errors block publication. Compiler warnings retain their `PLAY` code, message, warning severity, and source position in both generation overloads; they do not make `IsSuccess` false. Hosts may explicitly require warning-free output by rejecting results with warning diagnostics, but the default verification path never hides them. Information diagnostics describe known bounded loss.
 
 Tests must assert required artifacts and relationships directly from `Graph` or `Source`; `IsSuccess` alone proves only that no error diagnostic was produced.
 

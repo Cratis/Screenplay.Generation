@@ -268,35 +268,50 @@ public sealed class ScreenplayDefinitionGenerator(
 
     static IEnumerable<GenerationDiagnostic> VerificationDiagnostics(CompilationResult<ApplicationSyntax> result)
     {
+        foreach (var warning in result.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Warning))
+        {
+            yield return new GenerationDiagnostic
+            {
+                Code = warning.Code,
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Message = warning.Message,
+                Source = new SourceRange
+                {
+                    Path = warning.Location.Path ?? string.Empty,
+                    StartLine = warning.Location.Line,
+                    StartColumn = warning.Location.Column,
+                    EndLine = warning.Location.Line,
+                    EndColumn = warning.Location.Column
+                }
+            };
+        }
+
         if (result.Success)
         {
-            return [];
+            yield break;
         }
 
         var errors = result.Diagnostics.Where(_ => _.Severity == DiagnosticSeverity.Error).ToArray();
         var first = errors.FirstOrDefault();
-        return
-        [
-            new GenerationDiagnostic
-            {
-                Code = GenerationDiagnosticCodes.DocumentDidNotCompile,
-                Severity = GenerationDiagnosticSeverity.Error,
-                Outcome = GenerationDiagnosticOutcome.Unsupported,
-                Message = first is null
-                    ? "The generated Screenplay document did not compile"
-                    : $"The generated Screenplay document did not compile: {first.Code} {first.Message}",
-                Source = first is null
-                    ? null
-                    : new SourceRange
-                    {
-                        Path = first.Location.Path ?? string.Empty,
-                        StartLine = first.Location.Line,
-                        StartColumn = first.Location.Column,
-                        EndLine = first.Location.Line,
-                        EndColumn = first.Location.Column
-                    }
-            }
-        ];
+        yield return new GenerationDiagnostic
+        {
+            Code = GenerationDiagnosticCodes.DocumentDidNotCompile,
+            Severity = GenerationDiagnosticSeverity.Error,
+            Outcome = GenerationDiagnosticOutcome.Unsupported,
+            Message = first is null
+                ? "The generated Screenplay document did not compile"
+                : $"The generated Screenplay document did not compile: {first.Code} {first.Message}",
+            Source = first is null
+                ? null
+                : new SourceRange
+                {
+                    Path = first.Location.Path ?? string.Empty,
+                    StartLine = first.Location.Line,
+                    StartColumn = first.Location.Column,
+                    EndLine = first.Location.Line,
+                    EndColumn = first.Location.Column
+                }
+        };
     }
 
     sealed record ProducedFact(AdapterIdentity Producer, GenerationFact Fact);
