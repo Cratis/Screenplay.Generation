@@ -1,6 +1,16 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-render-and-gap-fill/references/delivery-protocol.md -->
 # Delivery protocol
 
+## Contents
+
+- 1. Inputs to collect before the first command
+- 2. Commands
+- 3. Reading results
+- 4. Customizations (bounded)
+- 5. Done check (before reporting)
+- 6. Stop and ask
+- Interview batch for render delivery
+
 The render phase proves and publishes; it does not write business behaviour. Run one phase
 per tool call and read each result from its exit status, never from a grep of the log.
 
@@ -10,7 +20,8 @@ per tool call and read each result from its exit status, never from a grep of th
   identity"). A dirty flag is never a revision. Bind the whole run to it; if it changes, start over.
 - The **model root**. Use a dedicated folder: implementation attachments are read from it.
 - **Render inputs:** `--name` (application identity, required for plain source, a C# identifier),
-  `--project-name`, `--root-namespace`, `--target cratis`. Keep them identical across
+  `--project-name`, `--root-namespace`, `--target cratis`, and `--scope <Module[.Feature][.Slice]>` (repeatable) when
+  only an admitted part is delivered; record the scope list with the source identity. Keep them identical across
   re-renders; changing the name or target makes publication refuse as an identity change.
 - **Destination:** `.ai-work/screenplay/<model-slug>/render-probe/<App>` unless the user named another.
 - Which modeled screens, personas and seams exist (UI omission list, section 4).
@@ -20,6 +31,8 @@ per tool call and read each result from its exit status, never from a grep of th
 | Phase | Command | Result is |
 | --- | --- | --- |
 | Admission and publication | `cratis render <root> --name <App> --destination <dir> [--project-name <P>] [--root-namespace <N>] -o json` (forward every option recorded in section 1) | exit 0 published (receipt on stdout), 5 refused (diagnostics, nothing published), 1 missing input |
+| Drift or pending-change check | the same command plus `--check` (and `--scope`, `--force` as used) | no write, no recovery: exit 0 current, 6 `changes_pending`, 5 planning failure, refusal or pending recovery |
+| Bundled-binder check | `cratis screenplay validate --executable <root>` | exit 5 with "does not bind into an executable semantic model" when it does not; never renders or writes. Uses the bundled compiler, not the standalone pin |
 | Debug build | `dotnet build <dir>/<Project>.csproj -c Debug` | the build's exit status |
 | Debug tests | `dotnet test <dir>/<Project>.csproj -c Debug --no-build` | the test runner's exit status plus per-test results |
 | List the generated classes | `dotnet test <dir>/<Project>.csproj -c Debug --no-build --list-tests` | the names to map to specifications |
@@ -38,8 +51,11 @@ file (for example `--logger "trx"` with a results directory under the probe fold
 - **Admission:** ok, or error codes classified with `renderability-gate.md`.
 - **Publication:** written, unchanged and removed counts, plus `recovered`. `refused` when a managed file
   was modified, an unmanaged file sits on a planned path, a modified stale file would be removed,
-  or the manifest identity changed (`drift-and-ledger.md`). Ok means `recovered: false` and
-  `written + unchanged` equal to the artifact count.
+  or the manifest identity changed (`drift-and-fallback-record.md`). Ok means `recovered: false` and
+  `written + unchanged` equal to the artifact count (for a `--scope` render, the scope's artifacts: other
+  scopes' files are preserved and never counted; compare against the receipt's `owners`/`sources` for the
+  selected slices and the `orphaned` list). The receipt's `sources` map generated files back to
+  specifications and slices.
 - **Build:** Debug exit status. Classify each error location as `Customizations/`, managed or outside.
   An error in a managed file after a clean render is a renderer defect or an environment problem:
   report it, never patch the file.
@@ -86,7 +102,7 @@ rejected model renderable, and never turns a refusal into a V5 pass.
 ## 5. Done check (before reporting)
 - Every modeled specification in the rendered scope has a generated class family that passed.
 - No hand-written behaviour duplicates or extends a rendered slice.
-- Seam adapters only serve named seams; authorized business gap-fill is in the ledger; no managed file was edited.
+- Seam adapters only serve named seams; authorized business gap-fill is in the fallback record; no managed file was edited.
 - UI omissions are listed: modeled screens, forms, layouts, themes and persona views that the
   default composition does not render.
 - V5 is reported as four lines, with the scope it covers stated. The runtime (`docker compose
@@ -98,3 +114,11 @@ has no field, event or specification behind it; two specifications contradict; a
 needs state nothing produces; a declared seam's contract conflicts with the model; or a
 description states behaviour that a specification, mapping or constraint contradicts. Name the
 slice, the element and what is missing. Everything else: proceed from what the model says.
+
+## Interview batch for render delivery
+
+1. **Which model, which accepted version?** (root, source identity from the lifecycle report).
+2. **Application name** for `--name` (it is part of the application identity: keep it identical on every re-render).
+3. **Destination.** Default `.ai-work/screenplay/<model-slug>/render-probe/<App>`; any other destination needs the user's intent.
+4. **If admission fails:** stay in design mode, change the model for business reasons, or gap-fill by hand? (the three cases below).
+5. **Seams:** outside systems, styles or packages the rendered app needs (`Customizations/`).

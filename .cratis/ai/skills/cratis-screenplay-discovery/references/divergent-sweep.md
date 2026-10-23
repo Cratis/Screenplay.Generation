@@ -21,6 +21,7 @@ stage of the story:
 | Afterwards | Renew, reopen, roll over, appeal, refund? | follow-on stories or branches |
 | On behalf | Can someone act for another, or override? | Does/Cannot lines (denial specs) |
 | Proof later | What will an auditor, regulator or angry customer ask to see? | facts that looked like detail |
+| Without software | How would this run on paper, with people? Who acts, what triggers each action, what must they know first? Which step exists only because of the system (a loading state, a cache refresh, a session check)? | the real business steps; steps to drop; missing human hand-overs |
 | Hotspots | For each hotspot named in step 2: what goes wrong there today? | the deepest branch set |
 
 Outcome per lens and stage: modeled fact, set-aside (with why), open question, or "does not
@@ -36,3 +37,12 @@ open question with the assumption in use.
 | Competition candidate | a competing-claim spec; consistency design |
 | Duplicate candidate | a duplicate/retry spec |
 | Ending | removal from affected views |
+
+## Review questions (ask; do not apply mechanically)
+- A different story, or a different ending of the same story?
+- Does an optional field hide two situations (two events), or one fact with an optional detail?
+- Can several be in progress at once for the same party?
+- What happens when it fails, is withdrawn, expires, or is corrected afterwards?
+- Owned by this business, or reported to it by an outside party?
+- Can two parties want the same scarce thing at once? Who wins?
+- After this point, can it still be called off, and by whom?

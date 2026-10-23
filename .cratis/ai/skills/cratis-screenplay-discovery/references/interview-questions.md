@@ -22,14 +22,14 @@ assumption you take instead of asking.
 | Outside | Which outside parties or systems send or receive information here? | Later translations and contracts | they send facts we rely on: ask how we recognise which of our records it concerns |
 | Corrections | Can a recorded fact turn out wrong? How is it put right today? | Correction and reversal events instead of edits | "we just edit it": ask who needs to know it was changed |
 | History | What would an auditor, a regulator or an angry customer ask to see later? | Finds facts that look like detail but must be kept | a calculation must be shown later: treat it as a fact |
-| People's data | Which values identify or describe a person? How long may we keep them? | `@pii` on concepts before event shapes settle | data about two people in one fact: consider separate facts |
+| People's data | Which values identify or describe a person? For what use, basis, retention, recipients/transfers and erasure exceptions? | bare `pii` on concepts; purpose declarations separate from reasons | special/criminal data needs declared safeguards; two people in one fact may need separate facts |
 | Volume | How often does this happen, and how long does one instance live? | Informs stream design later; never a reason to drop a fact | an instance lives for years: note it for stream review |
 | Input | What do we have to go on: written rules, a rough list, word of mouth, a running system? | Sets how hard to sweep | only word of mouth: run every sweep lens |
 | Who decides | Who has the final word on what this means for the business? | Separates decisions from assumptions | no one present: mark meaning as assumption to confirm |
 | Hotspots | Where does this go wrong, get disputed or need workarounds today? | Focuses depth | per hotspot: what happened the last time? |
 | Competition | Can two parties want the same thing at the same moment? | Uniqueness rules, competing claims | yes: who wins, and what does the other see? |
 | On behalf | Does anyone do this for someone else, or override it? | Authority and denial | yes: may they, and must we record who acted? |
-| In any order | After this, which next steps must wait for each other and which need not? | Ordering, later automations | they need not: say so in the feature description |
+| In any order | After this, which next steps must wait for each other and which need not? | Ordering, later automations | they need not: say so in the feature `documentation` |
 | Instead | At this point, what else could happen instead, including nothing? | Branches and endings | "nothing": does it expire or wait forever? |
 
 ## Interview flow
@@ -65,3 +65,17 @@ reviewer should challenge.
 - An event nobody can say the cause of.
 - A workflow with no terminal fact or no failure path.
 - Answers that describe screens or tables instead of what happened.
+
+## Critical questions
+
+1. **How complete is the input?** (written spec / documented rules / rough list / word of
+   mouth / running system). Thin input means a heavier step 4. Follow up: for a rough list or
+   word of mouth, probe for missing scenarios and ask the rules to be stated.
+2. **Who has the final word on business meaning?** Follow up: only engineers present means
+   every meaning is an assumption to confirm; recommend inviting the domain expert.
+3. **Where is it complex, disputed or fragile today?** (the hotspots). Follow up, per hotspot:
+   what goes wrong there, what happened the last time.
+4. **Which rules must always or never hold?** Follow up, per rule: what does the person see
+   when refused, and must the business remember the breach (a fact only if so)?
+5. **Who takes part, and what may each role not do?** Follow up: for each Cannot, is it an
+   authority limit or a rule for everyone?

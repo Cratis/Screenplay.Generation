@@ -1,6 +1,27 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-slice-design/references/read-model-design.md -->
 # Read-model design
 
+## Contents
+
+- Start from the consumer
+- The typical slice pattern
+- Events or views
+- Common view patterns
+- Components
+- Fan-in per field
+- Builder and freshness
+- Query shape follows the business view
+- No clock-relative state
+- Who may see what
+- Collections and many-at-once
+- Building it
+- Omissions are decisions
+- Checks before handing off
+- Query binding
+- Executable identity of a read model
+- Identifier and key contract
+- Mappings to undeclared or unmapped properties
+
 ## Start from the consumer
 
 List every consumer before designing any read model: each screen area a person looks at, and
@@ -56,6 +77,22 @@ and a recovery contract, or a pending-work view; only an immediate, internal, al
 effect may leave no trace
 (`cratis-screenplay-automations-and-translations`).
 
+## Common view patterns
+
+Four shapes recur. Name the one a view is before choosing its fields, so the consumer and the
+events line up.
+
+| Pattern | Events feeding it | The view holds | Used for |
+|---|---|---|---|
+| Status view | The lifecycle events of one instance (booked, confirmed, arrived, cancelled) | The accumulated current state of that instance | A screen that shows where one thing stands and which actions are available |
+| List view | Create, change and end events of many instances | One summary row per instance, with the fields people filter, sort or search by | Worklists, search, filtering; end events either `remove with` the row or set a status literal (see "Omissions are decisions") |
+| Timeline or history view | Any events that carry a time | A chronological list, one entry per event, kept apart from the status view | History and audit trail; keep a growing history in its own view, never inside the status view |
+| Processor decision view | The state-changing events a reaction cares about | Current state only, nothing a person would read | A `reaction` or `trigger` that reads it to decide the next action; a reaction that also `produces` directly cannot `reads` it (`PLAY0268`), so it `invokes` a command that holds the `reads` (a pending-work view is this pattern for work that can wait, retry or fail) |
+
+The patterns describe what the view is for, not new syntax: each is a `readmodel`, a projection
+and, where a person or caller reads it, a `query`. A view that fits two patterns at once is
+usually two views.
+
 ## Components
 
 - A component is an area of a screen a person would describe as one thing ("the locker list",
@@ -67,9 +104,10 @@ effect may leave no trace
   list whose status is set by booking, cancellation and maintenance events). Do not use that
   as a reason to fold in fields without the same wide fan-in: a berth's name and pier (set by
   one or two events) and its live availability (derived across its whole lifecycle) are two
-  kinds of computation even on one page. Split them when you can name the consequence; if
-  you keep one view, note which field has the irreducible fan-in and why (in the slice
-  `description`).
+  kinds of computation even on one page. Mixed kinds of computation split by default. Keep one
+  view only with a written reason in the slice `documentation` that names the field with the
+  irreducible fan-in and why. Fan-in alone, within one kind of computation, splits only for a
+  named consequence (next section).
 - A screen with several components has one `data` line per component, each
   `data <RM> via query <Q>` from its own read model (several `data` lines per screen are
   valid; `cratis-screenplay-read-surface`). A split component sits next to its own source
@@ -82,8 +120,10 @@ effect may leave no trace
 For each read-model field, count the events that set it. More than about three is a signal to
 look at, not a rule: a status fed by a long lifecycle is normal. Ask whether the field mixes
 concerns that should be separate views, and whether every contributing event is genuinely a
-change to *this* value. Report a problem only when it has a consequence (coupling, a view that
-must change whenever unrelated facts change).
+change to *this* value. Within one kind of computation, report a problem only when it has a
+consequence (coupling, a view that must change whenever unrelated facts change). Fields set once
+by one or two events that ride with a field derived across the whole lifecycle are mixed kinds,
+and that case splits by default (Components).
 
 ## Builder and freshness
 
@@ -91,7 +131,10 @@ Observable delivery does not make a materialized projection decision-consistent;
 decision needs a guarded read (`rule-layers.md`, `cratis-screenplay-streams-and-consistency`). Prefer a
 declarative projection (mappings, event joins, counters, bounded children, removals); a join
 consumes event facts, not another read model. Use a reducer when prior-state, attempt or
-ordering guards cannot be expressed declaratively. Review every writer of a property: AutoMap
+ordering guards cannot be expressed declaratively, and the view is only ever looked up by the
+event-source identity: a reducer cannot be re-keyed, so a query `by` another identity type warns
+`PLAY0690`; aggregate by a payload value with a projection keyed on each `from`, or a join
+(projections [reducer identity](../../cratis-screenplay-projections/references/reducer-identity.md)). Review every writer of a property: AutoMap
 can introduce updates from other events. Use variants only when lifecycle stages have different
 shapes. Keep growing histories in a separate view; never combine several people's PII under
 one read-model instance (compose queries across person-scoped views instead).
@@ -99,25 +142,37 @@ one read-model instance (compose queries across person-scoped views instead).
 Every `from` event must set or affect a field (AutoMap counts); otherwise drop it or record why
 it stays.
 
+A builder is deterministic: replaying the same events gives the same view. A reducer body reads
+only the event, the current state and the context members the reducer exposes (`context.Occurred`
+for time, never the wall clock). It calls no service, reads no other view and causes no effect.
+Work that needs any of those is an automation that records a fact, which the view then projects.
+Stage admits only pure reducer bodies for the same reason (`cratis-screenplay-projections`).
+
 ## Query shape follows the business view
 
 | The person... | Design-mode query | Executable/renderable scope |
 |---|---|---|
-| opens one thing | `XById => RM optional` + `by xId XId` | same (the only shape that binds today) |
-| scans a list | `ListX => RM[]` (optionally `observable`, `filter`) | keep the list for design; add the keyed query; record V3 blocked by the list |
-| sees their own rows | list with scope/`from` on the caller | as above; access rules are part of the view, enforced by the target |
+| opens one thing | `XById => RM optional` + `by xId XId` | binds with caller-supplied `by`; check target renderer |
+| scans a list | `ListX => RM[]` (optionally `observable`, `filter`) | collection/observable delivery bind; caller-supplied equality filters bind as ESM v14; check target renderer |
+| sees their own rows | list with scope/`from` on the caller | scope and context-derived `by`/`filter` remain PLAY0268 because portable scope/query context is unadmitted; caller-supplied filters are not access control |
 | sees a site-wide figure | singleton read model, `from <Event> key literal "global"` on every `from` (a projection-level `key` routes nothing, PLAY0381; example in Screenplay `projections/keys.md`, "Literal keys") | check the binding (V3, `cratis-screenplay-toolchain`) |
 
 - `observable` when people are expected to see others' or automation's changes while looking
-  (worklists, status awaiting an outside answer); one-shot otherwise. Design mode only
-  (PLAY0268). If access can be revoked mid-session, record that the target re-checks per emission.
+  (worklists, status awaiting an outside answer); one-shot otherwise. Observable delivery
+  binds; renderer support is separate. If access can be revoked mid-session,
+  record that the target re-checks per emission.
 - Never model paging or page size (no syntax, Screenplay#140). State the order in the query
-  `description` ("oldest first"); an unbounded list is a review question.
+  `description` ("oldest first"; queries do not accept `documentation`); an unbounded list is a review question.
 - A gated keyed query needs its own denial spec.
 
-Never drop a list query from a design model just to make it bind; record the capability gap.
-The keyed query also defines the read model's identity: its `by` property must be a read-model
-property. The identifier always equals the projection's effective key:
+Never drop a business-required list query to satisfy an old compiler or renderer;
+record any actual capability gap. Explicit trailing `key` takes precedence
+for read-model identity. Otherwise single-instance queries in the owning slice must
+agree on one `by` property declared on the read model. Only with no single-instance
+identifier and an admitted collection/list query does conventional `*Id` inference
+run; queryless views need explicit `key`. The fallback excludes collection-query key
+candidates when that leaves one identifier (full algorithm: read-surface
+`references/named-keys.md`). The identifier equals the projection's effective key:
 
 | Effective key | Executable model | Renderable model (Stage) |
 |---|---|---|
@@ -151,7 +206,7 @@ has children, not a single value.
 
 - Event properties fill read-model properties of the same name automatically (AutoMap), but the
   match differs by binding: a scoped projection matches names case-insensitively and only for
-  the same type (Screenplay v4.64.0 `ProjectionValues.cs` `AutoMapped`); a flat-bound projection
+  the same type (Screenplay v4.66.0 `ProjectionValues.cs` `AutoMapped`); a flat-bound projection
   matches exact names only and does not check the type, so a same-named property of another
   type makes the model invalid (`Projections.cs` `BindFlatTransition`). Do not rely on AutoMap
   where it matters: map explicitly when names or types differ, and use `no automap` where an
@@ -167,8 +222,8 @@ has children, not a single value.
 If a view must stop showing cancelled items, use `remove with <Event>` and pin it with
 `then no readmodel <RM> for "<key>"`. If it keeps them, map a status literal from that event
 instead. The slice `description`, the projection and every spec of the view must agree.
-A complete example (marina berths; the `then no readmodel` assertion needs the keyed
-query, which is why the view has one):
+A complete example (marina berths; the keyed query supplies the view's identity
+for the `then no readmodel` assertion; explicit `key` could supply it instead):
 
 ```screenplay
 domain Harbourlight.Berths
@@ -193,11 +248,8 @@ module Berths
       command BookBerth
         bookingId BookingId identifier
         berth BerthName
-        produces BerthBooked
-          for bookingId
-          berth = berth
-      event BerthBooked
-        berth BerthName
+        produces event BerthBooked
+          berth BerthName = berth
       specification BookingABerth
         given caller
           authenticated
@@ -212,9 +264,7 @@ module Berths
       description "A skipper cancels a booking they no longer need"
       command CancelBooking
         bookingId BookingId identifier
-        produces BookingCancelled
-          for bookingId
-      event BookingCancelled
+        produces event BookingCancelled
 
     slice StateView OpenBookings
       description "The harbour office lists bookings that still hold a berth. BerthBooked sets berth: the booking enters the list. BookingCancelled removes it: a cancelled booking never shows."
@@ -245,7 +295,7 @@ module Berths
 
 ## Checks before handing off
 
-- The StateView slice `description` gives, per contributing event, the fields it sets and why
+- StateView slice `documentation` gives, per contributing event, the fields it sets and why
   (see `LockerBoard` in `worked-example.md`); extend it whenever a `from` is added. Shape of
   the note: `BerthBooked sets bookingId, status="booked": the view's creation event; the booking
   does not exist before it.` / `BoatArrived sets status="arrived", arrivedAt: the only
@@ -262,7 +312,50 @@ module Berths
 - Every consumer that needs state has its read model (a blank creation form and a direct reaction
   with a documented no-pending-work reason need none); every read model has a consumer.
 - Every field traced (`field-lineage.md`).
-- Executable/renderable scope: one unambiguous key per read model (one or more keyed queries,
-  all with the same `by` property), identifier equal to the projection's key (table above);
-  no list queries.
-- Design-only shapes listed with the V3 code they cause.
+- Every failure, refusal-received or cancellation fact a person must act on shows in some view
+  (a status literal plus the reason), or the omission is a stated decision (see "Omissions are
+  decisions"). Pin it with a view specification (`cratis-screenplay-scenario-coverage`
+  `references/scenario-catalogue.md` section 9).
+- Every persona's Reads line has a screen whose `data` shows it, and every persona's Does line
+  reaches a screen or form `action` for that decision. A persona with neither is missing screens
+  (add them) or is not part of this scope (revise its Does/Reads in discovery, or record why). A
+  read-only persona is legitimate.
+- Executable scope: one identity per read model: explicit `key`, else agreeing
+  single-instance `by`, else unambiguous `*Id` only with an admitted list query and
+  no single-instance identifier. Queryless views need explicit `key`. The identifier
+  equals the projection's key (table above); check target renderer admission separately.
+- Each design-only shape (one the renderer does not admit) is listed with the V3 diagnostic code it causes.
+
+## Query binding
+
+- A query's `by` goes on its own body line. Optional keyed and collection queries
+  bind, including observable delivery. Caller-supplied equality filters on collections
+  bind as ESM v14; `by` ANDs with supplied filters. `from`, single-result
+  filters, scope and a `by` block on a list query remain PLAY0268 for their
+  respective context/cardinality/opaque/multipart gaps. A `performer` query is an opaque read left
+  out of the executable model, not PLAY0268 ([version gate](../../cratis-screenplay-toolchain/references/executable-subset.md#code-attachments-what-binds-what-never-does)). A composite-keyed optional
+  single-instance query takes a `by` block naming every part (ESM v27). Read read-surface
+  [equality filters](../../cratis-screenplay-read-surface/references/equality-filters.md).
+
+## Executable identity of a read model
+
+   read model needs one unambiguous identity: explicit trailing `key` first, else
+   single-instance queries agreeing on `by xId XId`, else conventional `*Id` inference
+   only with an admitted list query and no single-instance identifier. Queryless views
+   need explicit `key`; read-surface `references/named-keys.md` gives the exact fallback.
+   The identifier equals the projection's effective key (decision table in
+   `references/read-model-design.md`; Stage rule in `references/admission.md` of
+   `cratis-stage-rendering-and-sandbox`). Collections and observable delivery bind;
+   check renderer admission separately.
+
+## Identifier and key contract
+
+- At most one `identifier` per command; never on an event property; never on a read-model
+  property (use `key`; otherwise identity comes from single-instance `by`, or
+  conventional `*Id` only with an admitted list query and no single-instance identifier).
+  Queryless read models need explicit `key`.
+- At most one builder (projection or reducer) per read model (`PLAY0191`).
+
+## Mappings to undeclared or unmapped properties
+
+- A mapping to an undeclared target fails only at binding (V3, PLAY0273); a declared property that nothing maps (for example after a one-sided rename that AutoMap relied on) is reported by `field-origins` only where coverage is known: trace by hand too.
