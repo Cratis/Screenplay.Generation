@@ -1,6 +1,19 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-model-review/references/report-template.md -->
 # Review report template
 
+## Contents
+
+- Finding fields
+- Root causes
+- Defect or business question?
+- Question notes
+- Verdict rules
+- Findings across a re-review
+- Wording
+- Independent review
+- Question-note review
+- Re-review states
+
 Keep the report to findings and evidence; no file dumps. Addresses and paths, not contents.
 The check-by-check layout (per phase: how many checks; per check: status, element, evidence;
 anti-patterns; final questions; verdict; success criteria) is adapted from TrogonStack
@@ -26,15 +39,15 @@ Independence: independent (fresh context, different model family from every auth
 V1 authorable:                <pass (tool, version, N files) | fail: PLAYnnnn at file:line>
 V2 executable diagnostics:    <clean | n diagnostics: codes | not run: reason>
 V3 binding-ready:             <ready | blocked: codes | not run: reason>
-V4 reference specs run:       <route, expected vs discovered, passed/failed/unsupported/cancelled | not run: no route>
+V4 reference specs run:       <route, expected vs discovered, passed/failed/unsupported; overall unbound | not run: no route>
 V5 rendered, target-verified: admission <...>; publication <...>; build <...>; tests <...>   (each "not run: reason" when absent)
-Gaps: <capability gaps and tool-version gaps, e.g. false PLAY0285 on cascades in cratis 3.27.1>
+Gaps: <capability gaps and tool-version gaps, e.g. a false PLAY0285 on cascades from a cratis before 3.28.2 bundle>
 
 ## Inventory (read-only audit; MCP describe-application view=summary, find-assertion-gaps)
 Modules n, features n, slices n (StateChange n, StateView n, Automation n, Translate n),
 events n, commands n, read models n, specs n.
 Slices with at least one assertion: n of total (pct). Without: <names, at most 10, then "and N more">.
-Structural gaps per slice (skip gaps a description calls intentional): <slice: what is missing, or none>.
+Structural gaps per slice (skip gaps documentation explicitly calls intentional): <slice: what is missing, or none>.
 
 ## Phase 1: Element sweep (7 checks)
 Check S1: <short title>
@@ -57,6 +70,10 @@ Sweep summary: gated elements n, with denial spec n, NONE: <names>; field-copy s
 
 ## Coverage matrix
 <from the coverage matrix of `cratis-screenplay-scenario-coverage`; mark empty cells and weak n/a reasons>
+
+## Modeling reasoning
+Real decisions have fenced Markdown `documentation` on their owner, finalized at
+P3's end; `description` stays a summary. No prose is enforcement or review evidence.
 
 ## Dependencies
 Per slice: events consumed and the producing slice (orientation only, not build order); cycles found.
@@ -131,6 +148,33 @@ constraint or projection).
 - An open question is genuinely unanswered. A refusal the business already decided is a
   `then error` or `then denied` specification, not a question (E9).
 
+## Question notes
+
+Inspect `list-model-notes` with scope and `state: "all"`,
+including `view: "findings"`. `model-note.open-question` is an info MCP/CLI-only
+finding, no PLAY code and no V1 failure. List orphaned questions explicitly;
+review `orphanedNotes` on source proposals, and treat null/unreadable as unknown.
+A read-only reviewer never writes notes: return a `question` note request for the
+owning session, anchored to the element with consequence and assumption. Existing
+questions should be cited by note ID; new questions must not live only in chat,
+session state or `description` text. Never put secrets or personal data in note
+text, authors, references or resolutions.
+
+Read model-authoring [model notes](../../cratis-screenplay-model-authoring/references/model-notes.md)
+when preparing that request or judging resolution evidence. Cite the project's
+own decisions with `refs: [{ "id": "D123" }]`; the owner resolves with
+`by: "external-decision"` and required `ref: { "id": "D123" }` when D123 answers
+it. Verify the answer became a specification, a description or a project-owned
+decision record; a resolved note is not behavioral proof. Ask the owner to reanchor
+or resolve affected notes before source apply; resolution alone leaves an orphan.
+
+The optional `--open-questions fail` gate exists on the standalone `screenplay` tool and on
+`cratis screenplay validate` (CLI 3.60.0 or later). Report it separately from V1–V5. Evidence: Screenplay
+`Documentation/screenplay/model-notes.md`,
+`Documentation/screenplay/mcp/reference.md`; source lines in the linked guide.
+
+Requires Screenplay 4.144.0 or later (`screenplay --version`) for `--open-questions`.
+
 ## Verdict rules
 - **FAIL**: any critical finding, or a verdict line the mode requires fails.
 - **PASS WITH WARNINGS**: no critical; one or more major or minor findings, or open business
@@ -157,3 +201,21 @@ numbers. At most two fix rounds, then escalate to the user with what remains.
 ## Wording
 Never use shape nicknames (left chair, right chair, bed, book shelf) in text meant for business
 stakeholders; describe the concern in plain words. Reviewer-only sections may use them.
+
+## Independent review
+
+P5 uses a fresh reviewer who authored nothing in scope; a different model family
+is stronger. Record reviewer/author models or `model: not exposed`; label a
+same-model review and let the user decide sufficiency, never block as an authority
+ceremony. Read lifecycle "Independent review" when arranging P5.
+
+## Question-note review
+
+   when reviewing unresolved questions: list notes and orphan findings separately
+   from PLAY diagnostics. A read-only reviewer returns `question` note requests
+   to the owner, not writes; never put secrets or personal data in note text.
+
+## Re-review states
+
+- On a re-review, each earlier finding gets one state: fixed, open, accepted by the user,
+  rejected by the reviewer, or superseded (`references/report-template.md`).

@@ -7,235 +7,128 @@ license: MIT
 
 # Captures and reactions
 
-The two slice types that run without anyone pressing a button. A `capture` in a
-`Translate` slice turns outside data into events; a `reaction` in an `Automation`
-slice runs when something happens.
+Read [preferred syntax](../cratis-screenplay-toolchain/references/preferred-syntax.md) when writing or reviewing `.play`.
+
+`capture` accepts outside data; `reaction` responds to an occurrence.
+Translate slices cross public boundaries; Automation slices cause private follow-up.
 
 ## Locate the model
 
-Look first in `.cratis/screenplay/` at the repository root. This is the
-conventional home for consumer-owned `.play` source; do not invent another
-location or search the whole repository before checking it.
+Look first for the project's existing `.play` files: their folder is the model.
+For a new model, check `Source/` or `src/`, else use `Screenplay/` at the repository
+root. Never put a model under `.cratis/` or hand-copy it between repositories.
+`cratis ai install` manages `.cratis/ai/`, never model files. Keep explanatory
+Markdown in project documentation; `.play` is the single flow model.
 
-`cratis ai install` manages `.cratis/ai/`, not `.cratis/screenplay/`. Never
-hand-copy Screenplay source between repositories. Keep Markdown that explains,
-questions or navigates the model in the repository's documentation; the `.play`
-source is the single flow model.
+## Product sources
 
-## Verified product sources
+Language claims follow Screenplay `reactions.md`, `triggers.md`, `captures.md` and
+`specifications.md` under `Documentation/screenplay/`; renderer claims follow Stage
+`Documentation/reference/reaction-rendering.md`. Tool versions are covered in toolchain
+`SKILL.md`; run the examples at the pinned standalone tool before relying on them.
 
-| Package | Version | Purpose |
-| --- | --- | --- |
-| `Cratis.Screenplay` | `4.31.0` | CDL parser, reaction and trigger parsers, diagnostics, semantic binder |
-| `Cratis.Screenplay` | main `fd18129` | Command-only inline event boundary |
-| `Cratis.Screenplay` | `4.64.0` (`7e16162`) | ESM v6: reactions, clock, trigger and capture specifications bind; `invokes` caller rule; probed with the standalone tool and its MCP server |
+The compiler's ESM admission decides, not the slice type. Reactions, triggers and
+captures bind/reference-execute from v6; older compilers refuse them. Read toolchain
+`references/diagnostics.md` when diagnosing skew or false PLAY0285 cascades.
+- **Stage realization:** read `cratis-stage-rendering-and-sandbox` `references/admission.md`
+  before claiming rendering. Supported event-triggered Automation renders; captures,
+  Translate, clocks and opaque bodies remain gap-fill (`-024`).
+  Read [sandbox boundaries](../cratis-stage-rendering-and-sandbox/references/sandbox-and-specrunner.md)
+  when checking authored occurrence versus generated-spec limits; a clock fixture is not scheduling.
 
-The update follows `commands.md`, `events.md` and `diagnostics.md` at that main
-commit (after v4.52.0).
+Name the binding tool. For the automation test, loops and translation boundaries,
+read `cratis-screenplay-automations-and-translations`.
 
-Historical baseline evidence: the original examples were checked against the Screenplay repository at tag `v4.31.0` (commit `355dffb`):
-`Documentation/screenplay/{captures,captures/grammar,reactions,triggers,interactions,file-references,grammar,diagnostics}.md`
-and decisions 0003, 0006 and 0009; those original examples compiled with that
-version's compiler. The specification actions and ESM v6 text were checked at
-`v4.64.0` (see its row above), and the complete examples here and in
-`references/complete-examples.md` compile with the standalone 4.64.0 compiler.
-Reverify before claiming another version behaves the same.
+## Public boundaries and observer selection
 
-⚠️ **Which tool admits them depends on its Screenplay version.** The ESM level
-decides, not the slice type:
+Read [ESM v9 translation](../cratis-screenplay-automations-and-translations/references/public-events-and-direction.md)
+for `direction`, `source events`/`from`, typed event fixtures and per-key state folds.
+One `source events` capture consumes events from exactly one origin (event store).
+Split inputs from several external systems into one capture per origin; otherwise
+PLAY0687 reports an error, matching Chronicle's one-inbox-observer boundary.
 
-- **Standalone `screenplay` 4.64.0 (ESM v1-v6, from 4.61.0):** `Automation` and
-  `Translate` slices, reactions, declared triggers and captures bind, and the
-  reference runner executes them. Probed: the complete example below is
-  `executableReady` over `screenplay mcp`.
-- **`cratis` 3.27.1 (Screenplay 4.60.1, ESM v1-v5):** an `Automation` or `Translate`
-  slice fails binding with `PLAY0268` (*Slice '<name>' of type '<type>' is not
-  admitted by ESM v1*), reactions report *requires portable occurrence and effect
-  semantics*, and captures *require a portable compiled CDL plan*. Only binding
-  shows this; `cratis screenplay validate` does not bind. It also reports a false
-  `PLAY0285` on a specification that follows a reaction cascade (Cratis/cli#242).
-- **Stage 4.24.0** admits ESM v1-v3 and renders no `Automation` or `Translate`
-  slice. The automation is gap-fill, with the `.play` slice and its specifications
-  as the contract: `cratis-screenplay-render-and-gap-fill`.
+Requires Screenplay 4.155.0 or later (`screenplay --version`) for PLAY0687; older compilers do not catch the runtime-invalid multi-origin capture.
+Read [v10 filters](../cratis-screenplay-toolchain/references/production-routes-and-filters.md)
+for reaction/reducer `from Source[.Stream]`; unrouted facts never match.
 
-Model them whenever the `.play` file is the deliverable, and say which tool bound
-them. Versions and messages: `cratis-screenplay-toolchain` (`references/versions.md`).
-Method (the four-part automation test, loops, translations versus automations):
-`cratis-screenplay-automations-and-translations`.
+## Specify what sets them off
 
-**Specify what sets them off** (v4.48.0, checked at tag `v4.48.0`, commit
-`3baf4a4`; execution from ESM v6, checked at `v4.64.0`): `when clock "<instant>"`
-for a reaction on `every` or `at`, `when trigger <Trigger>` with its values for one
-on an application trigger, and `given capture` / `when capture <Capture>` with the
-source record's fields for a capture, then the events that should follow.
-`given clock` fixes the occurrence time, so values mapped from `$context.occurred`
-can be asserted. Excerpt of the complete example below:
+A specification names its input: `when clock` or `when trigger` for an automation,
+`when capture` for a record source, and `when append <ForeignEvent>` for a capture
+with `source events`. Seed the latter with `given <ForeignEvent>`, never `given capture`
+or `when capture` (PLAY0701). Its key must be a required property of every `from`
+event, never `$eventSourceId` or another context key (PLAY0700).
 
-```screenplay excerpt
-specification IssuingTheWeeklyDigest
-  given clock "2026-10-05T07:00:00Z"
-  when clock "2026-10-05T07:30:00Z"
-  then DigestIssued
-    for "weekly"
-    issuedAt = "2026-10-05T07:30:00Z"
-```
+Requires Screenplay 4.171.0 or later (`screenplay --version`) for reference execution of captures over events and PLAY0700/0701; older tools leave event delivery unexecuted.
 
-Under `cratis` 3.27.1 these actions parse and are checked against the application
-but bind to nothing (`PLAY0268` names ESM v6, decision 0022): report such a
-specification as parsed, not executed. Clock rules: the clock is UTC and exact; an
-occurrence fires once when it is **due after `given clock` and at or before
-`when clock`**, in time order; intervals count from the Unix epoch; `when clock`
-needs `given clock`, so equal instants fire nothing. Limits: 10,000 occurrences per
-advance, 1,000 new facts per scenario. Spec grammar and outcome comparison:
-`cratis-screenplay-specifications`.
+First sight is `added` only, not a field change. Read
+[record capture specifications](references/record-capture-specifications.md) when
+specifying first sight, updates, child/nested additions or unchanged records.
+Execute admitted scenarios through `screenplay test` or MCP `run-specifications`;
+source compilation alone is only authored evidence.
+
+Read [references/specifying-triggers-and-clock.md](references/specifying-triggers-and-clock.md) when writing a specification for a reaction, trigger or capture, or when the clock, occurrence or limit rules matter.
+
+## Atomic batches and event-source mappings
+
+Start new models with application-root `reaction batches atomic`. One trigger's direct
+productions, or one selected refusal branch, append all-or-none; invoked commands stay
+separate. Legacy models without opt-in retain per-fact appends even at newer versions.
+Read [atomic batches and source mappings](references/atomic-batches-and-source-mappings.md)
+for batch failure assertions, PLAY0693, Stage atomic-mode refusals and
+`invokes` mappings from `$eventSourceId` / `$eventContext.eventSourceId`.
+
+## Caller-less invokes and unprotected reads
+
+**Who is the caller of an `invokes`?** Without a declared actor, nobody.
+Reactions support reaction-level `runs as system role "<Role>"`
+(optional roles, joined with `and role`). It selects ESM v10 and supplies the
+reference invocation's authenticated system principal with exactly those roles;
+`given caller` does not supply it. Keep gates and declare the least-privilege actor.
+Read [invocation identity](references/invocation-identity.md) for the checked
+scenario, claim/unknown semantics and PLAY0647–0652/0557 diagnostics.
+
+Requires Screenplay 4.125.0 or later (`screenplay --version`) for reaction `runs as system role` (ESM v10).
+
+A compiler that stops before v10 rejects this source with PLAY0137, and a renderer that stops
+before v10 refuses it (CLI-RENDER-004); the CLI/Stage pair (toolchain
+`references/renderable-subset.md`) renders supported identity, refusing claim-reading/opaque gates (STAGE-ESM-034).
+Stage emits Arc `[ExecuteCommandsAsSystem]`; refused scope uses authorized gap-fill. The attribute is for returned commands. Without that attribute
+Arc supplies no principal and `[Authorize]`/`[Roles]` deny. Each invoked command
+is atomic, not the whole cascade; earlier accepted facts remain after a later refusal.
+
+⚠️ **Declared, not enforced.** A trigger `reads` gives no runtime protection. From
+ESM v6 the binder refuses to treat it as one: a trigger with `reads` that **produces
+directly**, or whose effect is an opaque body (`file` or an inline block), fails
+binding, because its decision dependency cannot be protected. A reaction that only
+`invokes` a command binds, and the decision, and any protection, belong to that
+command's own reads. Eligible command reads protect under application-root
+`command reads protected` (ESM v25); legacy reads retain PLAY0271. Read command-surface
+[protected reads](../cratis-screenplay-command-surface/references/protected-reads.md)
+for admission and absence/conflict behavior. Requires Stage 4.138.0 to render
+protected reads; older bundles refuse -044. Semantic Host/executor non-Error
+protected requirements refuse -045.
+`where` over read paths out of scope, and `where` needs
+every operand to resolve from the trigger's declared scalar occurrence shape (listed in
+the input selection or not; nested paths and read aliases fail binding): keep the logic that uses the state in
+the invoked command or the implementation. A compiler that stops before ESM v6 binds none of this
+(`PLAY0268`).
+
+## Refusals and recovery redelivery
+
+Invocation refusal selectors, `$refusal` branch values and `acknowledge`
+bind/reference-execute as ESM v19; `when redelivered ... to ...` and `then no events`
+as ESM v17. Read [refusals and redelivery](references/refusals-and-redelivery.md)
+when choosing ordered first-match branches or specifying recovery, for typed values,
+occurrence matching, diagnostics and a complete example. Never acknowledge
+infrastructure or concurrency failures; acknowledgement is not completed work.
 
 ## Complete example (ESM v6)
 
-One document with every construct below: an application trigger, a reaction on an
-event, on a trigger (with `where` and `invokes`), on a view read and on the clock, and
-a capture with its specifications. The excerpts later in this skill have their own
-complete parent documents in `references/complete-examples.md`.
+The reference document covers v6 triggers, event/clock reactions, view reads and
+capture specifications. Refusal/redelivery forms use their separate checked reference.
 
-```screenplay
-// Needs the standalone screenplay compiler (ESM v6)
-concept InvoiceId : Uuid
-trigger PaymentFileArrived
-  description "The bank's payment file listed a payment for an invoice"
-  invoiceId InvoiceId
-  amount Decimal
-module Collections
-  feature Invoices
-    slice StateChange SendInvoice
-      command SendInvoice
-        invoiceId InvoiceId identifier
-        amount Decimal
-        produces InvoiceSent
-          for invoiceId
-          invoiceId = invoiceId
-          amount = amount
-          sentAt = $context.occurred
-      event InvoiceSent
-        invoiceId InvoiceId
-        amount Decimal
-        sentAt DateTime
-    slice StateChange CloseInvoice
-      command CloseInvoice
-        invoiceId InvoiceId identifier
-        reason String
-        validate
-          reason not empty message "A reason is required"
-        produces InvoiceClosed
-          for invoiceId
-          reason = reason
-      event InvoiceClosed
-        reason String
-      constraint OnlyClosedOnce
-        unique event InvoiceClosed
-    slice StateView InvoiceBalances
-      readmodel InvoiceBalance
-        invoiceId InvoiceId
-        outstanding Decimal
-      query InvoiceBalanceById => InvoiceBalance optional
-        by invoiceId InvoiceId
-      projection InvoiceBalances => InvoiceBalance
-        from InvoiceSent
-          invoiceId = $eventSourceId
-          outstanding = amount
-    slice StateChange SendPaymentReminder
-      command SendPaymentReminder
-        invoiceId InvoiceId identifier
-        produces PaymentReminderSent
-          for invoiceId
-          reminderNumber = 1
-      event PaymentReminderSent
-        reminderNumber Int
-    slice Automation Reminders
-      reaction RemindOnDueDate
-        description "Reminds the customer when an invoice falls due unpaid"
-        when InvoiceFellDue
-          invoiceId
-          reads InvoiceBalance as balance by invoiceId
-          invokes SendPaymentReminder
-            invoiceId = invoiceId
-      reaction ReminderScheduler
-        description "Schedules a reminder when an invoice is sent"
-        when InvoiceSent
-          invoiceId
-          produces ReminderScheduled
-            scheduledAt = $context.occurred
-      reaction PaymentImporter
-        description "Closes an invoice the bank file shows as paid"
-        when PaymentFileArrived
-          invoiceId
-          amount
-          invokes CloseInvoice
-            invoiceId = invoiceId
-            reason = "paid"
-        where amount > 0
-      reaction WeeklyDigest
-        description "Issues the collections digest every Monday morning"
-        at 07:30 on Monday
-          produces DigestIssued
-            for "weekly"
-            issuedAt = $context.occurred
-      event InvoiceFellDue
-        invoiceId InvoiceId
-      event ReminderScheduled
-        scheduledAt DateTime
-      event DigestIssued
-        issuedAt DateTime
-      specification SchedulingAReminderWhenAnInvoiceIsSent
-        given clock "2026-10-02T09:00:00Z"
-        when append InvoiceSent
-          for "9c858901-8a57-4791-81fe-4c455b099bc9"
-          invoiceId = "9c858901-8a57-4791-81fe-4c455b099bc9"
-          amount = 120
-          sentAt = "2026-10-02T09:00:00Z"
-        then ReminderScheduled
-          for "9c858901-8a57-4791-81fe-4c455b099bc9"
-          scheduledAt = "2026-10-02T09:00:00Z"
-      specification ClosingAPaidInvoice
-        when trigger PaymentFileArrived
-          invoiceId = "9c858901-8a57-4791-81fe-4c455b099bc9"
-          amount = 120
-        then InvoiceClosed
-          for "9c858901-8a57-4791-81fe-4c455b099bc9"
-          reason = "paid"
-      specification IssuingTheWeeklyDigest
-        given clock "2026-10-05T07:00:00Z"
-        when clock "2026-10-05T07:30:00Z"
-        then DigestIssued
-          for "weekly"
-          issuedAt = "2026-10-05T07:30:00Z"
-    slice Translate LegacyInvoiceSync
-      capture LegacyInvoiceCapture
-        source api
-          api   LegacyInvoicingApi
-          route /invoices
-          poll  5m
-        key id
-        map
-          status = status translate
-            "sendt"  => sent
-            "betalt" => paid
-        append LegacyInvoicePaid
-          tag legacy
-          when status from "sent" to "paid"
-            paidAt = $context.occurred
-      event LegacyInvoicePaid
-        paidAt DateTime
-      specification SeeingALegacyPayment
-        given clock "2026-10-02T12:00:00Z"
-        given capture LegacyInvoiceCapture
-          id     = "inv-42"
-          status = "sendt"
-        when capture LegacyInvoiceCapture
-          id     = "inv-42"
-          status = "betalt"
-        then LegacyInvoicePaid
-          for "inv-42"
-          paidAt = "2026-10-02T12:00:00Z"
-```
+Read [references/complete-examples.md](references/complete-examples.md) when you need a complete, compiling parent document for an excerpt or want to check the authoring and binding prerequisites.
 
 ## `capture` — the Change Data Capture Language
 
@@ -243,127 +136,34 @@ Captures live in `Translate` slices and are the anti-corruption layer: external
 shapes in, domain events out. Excerpt; complete document: `references/complete-examples.md`,
 "Capture with `source`, `map`, `append` and `children`".
 
-```screenplay excerpt
-slice Translate LegacyInvoiceSync
-  capture LegacyInvoiceCapture
-    source api
-      api   LegacyInvoicingApi
-      route /invoices
-      poll  5m
-    key id
-    map
-      status = status translate
-        "utkast" => draft
-        "sendt"  => sent
-        "betalt" => paid
-    append InvoiceStatusChanged
-      tag legacy
-      when status
-        invoiceId = $.id
-        status    = $.status
-        changedAt = $context.occurred
-    append InvoicePaidFromSent
-      when status from "sent" to "paid"
-        invoiceId = $.id
-    children lineItems identified by lineNumber
-      append InvoiceLineItemAdded
-        when added
-          invoiceId  = $.id
-          lineNumber = $.lineNumber
-```
+The full capture excerpt (`source`, `key`, `map` with `translate`, two `append` blocks and `children`) is in the reference file.
 
-**`source <kind>`** with indented settings. The documented kinds and settings are
-`api` (`api`, `route`, `poll`), `webhook` (`path`) and `message` (`topic`).
-⚠️ The grammar is **open** — the parser accepts any kind and any setting name as
-free-form name/value pairs, so a typo is not caught. The three kinds are
-convention, not enforcement.
+Read [references/capture-map-and-example.md](references/capture-map-and-example.md) when writing a capture's `map` block, or when you need the excerpt of a capture with `append` and `children`.
 
-**`key <property>`** names the source property identifying an instance. From ESM v6
-a capture without a `key` does not bind (`PLAY0268`). In a specification the
-reference is handed records (`given capture`, `when capture`) and never contacts a
-`source`, which stays realization metadata; events append to the event source the
-record's `key` names, and `$context.occurred` is the scenario's `given clock`.
-
-Declaring an event's external origin on the `event` itself is accepted as
-Screenplay decision 0009 but **not in the language**; a `capture` in a
-`Translate` slice is how outside data enters a model today.
-
-**`map`** reshapes before events are appended: direct rename
-(`productName = name`), a backtick template, `translate` with indented
-`"source" => target` entries, and `split <source> by "<sep>"` with indented target
-properties.
-
-**Mapping sources:** `$.` for a value from the current source item, `$context.` for
-capture context, `$env.` for an environment variable, plus literals and templates.
-
-**`append <Event>`** with optional `tag` lines and one `when` clause:
-
-| `when` form | Appends when |
-| --- | --- |
-| `when added` | an item appears in the source |
-| `when removed` | an item disappears from the source |
-| `when <Path>` | that property changes |
-| `when <Path> from <v> to <v>` | that property makes that exact transition |
-| `when <a> or <b> [or <c>]` | any of those properties change |
-| `when <a> and <b> [and <c>]` | all of those properties change |
-| ``when `<expression>` `` | a raw template expression is true (captured verbatim; from ESM v6 the reference evaluates fields, literals, `==`, `!=`, the ordering operators, `&&`, `||`, `!` and parentheses, and an expression outside that grammar does not bind) |
-
-⚠️ **`or` and `and` cannot be mixed in one clause** — `when a or b and c` is a
-compile error. Split it into two `append` blocks.
-
-**`children <collection> identified by <path>`** and **`nested <path>`** each take
-an optional `map` and any number of `append` blocks.
+**`source <kind>`** takes free-form settings, so a typo is not caught; **`key <property>`** is required to bind (`PLAY0268`); **`append <Event>`** takes at most one `when` clause, and `or` and `and` cannot be mixed in one clause (split into two `append` blocks). Read [references/capture-map-and-example.md](references/capture-map-and-example.md) for source kinds, `key` and specification behavior, the `when` forms table, `children` and `nested`.
 
 ## `reaction`
 
-Excerpt; complete document: `references/complete-examples.md`,
-"Reaction on a declared trigger with `where` and `invokes`".
-
-```screenplay excerpt
-slice Automation NotifyOnBuildFailure
-  reaction NotifyOnFailure
-    description "Tells the owning team when a watched build fails"
-    when BuildFinished
-      repository
-      outcome
-      invokes SendFailureNotice
-        repository = repository
-        outcome    = outcome
-    where outcome == "failed"
-```
+Read [reaction forms](references/reaction-forms.md) when choosing a trigger,
+selecting occurrence values or mapping `produces` and `invokes`; complete documents
+remain in `references/complete-examples.md`.
 
 A reaction declares **at least one trigger**; everything under a trigger is
 optional.
 
 ⚠️ **Indentation decides what is a trigger and what is an effect.** `produces`,
 `invokes`, `file` and inline code belong **inside** the trigger block, indented
-under `when`/`every`/`at`. Only `description` and `where` sit at reaction level.
+under `when`/`every`/`at`. `description`, `where` and `runs as` sit at reaction level.
 Outdenting an effect gives *Expected a trigger in reaction body, got 'invokes …'*
 (`PLAY0137`) — the compiler is looking for another trigger where the effect is.
-
-### What sets it off
-
-| Form | Runs |
-| --- | --- |
-| `when <Name>` | on that event, declared trigger, or registered trigger |
-| `every <n> seconds\|minutes\|hours\|days` | on that interval (`n` ≥ 1) |
-| `at HH:mm` | every day at that time |
-| `at HH:mm on <Weekday>` | every week on that day |
-| `at HH:mm on day <n>` | every month on that day (`n` is 1–31) |
-
-Time is strictly `HH:mm`. Weekday is the full English name.
-
-### The values a reaction takes
-
-A bare name under a trigger says the reaction **uses** that value from the
-occurrence. This is a **selection, not a declaration** — the shape belongs to the
-event or trigger. Taking a value the occurrence does not carry is reported.
 
 ### `where` — narrowing
 
 `where` uses the same condition grammar as `produces … when` and `require`:
 `==`, `!=`, the ordering operators, `contains` for a substring anywhere,
 `starts with` for one at the beginning, combined with `and`, `or` and parentheses.
+These text-condition operators parse but refuse executable binding (PLAY0268);
+literal property text rules are a separate v24 contract.
 
 ⚠️ **`where` belongs to the reaction, not to one trigger** — it says which
 occurrences are worth running for, whatever set them off. A second `where` on one
@@ -375,48 +175,16 @@ Inline `produces event <Name>` is command-only (`PLAY0474` in a reaction).
 Declare reaction-produced events separately and use plain `produces <Name>`.
 Do not extend the inline command destination default or its repairs to reactions.
 
-Excerpt; complete document: `references/complete-examples.md`,
-"Reaction with `produces` and `invokes`":
-
-```screenplay excerpt
-reaction Provisioner
-  when InvitationAccepted
-    workspaceId
-    produces WorkspaceProvisioned
-      for workspaceId
-      workspaceId = workspaceId
-    invokes SendWelcomeMail
-      workspaceId = workspaceId
-      template    = "welcome"
-```
-
 A `produces` without `for` appends to the event source of the event that set the
 reaction off. A clock, application or built-in trigger has no such event, so what it
 produces needs `for` - a value the trigger carries, or literal text.
 
-**The different word is the point.** `produces` requests a fact append, subject to
-append-time constraints. `invokes` asks for a command, which additionally runs the
-command's authorization, validation and requirements, and may reject.
-Using `produces` for both would say those are the same kind of consequence.
+`produces` requests an append; `invokes` also runs command gates and may reject.
 
-**Who is the caller of an `invokes`?** Nobody. In the reference execution the invoked
-command runs its full pipeline - authorization, validation, requirements,
-constraints - **with no caller**; a command that needs one rejects, and the
-rejection ends the scenario. Each invoked command is atomic, but the cascade is not,
-so facts accepted earlier remain. There is no syntax for a trusted identity today
-(Screenplay#383, open): never invent `runs as` or a `given caller` for a reaction.
-Say so in the model: a `description` on the reaction that names the trusted actor
-the target must use. At code level a rendered or hand-written target runs such a
-command as the system with `[ExecuteCommandsAsSystem]` (Arc 20.56.0 and later, so
-also in a rendered application's Arc 22.25.0). An authorized command a reaction
-invokes needs that decision made explicit, in the model's description and in the
-gap-fill code, not left to a rejection nobody expected. Cascades and their
-specification limits: `cratis-screenplay-specifications`.
+**Who is the caller of an `invokes`?** Nobody unless `runs as` declares the actor; see *Caller-less invokes and unprotected reads* above before writing one.
 
-Both are declarations of *what happens*, not of how — a trigger can state its
-consequences **and** carry a `file` or an inline block in a tagged fence
-(` ```csharp `) that implements them. That code is an implementation attachment:
-the model lists it (role, owner, content hash) but never runs it.
+Trigger `file`/tagged-code attachments are inventoried, never reference-executed;
+see the reaction forms reference for their boundary.
 
 ### What it decides from — trigger `reads`
 
@@ -426,101 +194,27 @@ a command's `reads`: the state the behavior decides from. Excerpt; complete
 document: `references/complete-examples.md`, "Trigger `reads` on an event and on the
 clock" (authoring-valid; the `file` bodies stop it binding at ESM v6).
 
-```screenplay excerpt
-slice Automation ChaseOverdueInvoices
-  reaction RemindOnDueDate
-    description "Reminds the customer when an invoice falls due unpaid"
-    when InvoiceFellDue
-      invoiceId
-      reads InvoiceBalance as balance by invoiceId
-      invokes SendPaymentReminder
-        invoiceId = invoiceId
-        channel   = "email"
-      file Reactions/RemindOnDueDate.cs
-  reaction SweepOverdueInvoices
-    description "Re-checks every overdue invoice each morning"
-    at 08:00
-      reads OverdueInvoice
-      file Reactions/SweepOverdueInvoices.cs
-```
+The excerpt of a reaction with `reads` on an event and on the clock is in the reference file.
 
-- `reads` sits **under a trigger**, beside the values it takes and its effects.
-  Each trigger declares its own.
-- **`by` names a value that trigger takes** (`invoiceId` above). Naming anything
-  else is warning `PLAY0442`.
-- **Clock triggers read whole views.** `every` and `at` take no values, so
-  `reads <View>` works under them but `by` is error `PLAY0443`.
-- **Aliases follow the command rules.** A view read more than once needs an
-  alias on every read (`PLAY0410`), aliases are unique per trigger (`PLAY0411`),
-  and an alias must not match a trigger value (`PLAY0412`). A view no projection
-  in the document produces is warning `PLAY0177`.
-- **`reads` is a directive in a trigger body.** A trigger value named `reads` is
-  written `@reads`. A bare `reads` line is error `PLAY0175`, and
-  `reads <PrimitiveType>` is warning `PLAY0444`; both messages name the escape.
-- `for each <View>` is reserved for a future view-driven trigger. It is not a
-  trigger today (`PLAY0137`).
+Read [references/trigger-reads-example.md](references/trigger-reads-example.md) when writing a trigger `reads` with `by` or an alias, or a clock trigger that reads a whole view.
 
-⚠️ **Declared, not enforced.** A trigger `reads` gives no runtime protection. From
-ESM v6 the binder refuses to treat it as one: a trigger with `reads` that **produces
-directly**, or whose effect is an opaque body (`file` or an inline block), fails
-binding, because its decision dependency cannot be protected. A reaction that only
-`invokes` a command binds, and the decision, and any protection, belong to that
-command's own reads. Command `reads` give none yet either (`PLAY0271`, #129).
-Decision 0006 leaves `where` over read paths out of scope, and `where` needs
-every operand to resolve from the trigger's declared scalar occurrence shape (listed in
-the input selection or not; nested paths and read aliases fail binding): keep the logic that uses the state in
-the invoked command or the implementation. Under `cratis` 3.27.1 none of this
-binds at all (`PLAY0268`).
+- `reads` goes under a trigger; `by` names a value that trigger takes (else `PLAY0442`); **Clock triggers read whole views.** `by` under them is `PLAY0443`. Read [references/trigger-reads-example.md](references/trigger-reads-example.md) for alias rules (`PLAY0410`–`PLAY0412`, `PLAY0177`), the `@reads` escape (`PLAY0175`, `PLAY0444`) and the reserved `for each`.
+
+⚠️ **Declared, not enforced.** See *Caller-less invokes and unprotected reads* above.
 
 ## `trigger`
 
-```screenplay
-concept Repository : String
+A `trigger` declares that a name exists and what an occurrence hands the reaction, never what makes it occur. Built-ins are `Startup` and `Shutdown`. An unknown name warns `PLAY0248`; **An application trigger is not a UI event** (`PLAY0326`); under a reaction trigger, values named `description`, `file`, `produces`, `invokes` or `reads` are written with `@`. Read [references/trigger-declaration.md](references/trigger-declaration.md) when declaring or registering a trigger or resolving a trigger name.
 
-trigger BuildFinished
-  description "CI reported a finished build on a watched repository"
-  repository Repository
-  outcome String
-```
+## Slice boundaries
 
-A trigger declares two things: **that the name exists**, and **what an occurrence
-hands the reaction**. It deliberately declares nothing about what makes one occur —
-that belongs to whatever produces it, and keeping it out is what lets the set stay
-open. The type on a value is optional; a bare name is already a useful statement.
+Requires Screenplay 4.176.0 or later (`screenplay --version`) for PLAY0694; older compilers leave directionless capture-follow-up co-location unchecked.
 
-**Name resolution, in order:** events the document declares or imports → triggers
-the document declares → triggers registered with the compiler, plus the built-in
-host signals. A registration wins over a built-in of the same name. Only when all
-three miss is the name reported unknown — a **warning** (`PLAY0248`), because the
-name may be known outside the document. A malformed reaction body is an error.
-
-**Built-in triggers:** `Startup` and `Shutdown`. The clock is built in too, but
-with its own syntax rather than a name.
-
-⚠️ **An application trigger is not a UI event.** What a button click, a form
-submit or entering a screen does is an *interaction*: an `on click` / `on submit`
-/ `on enter` clause or a named `behavior`, never a declared `trigger` (see
-`cratis-screenplay-ui-composition`). The two meet in two places: an interaction
-can observe a declared trigger with `on <Trigger>` and fire one with
-`raise <Trigger>`. A trigger named after a built-in interaction kind (`click`,
-`submit`, `enter`, …) is an error (`PLAY0326`).
-
-⚠️ Under a reaction trigger, `description`, `file`, `produces`, `invokes` and
-`reads` are directives, so a value with one of those names is written with `@`
-(`@file`, `@reads`).
-
-**Registration** (for a name only an integration knows) happens through the
-compiler's language registry, either name-only or with a shape. ⚠️ Stating **no**
-values and stating **none** are different claims: a definition with no value list
-says the registration does not describe the shape, so what a reaction takes is left
-alone; one with an **empty** list says an occurrence carries nothing, so taking
-something is reported. `Startup` and `Shutdown` are registered the second way.
-
-## Guidance, verbatim
-
-> - Reactions that only translate events into other events belong in `Translate`
->   slices when driven by external data (captures); event-to-event automation stays
->   in `Automation` slices.
+> - A capture belongs in `Translate`; a reaction to the local event it appends
+>   belongs in a separate `Automation` slice. A directionless Translate containing
+>   both warns PLAY0694 (fails `--warnaserror`); explicit inbound refuses it with
+>   PLAY0616. A reaction translating a foreign public event can belong in inbound
+>   Translate.
 > - Keep reaction logic small; anything substantial belongs in a `file` reference
 >   where it can be tested on its own.
 > - Describe the reaction before you implement it — a document full of `file` lines
@@ -531,10 +225,11 @@ something is reported. `Startup` and `Shutdown` are registered the second way.
 ## Verify
 
 - [ ] `screenplay <model> --warnaserror` reports zero errors and zero warnings
-      (standalone 4.64.0). Under `cratis` 3.27.1 expect `PLAY0268` at binding and a
-      false `PLAY0285` on cascade specifications, and report them as tool skew.
-- [ ] The tool that bound the model is named: ESM v6 constructs are "bound" only by
-      the standalone tool; no tool runs the specifications.
+      (standalone, or a `cratis` whose compiler admits ESM v6). Under an older compiler expect
+      `PLAY0268` at binding and a false `PLAY0285` on cascade specifications, and report them
+      as tool skew.
+- [ ] The tool that bound the model is named (standalone, or a `cratis` whose compiler admits ESM v6, for ESM v6 constructs); reference scenarios use
+      `screenplay test`/MCP. Unadmitted refusal/redelivery is not executed evidence.
 - [ ] Each automation has all four components — occurrence, state consulted,
       conditional logic, resulting command or event. If it always fires
       unconditionally it is co-production, not an automation.
@@ -545,10 +240,10 @@ something is reported. `Startup` and `Shutdown` are registered the second way.
 - [ ] Every name a reaction takes is carried by the event or trigger.
 - [ ] Each trigger `reads` the views its automation decides from; `by` names a
       value the trigger takes, and clock triggers read without `by`.
-- [ ] Nobody reports trigger or command `reads` as protected; UI clicks are
-      interactions, not triggers.
-- [ ] Every `invokes` of an authorized command names the trusted actor in a
-      description; no caller is invented for a reaction.
+- [ ] Trigger reads are not protection; protected command reads require opt-in,
+      admission and separate target realization. UI clicks are interactions.
+- [ ] Every gated invocation declares its trusted actor with reaction `runs as`
+      (ESM v10) or records the target gap explicitly; `given caller` is not that actor.
 
 ## Route near misses
 

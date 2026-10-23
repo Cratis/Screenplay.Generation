@@ -16,15 +16,14 @@ defaults for missing data) is replaced by "never fabricate a default"; its log-a
 handling is replaced by recorded failure facts. `plugins/trogonstack-eda` was skimmed; nothing
 adopted.
 
-## Adapted closely (Martin Dilger and Nebulit GmbH, with agreement)
+## Adapted closely (Martin Dilger and Nebulit GmbH)
 
 Source: https://github.com/Nebulit-GmbH/agentic-engineer at commit `07b0f30648d663cb588d7e2c7aa031af9dfc21f2`,
-by Martin Dilger and Nebulit GmbH (https://nebulit.de). The repository carries no licence file; this material
-is adapted with the agreement of Martin Dilger and Nebulit GmbH.
+by Martin Dilger and Nebulit GmbH (https://nebulit.de), used with the explicit consent of Martin Dilger and Nebulit GmbH.
 
 | Source file | Used in | How |
 |---|---|---|
-| `.claude/skills/eventmodeling-designing-automation-chains/SKILL.md`: resolve the chain when introduced; exhaustive per-automation verification | `SKILL.md` intro and "Gate", `references/audit-format.md` | restored from #493; the six verification questions adapted closely as "Per-chain questions", translated to Screenplay (no board, no `validate_model`) |
+| `.claude/skills/eventmodeling-designing-automation-chains/SKILL.md`: resolve the chain when introduced; exhaustive per-automation verification | `SKILL.md` intro and "Gate", `references/audit-format.md` | the six verification questions adapted closely as "Per-chain questions", translated to Screenplay (no board, no `validate_model`) |
 | same: pending membership not status; opening and closing events | `references/automation-patterns.md` section 2, `references/audit-format.md` question 6 | adapted closely; our todo-list example kept |
 | same: worker only for a new decision; redundant second stage and the `Synced` tell | `references/automation-patterns.md` section 7 "Redundant second stage" | adapted closely, marina berth example in place of Martin Dilger and Nebulit GmbH's |
 | same: silently skipping a missing target | `SKILL.md` "Gate", `references/audit-format.md` | idea inverted: an absent target is an unresolved dependency |
@@ -37,9 +36,13 @@ is adapted with the agreement of Martin Dilger and Nebulit GmbH.
 ## Carried forward
 `references/automation-patterns.md`, `translation-patterns.md`, `effects-and-idempotency.md`,
 `cases-to-specify.md` and both examples come from the earlier Cratis drafts of this skill.
-Changes in this version: the examples are complete fenced documents that compile (the translate
-example's anonymous-booking spec gained the `given caller` PLAY0389 requires; the todo-list
-example's list query, `reads` and retry sweep moved to marked design-only excerpts so the core
-binds); tool-qualified verdict text; the trusted-actor text now names `[ExecuteCommandsAsSystem]`
-(Arc v20.56.0, available in a rendered app's Arc 22.25.0) and Screenplay#383; Stage renders no
-Automation or Translate slice (Stage#79).
+
+## Eventmodelers Build-Kits
+
+Source: https://github.com/Nebulit-GmbH/Eventmodelers-Build-Kits, by Martin Dilger and Nebulit GmbH
+(https://nebulit.de), used with the explicit consent of Martin Dilger and Nebulit GmbH.
+
+| Source skill | Used in | How |
+|---|---|---|
+| `build-automation-workflow` (axon stack): the decision table of signals that call for a workflow | `references/automation-patterns.md` §10 | copied and translated: the signal rows are kept, each answered with a Screenplay shape (chained Automation slices, pending-work views, clock reactions); the engine, step-handler and test mechanics are not adopted; the timeout and compensation-order checks follow its workflow tests |
+| `build-webhook` (supabase stack): inbound webhooks verify the provider's own signature, and the endpoint contract is written for an integrator who cannot read the code | `references/realization-and-gap-fill.md` (capture row), `references/integration-contracts.md` "Publish the inbound contract" | copied and translated: provider-signature authentication and the integrator-facing contract are kept; the function-registration and local-serve mechanics are dropped; "generate the aggregate id when the caller omits it" is not adopted because it breaks retry identity |

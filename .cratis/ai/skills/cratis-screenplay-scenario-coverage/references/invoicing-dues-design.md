@@ -1,10 +1,17 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-scenario-coverage/references/invoicing-dues-design.md -->
 # Invoicing and dues: design-mode document for the stored-state rules
 
-**Design mode, not binding-ready by design.** This document states the stored-state rules of the
+**Legacy control without `command reads protected`, not binding-ready by design.**
+Read [protected reads](../../cratis-screenplay-command-surface/references/protected-reads.md)
+for the opt-in alternative. Do not insert the preamble blindly: every read must meet
+finite event-source-keyed admission with removals. A v25 reference pass is not
+rendering: Stage admits v25 and renders protected reads from 4.138.0, and older bundles refuse them with STAGE-ESM-044. The comments and unenforced markers below describe
+this legacy control, not a general limit on command reads.
+
+**Design mode.** This document states the stored-state rules of the
 invoicing example as the skill requires (`reads <View>` + `require ... message`, marked NOT
 enforced in the slice `description`, target named). It compiles (V1, warnings as errors) but
-does not bind at Screenplay 4.64.0, and the only blockers are `reads` (PLAY0271) and `require` over
+does not bind, and the only blockers are `reads` (PLAY0271) and `require` over
 a view (PLAY0268), so no specification here runs (V3 blocked). `PaymentReceived` has its producer
 here (the capture and `ReceivedTranslator`), so nothing else blocks: with every `reads` and
 `require` line removed the document binds. The rules cover an unknown invoice, voiding a paid
@@ -14,14 +21,19 @@ Keep those lines: they state real intent and are never
 replaced by prose. The runnable counterpart, which holds no stored-state rule, is
 `invoicing-dues-example.md`; `scenario-examples.md` copies `ReversingAReceivedPayment` from here.
 
-```screenplay
-// Needs the standalone screenplay compiler (ESM v6)
+The excerpt's Stage API-availability comment describes the historical Stage 4.24.x
+scaffold. Stage 4.73.1's scaffold pins an Arc/Chronicle set (see the Stage skill's `references/rendered-application.md`): protected-read APIs are
+available to gap-fill (the "not in a Stage-rendered application" comment in the source is
+superseded), not emitted protection or `.play` rule admission. The
+capture uses separate first-sight/update appends, with its local-event follow-up in Automation.
+
+```screenplay expect PLAY0516 test=unbound
 // Scenario coverage design-mode example: stored-state rules of invoicing club dues (complete document).
 // Design mode: `reads` is PLAY0271 and `require` over a view is PLAY0268 at binding (the only
 // blockers), so this model compiles but is not executable; the specifications below do not run. The runnable counterpart
 // is invoicing-dues-example.md.
 // Target enforcement of every rule here: Arc [ProtectedDecision] with DecisionRead<T> (Arc v22.39.0
-// or later, not in a Stage-rendered application), or a Chronicle DCB; Screenplay#129/#209.
+// or later, not in a Stage-rendered application), or a Chronicle DCB; Screenplay#129.
 
 concept InvoiceId : Uuid
 concept MemberId : Uuid
@@ -42,13 +54,9 @@ module Invoicing
         invoiceId InvoiceId identifier
         member    MemberId
         amount    Decimal
-        produces InvoiceIssued
-          for invoiceId
-          member = member
-          amount = amount
-      event InvoiceIssued
-        member MemberId
-        amount Decimal
+        produces event InvoiceIssued
+          member MemberId = member
+          amount Decimal = amount
       constraint IssueOnce
         unique event InvoiceIssued
 
@@ -90,29 +98,35 @@ module Invoicing
             "C" => captured
             "D" => declined
         append PaymentGatewayResultReceived
+          when added
+            outcome = $.outcome
+            reason  = $.reason
+        append PaymentGatewayResultReceived
           when outcome
             outcome = $.outcome
             reason  = $.reason
+      event PaymentGatewayResultReceived
+        outcome GatewayOutcome
+        reason  String
+
+    slice Automation RecordPaymentOutcome
+      description "Gives PaymentReceived its producer: the translator reacts to the provider's external fact"
       reaction ReceivedTranslator
         when PaymentGatewayResultReceived
           outcome
           produces PaymentReceived
         where outcome == "captured"
-      event PaymentGatewayResultReceived
-        outcome GatewayOutcome
-        reason  String
       event PaymentReceived
 
     slice StateChange SettleOrVoidInvoice
-      description "An invoice ends either settled or voided, never both (SettleOrVoid, enforced at append). NOT enforced in the model today: that the invoice exists and is still open (settling) and that only an open, unpaid invoice may be voided. Stated as `reads OpenInvoice` + `require` (PLAY0271/PLAY0268 at binding; Screenplay#129/#209). Target: Arc [ProtectedDecision] with DecisionRead, or a Chronicle DCB. Requirements to test in the target: settling an unknown invoice is rejected; voiding a paid invoice is rejected; voiding an open invoice succeeds."
+      description "An invoice ends either settled or voided, never both (SettleOrVoid, enforced at append). NOT enforced in the model today: that the invoice exists and is still open (settling) and that only an open, unpaid invoice may be voided. Stated as `reads OpenInvoice` + `require` (PLAY0271/PLAY0268 at binding; Screenplay#129). Target: Arc [ProtectedDecision] with DecisionRead, or a Chronicle DCB. Requirements to test in the target: settling an unknown invoice is rejected; voiding a paid invoice is rejected; voiding an open invoice succeeds."
       command SettleInvoice
         invoiceId InvoiceId identifier
         reads OpenInvoice as invoice by invoiceId   // stated intent, unprotected (PLAY0271 at binding)
         validate
           require invoice.amount > 0
             message "Only an open invoice can be settled"   // NOT enforced: the view lags (PLAY0268 at binding)
-        produces InvoiceSettled
-          for invoiceId
+        produces event InvoiceSettled
       command VoidInvoice
         invoiceId InvoiceId identifier
         reason    String
@@ -120,12 +134,8 @@ module Invoicing
         validate
           require invoice.amount > 0
             message "Only an open, unpaid invoice can be voided"   // NOT enforced: the view lags (PLAY0268 at binding)
-        produces InvoiceVoided
-          for invoiceId
-          reason = reason
-      event InvoiceSettled
-      event InvoiceVoided
-        reason String
+        produces event InvoiceVoided
+          reason String = reason
       constraint SettleOrVoid
         unique event InvoiceSettled
         unique event InvoiceVoided
@@ -175,11 +185,8 @@ module Invoicing
         validate
           require payment.invoiceId == invoiceId
             message "Only a received, not yet reversed payment can be reversed"   // NOT enforced: the view lags (PLAY0268 at binding)
-        produces PaymentReversed
-          for invoiceId
-          amount = amount
-      event PaymentReversed
-        amount Decimal
+        produces event PaymentReversed
+          amount Decimal = amount
 
       specification ReversingAReceivedPayment
         given caller

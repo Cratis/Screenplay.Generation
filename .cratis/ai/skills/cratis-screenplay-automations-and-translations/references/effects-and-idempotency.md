@@ -1,16 +1,19 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-automations-and-translations/references/effects-and-idempotency.md -->
 # Effects and idempotency
 
-## Three guarantees, three proofs
-| Guarantee | What it promises | What can show it |
-|---|---|---|
-| **once-only fact** | `CertificateSent` exists at most once for an enrolment | `constraint … unique event` on the right stream + a violation spec |
-| **idempotent handling** | asking again gives the caller the same outcome, no new effect | target behaviour (map "already has the event" to success where intended); the model shows a rejection |
-| **exactly-once external effect** | the person receives one certificate, the card is charged once | nothing in the model; only the outside system's dedup or a reconciliation can |
+## Contents
 
-A todo list + reaction + unique constraint proves the first. It does **not** prove the third:
-the send can succeed and the append fail (crash, lost reply, constraint race), and the retry
-sends again.
+- Three guarantees, three proofs
+- Where the external call sits
+- Refusal disposition and redelivery
+- Retry identity
+- Ordering and lost acknowledgements
+- Projection lag and rebuild
+- What to write down (slice `documentation` + `STATE.md`)
+- Chronicle realization
+
+## Three guarantees, three proofs
+See "Effect guarantees and recovery traps" in SKILL.md.
 
 ## Where the external call sits
 The model states facts; the call to the outside world happens in the realization of a command
@@ -34,6 +37,37 @@ or reaction. Choose and record one of:
 Payments, legal notices and anything costly or irreversible: prefer 2 or 3 and an idempotency
 key; write a reconciliation case.
 
+## Refusal disposition and redelivery
+
+An invocation can state ordered `on refused` selectors for
+validation, constraint (optionally named) or explicit authorization denial.
+Bare refusal does not include authorization. A matching branch declares a fact
+or leaf `acknowledge`; `$refusal.reason`/`.message` are String details and
+`.constraint` belongs only to constraint selectors and names the first violated
+constraint. The first matching branch wins; a handled refusal stops the trigger's
+remaining invocations, not other reactions. Mixed refusals classify authorization,
+then constraint, then validation. A rejected branch append ends the scenario.
+Acknowledgement records handling, not completion; unhandled validation/constraint
+refusals stay assertable with `then error`.
+
+Requires Screenplay 4.160.0 or later (`screenplay --version`) for executable refusal branches and `$refusal` values (ESM v19); older compilers report PLAY0268.
+
+Recovery syntax `when redelivered <Event> to <Reaction>` selects exactly one
+existing given occurrence; it is not append or replay. `then no events` makes a
+no-new-facts contract explicit, including the settled cascade; after append it
+excludes the input fact. Specify retry/recovery behavior this way rather than
+re-appending the input or claiming an external effect was deduplicated. Full
+selectors, occurrence matching and examples: captures-and-reactions
+`references/refusals-and-redelivery.md`.
+
+Requires Screenplay 4.157.0 or later (`screenplay --version`) for executable redelivery and no-event assertions (ESM v17); older compilers report PLAY0268.
+
+Infrastructure/contract errors, Unsupported and concurrency are never domain
+refusals. No `by concurrency` exists: fail/retry transient contention. Record the
+actual target's disposition, trusted actor, durable delivery identity and external
+idempotency/reconciliation owner. A branch or observer receipt alone proves no
+cascade transaction or exactly-once external effect.
+
 ## Retry identity
 - The retry must carry the same identity as the first attempt: the stream id chosen before
   the first try (never a fresh id per attempt), and the same idempotency key outward.
@@ -42,13 +76,12 @@ key; write a reconciliation case.
   durable as the target's last-seen store.
 
 ## Ordering and lost acknowledgements
-- A reaction cascade is not one transaction: earlier accepted facts stay when a later invoked
-  command rejects (Screenplay `reactions.md`). Design each step to be retried on its own.
+See "Effect guarantees and recovery traps" in SKILL.md.
 - Facts are reacted to in append order in the reference; across sources assume no order.
 - A capture spec does not acknowledge the source or store a new last-seen record; prefix
   facts that were accepted do not mean the record was processed (Screenplay `captures.md`).
   Record how the target acknowledges.
-- Delivery guarantees, acknowledgements and durable fan-out are outside the language today (Screenplay#286);
+- Delivery guarantees, acknowledgements and durable fan-out are outside the language (Screenplay#286);
   never describe them as provided.
 
 ## Projection lag and rebuild
@@ -57,11 +90,9 @@ key; write a reconciliation case.
 - Rebuilding the queue from history restores only genuinely open items, because closing facts
   are history too. A reaction must not repeat external effects on replay or rebuild: confirm
   the target's replay behaviour before relying on it, and record the answer.
-- Replay and recovery redelivery are different. Chronicle `[OnceOnly]` skips replays (rewind,
-  redaction, revision) only; a recovered failed partition redelivers the event as a normal
-  observation. A receipt keyed by `ReactorDelivery.Id` identifies the retry. Name both.
+See "Effect guarantees and recovery traps" in SKILL.md.
 
-## What to write down (slice `description` + `STATE.md`)
+## What to write down (slice `documentation` + `STATE.md`)
 - Effect placement (1-4) and why. Placement 4 is syntax-only: say the model then has no
   executable form.
 - The idempotency key, and whether the outside system honours it.

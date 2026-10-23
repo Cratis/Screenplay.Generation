@@ -1,6 +1,15 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-modeling-lifecycle/references/handoff-template.md -->
 # Handoff templates
 
+## Contents
+
+- 1. State file: `.ai-work/screenplay/<model-slug>/STATE.md`
+- 2. Phase report and handoff packet (two artifacts)
+- 3. Edit request (identity-affecting or MCP-only changes)
+- 4. Cold-readable questions
+- 5. Who records the model used
+- Session state, report and packet
+
 ## 1. State file: `.ai-work/screenplay/<model-slug>/STATE.md`
 
 One file per model, untracked (`rules/local-work-artifacts.md`). **Overwrite** every section on
@@ -14,6 +23,7 @@ Updated: <date> by <agent> (<actual model, or "model: not exposed">)
 Mode: design | executable | renderable
 Model root: <path>
 Source identity: <commit+digest from the source-identity helper> / ws <revision> cat <catalogRevision> (ws only where available)
+Acceptance: <meaning: role @handle (language) at identity | not yet>; <commit: role @handle | not yet>   (mirror of the trailers; one user by default)
 Phase: <current>  Next: <phase + skill>
 Active: <scope> by <agent> since <time> | none   (a stale value means an interrupted run)
 
@@ -41,7 +51,7 @@ V5 delivery: ...
 - <phase>: <skip condition met>
 
 ## Open questions (business)
-- Q3 <address>: <question> - matters because <...> - assumption in use: <...> | blocked scope
+- Q3 [<note_id>] <address>: <question> - matters because <...> - assumption in use: <...> | blocked scope
 
 ## Capability and tool-version gaps
 - <construct> blocked in <mode> (<code>) - kept in model; route: <fallback or issue>
@@ -116,10 +126,27 @@ Expected impact: diagnostics <...>; identity <preserved via rename or pin>; spec
 ## 4. Cold-readable questions
 A question sent to a person is anchored to an address and understandable without opening the
 model: `Qn <address>: <gap> - matters because <consequence> - <assumption in use>`. Put one
-question per line; group by address.
+question per line; group by address. These packet rows point to committed `question`
+notes, not a competing question register. Include the returned note ID; if note
+tools are unavailable, explicitly return a note request to the owning session.
+Read `stop-or-assume.md` "Durable question notes" when recording or resolving one.
 
 ## 5. Who records the model used
 Each agent writes the model it ran on into the packet when the harness exposes it, else
 `model: not exposed`. The main session copies every contributing author's and the reviewer's
 model into STATE.md. A reviewer on the same model as an author is a same-model review: it is
 labelled, it is additional evidence, and the user decides whether it is enough.
+
+## Session state, report and packet
+
+- **State**: `.ai-work/screenplay/<model-slug>/STATE.md`, untracked (`rules/local-work-artifacts.md`),
+  overwritten and bounded: Interview Trail (one row per phase), summary, five verdict lines,
+  source identity, each author's and reviewer's model, open questions, decisions. Overwrite it
+  before loading the next phase skill; hand off from it at a milestone.
+- **Phase report**: exhaustive, never shortened to save tokens; the final message when the brief
+  says so, else a task file outside the model root.
+- **Handoff packet** (about 40 lines, appended): outcome, mode, model root, source identity,
+  changed declarations, edit requests, five verdict lines, gaps, assumptions, open questions,
+  next phase, report pointer. Templates: `references/handoff-template.md`,
+  `references/phase-report-inventories.md`; `references/reasoning-notes.md`;
+  `references/code-reading-and-tokens.md`.

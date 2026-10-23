@@ -1,6 +1,25 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-modeling-lifecycle/references/phases.md -->
 # Phases: Input, Carry-forward, Gate
 
+## Contents
+
+- Phase transition protocol
+- P0 Intake
+- P1 Discover (`cratis-screenplay-discovery`; modeling stance)
+- P2 Model (`cratis-screenplay-slice-design`, `-streams-and-consistency`, `-automations-and-translations`)
+- P3 Specify (`cratis-screenplay-scenario-coverage`; modeling stance)
+- P4 Self-check (`cratis-screenplay-model-review`, self-check; critic stance)
+- P5 Independent review (`cratis-screenplay-model-review`)
+- P6 Accept (the user)
+- P7 Execute (executable mode; modeling stance)
+- P8 Render or fall back (`cratis-screenplay-render-and-gap-fill`)
+- P9 Verify
+- Entry points for changes to an existing model
+- Resume mid-workflow
+- Final output of a modeling engagement
+- Quality checklist (closing)
+- Legacy entry (replaces P1-P2)
+
 Every phase uses the same template, adapted from the per-step "Input / Output to carry forward /
 Gate" structure of the TrogonStack orchestrating skill (see `provenance.md`). Owners are roles:
 the **main session** orchestrates and owns the MCP connection while it is the identity owner;
@@ -29,10 +48,10 @@ next skill loads (never skipped, also after a small change):
 ```
 The Interview Trail row's status becomes `done` and its key output one line. Also record, at any
 phase, a decision important enough that a later reader could misread the model (see
-`reasoning-notes.md` for when it belongs in a `description`).
+`reasoning-notes.md` for when it belongs in fenced Markdown `documentation`).
 
 ## P0 Intake
-- **Input**: the request, the repository, `.cratis/screenplay/` or the configured root.
+- **Input**: the request, the repository, the project's model folder or the configured root.
 - **Carry-forward**: mode; model root; tool check (versions per `cratis-screenplay-toolchain`);
   the decision-rule outcome (model or code-first); STATE.md.
 - **Gate**: mode stated; STATE.md exists; the five intake points (domain, source, goal, constraints,
@@ -52,25 +71,30 @@ phase, a decision important enough that a later reader could misread the model (
 - **Carry-forward**: slices with commands (reachable, authorized origins), events, read models with
   projections and queries, screens, reactions and captures, consistency decisions, slice dependencies.
 - **Gate**: V1 clean after the batch; every command has a reachable, authorized origin; every screen
-  data need is served by a read model; every field has a known origin.
+  data need is served by a read model; every field has a known origin; every persona's Does line
+  reaches a screen or form `action` for that decision and every Reads line has a screen whose
+  `data` shows it. A persona with neither is missing screens (add them) or is not part of this
+  scope (revise its Does/Reads in discovery, or record why). A read-only persona is legitimate.
+  The opt-in `personas` check (`PLAY0574`, `PLAY0575`) proves gate reachability, not screen
+  reachability, so this walk stays manual.
 - **Skip when**: no reactions, schedules or outside facts are in scope (automations); event-source
   identity, destinations, constraints, stored-state decisions, retries and persisted-contract
   evolution are absent or already verified and unchanged (streams). Command count is not the criterion.
 
 ## P3 Specify (`cratis-screenplay-scenario-coverage`; modeling stance)
 - **Input**: the P2 model.
-- **Carry-forward**: coverage matrix, specifications, then reasoning descriptions for features with
+- **Carry-forward**: coverage matrix, specifications, then reasoning documentation, written last in P3, for features with
   real decisions (`reasoning-notes.md`).
 - **Gate**: matrix written before drafting; per command each applicable scenario type is a spec or
   "n/a" with a domain reason (one success plus one failure is not coverage); each gated command and
   query, including those under an inherited module or feature `authorize`, has its own `then denied`
-  spec with a caller fixture carrying the persona's roles or claims; each `produces when` has a spec
+  spec with a synthesized persona caller or an explicit effective-gate fixture; each `produces when` has a spec
   per branch; each value-unique constraint has a competing-claim spec; per read model a view spec, an
   update spec when several sources feed it, a removal or absence spec when it removes. A command-only
   pass fails the gate.
 
 ## P4 Self-check (`cratis-screenplay-model-review`, self-check; critic stance)
-- **Input**: the P3 model including reasoning descriptions.
+- **Input**: the P3 model including reasoning documentation.
 - **Carry-forward**: five verdict lines from fresh runs; the completeness walk; findings by tier.
 - **Gate**: completeness walk done (field origins, event consumers or terminal reasons); every gap
   fixed, accepted by the user, or an open question with its assumption. The critic reports; fixes go
@@ -86,13 +110,10 @@ phase, a decision important enough that a later reader could misread the model (
 ## P6 Accept (the user)
 - **Input**: the reviewed source identity.
 - **Carry-forward**: the accepted **source identity** (`verdicts-and-modes.md`).
-- **Commit at P6**: the accepted `.play` files and `.screenplay/identities.json` when present.
+- **Commit at P6**: the accepted `.play` files, `screenplay.json` (the authored validation gate) when the repository has one, and `.screenplay/identities.json` when present.
   The user commits, or explicitly authorizes the owning session to commit; the modeler never
-  commits on its own. Committing a model under the model root is the team's act of acceptance
-  and opts the repository in (`git ls-tree -r --name-only HEAD -- <root>` lists the `.play`
-  file). Staged or untracked files under the root are drafts, not contracts for code agents.
-  A committed file with working-tree edits is a model change in progress; its HEAD version is
-  the contract until the change is committed.
+  commits on its own. Run `cratis-screenplay-modeling-lifecycle`'s `scripts/model-first-status.mjs` to check acceptance, drafts and model changes in progress.
+- **Split acceptance**: with `process.acceptance` set, the meaning role confirms the meaning against the reviewer's explain or walkthrough output at the P5-reviewed source identity (any language; record which), and the commit role commits. Either alone leaves P6 open. Record both in commit trailers and the STATE.md Acceptance line: `project-process.md`. Without it, one user does both.
 - **Gate**: explicit acceptance and the model commit before P7-P9. After committing, recompute
   the source identity. Its digest must equal the digest reviewed at P5; only the commit part may
   differ. If the digest differs, return to P4/P5 for the changed scope. Record the post-commit
@@ -103,13 +124,14 @@ phase, a decision important enough that a later reader could misread the model (
 - **Input**: the accepted identity.
 - **Carry-forward**: V3, and V4 where a route exists.
 - **Gate**: V3 ready; V4 result or "V4 not run: no route". Specs written or bound is never "specs pass".
+- **Optional after V3**: a behavior walk in the Stage sandbox (`cratis-stage-rendering-and-sandbox`); findings go to the model owner, and it is not V3, V4 or V5 evidence.
 - **Skip when**: design mode.
 
 ## P8 Render or fall back (`cratis-screenplay-render-and-gap-fill`)
 - **Input**: the accepted identity.
 - **Carry-forward**: the admission result; render output and named gaps in `Customizations/`;
   non-renderable scope handed to a code agent with the model as contract, plus a fallback record
-  naming the blocking codes. Automations and translations are not rendered at the pinned Stage version, so the whole behavior is gap-fill. Three cases stay distinct: admission failure (nothing rendered); an
+  naming the blocking codes. Stage 4.89.1 renders supported event-triggered Automation; Translate/captures and refused reactions remain gap-fill (mixed effects keep one modeled reaction; `STAGE-ESM-037` is a redelivery-safety refusal, not a reason to split it). Three cases stay distinct: admission failure (nothing rendered); an
   existing generated base plus separately authorized gap-fill; fully hand-written delivery.
 - **Gate**: V5 sub-results, or a fallback entry per non-renderable scope. A customization never
   makes a rejected model renderable; no whole-application V5 from a subset.
@@ -135,6 +157,16 @@ No other phase is skipped. P3-P5 scale to the change but always run for semantic
 | Review request | P5 | report only |
 | Executable or render request on an accepted model | P7 / P8 | P9 |
 | Question from a running Chronicle system | read-only `cratis-chronicle-cli-operations` | update the model at P2 if needed |
+
+**Slices under delivery.** Where a delivery plan exists (the `cratis-screenplay-delivery-planning`
+status block), check a slice's planning status before changing it. A `todo` slice changes through
+the entry points above. A slice that is `in progress`, `blocked` or `done` is read-only for
+modeling unless the request names it. Naming it is the approval for exactly those declarations
+and nothing wider. Otherwise do the rest of the request, return an edit request naming the slice,
+its status and the intended change, and open the packet's report with that part as NOT done. The
+reason: someone is building against the slice as it stands. Changing a `done` slice reopens its
+delivery: tell the plan owner, and expect conformance (`cratis-application-slice-conformance`) and
+the affected specifications to rerun.
 
 ## Resume mid-workflow
 1. Read STATE.md only, not old transcripts.

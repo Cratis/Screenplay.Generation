@@ -10,7 +10,8 @@ domain consequence.
 - Does this command apply in every state and set most of the entity's fields? That is a form:
   which business reasons hide behind it? What does a person decide with each field?
 - Does a command input carry a secret or personal value (by default the causation chain keeps it; retention is configurable, verify it)?
-  Mark the concept `@pii` or record the need for a not-audited marking.
+  Mark the concept bare `pii` for personal data or `secret` for an operational
+  secret; inspect declared purpose coverage, not just the reason. Never protect an identifier.
 - Does this optional event property hide two situations, or is it an optional detail?
 - Does an event exist for a derived condition? Only when a domain expert names it and something
   reacts to it; merge causes only when they mean the same to the business.
@@ -22,3 +23,7 @@ domain consequence.
 - Where is each invariant enforced atomically, and what happens if two people try at once or a
   command is retried (`cratis-screenplay-streams-and-consistency`)?
 - Who may see these rows, and is that enforced by scope/`from`, not by a caller filter?
+- Does a command have several origins (a screen action and a reaction, or two personas)? That is
+  allowed. Confirm that each origin makes the same decision under the same rules, refusals and
+  gate. If one origin needs a different rule or a trusted actor the other must not have, split
+  the command.

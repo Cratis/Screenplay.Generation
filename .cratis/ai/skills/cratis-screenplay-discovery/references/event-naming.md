@@ -1,6 +1,14 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-discovery/references/event-naming.md -->
 # Naming events and filtering non-events
 
+## Contents
+
+- Naming
+- Not an event (set aside, often a view or a question)
+- Repairs (illustrative, marina domain)
+- Concrete over generic
+- Granularity checks (questions, not laws)
+
 ## Naming
 
 - **Past tense, business verb.** The name says what became true: `BerthAssigned`,
@@ -50,6 +58,47 @@
 | `SyncWithHarbourAuthorityDone` | technical | what the authority told us: `MooringPermitGranted` |
 | `AssignBerthFailed` | attempted | a rejection scenario on `AssignBerth` |
 
+## Concrete over generic
+Reading the model, a person must understand how this business works. Model one real flow with
+real examples and real values, not a generic structure that could hold every case. This holds for
+software that is generic by design (a form builder, a workflow engine, a case or record system):
+model one real case it handles, not its machinery. Brownfield generic engines are read the same
+way (`cratis-screenplay-legacy-extraction` `references/signal-to-intent.md`).
+
+- Wrong: `SubmitForm` then `FormSubmitted` with `formId` and `content`, or with `fields`,
+  `category` and `entries`. It says nothing about the business.
+- Right: `ReportHullDamage` then `HullDamageReported` with berth `A-12` and the damage "Scratched
+  starboard bow, about 40 cm".
+
+When the generic platform is itself the product being built, its own facts
+(`FormTemplatePublished`) are the business. Ask which of the two you are modeling. The example uses
+no personal data on purpose: a health-record example would need `pii` concepts and a `purpose`
+(command-surface `references/compliance.md`).
+
+```screenplay
+domain Harbour.Moorings
+
+concept BerthNumber : String
+concept DamageDescription : String
+
+module Moorings
+  feature HullInspections
+    description "One real flow: a harbourmaster reports damage found on a moored boat"
+    slice StateChange ReportHullDamage
+      command ReportHullDamage
+        berthNumber BerthNumber identifier
+        damage      DamageDescription
+        produces event HullDamageReported
+          damage DamageDescription = damage
+      specification ReportingScratchedBow
+        when ReportHullDamage
+          berthNumber = "A-12"
+          damage      = "Scratched starboard bow, about 40 cm"
+        then HullDamageReported
+          for "A-12"
+          damage = "Scratched starboard bow, about 40 cm"
+```
+
 ## Granularity checks (questions, not laws)
 
 - Would the business ever react to one part of this without the other? If yes, consider two
@@ -57,7 +106,7 @@
 - Optional event properties: the default is none. Chronicle warns on nullable event
   properties (CHR0012) and a specification cannot state `null` for an event value (PLAY0350).
   Make the value required, or record the second situation as its own event. Keep `optional`
-  only for a detail the business genuinely may not have, with the reason in the `description`.
+  only for a detail the business genuinely may not have, with the reason in event `documentation`.
 - Does the event restate the creation event's fields (a generic edit in disguise)? Ask which
   business change it records; if none, name the specific correction or drop it.
 - Never put personal data in the event-source id; one data subject per event.

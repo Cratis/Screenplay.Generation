@@ -17,7 +17,7 @@ are never a valid reason to:
   imported external event (`vocabulary-map.md`). Translating into our facts and the later work
   that acts on those facts are separate things; do not merge them, or skip the translation, because
   one step is simpler.
-- **Drop protection or a refusal** (`authorize`, `@pii`, a `validate` rule, a `then denied` or
+- **Drop protection or a refusal** (`authorize`, `pii`, a `validate` rule, a `then denied` or
   `then error` specification) so a tool passes or the model looks smaller.
 - **Cover a command with "one success plus one failure"** when the domain has competing claims,
   branches, removals, retries or denials.
@@ -36,3 +36,15 @@ Ask: "am I leaving something out because it is expensive, not because the domain
   model, and never hide it behind a stated assumption.
 - Reduction is legitimate only with a domain reason written next to the declaration ("n/a:
   berths are never un-assigned in this process"), never an effort reason.
+
+## Self-catch prompt and tells
+
+Token economy governs what you read and print, never what the model contains. If a rule needs
+another slice, event, read model, translation step or specification, write it. Self-catch prompt,
+asked before any gate: "am I leaving something out because it is expensive, not because the
+domain says so?" Tells: "one success plus one error spec is enough"; "other gated commands need
+no `then denied`"; "n/a" without a domain reason; "one `XUpdated` covers these edits"; "accepted
+debt" for a missing view; merging translation into worker behavior; "drop `pii`,
+authorization or a rule so a check passes". This never widens your scope (note other gaps in
+STATE.md); a real trade-off is flagged to the user, never resolved by cutting the model
+(`references/completeness-self-check.md`).

@@ -1,12 +1,16 @@
 <!-- cratis-ai-managed: skills/cratis-screenplay-toolchain/references/cheat-sheet-example.md -->
 # Cheat-sheet example (design mode)
 
-One complete document with every construct family. Design mode, not executable. Prose rules: [cheat-sheet.md](cheat-sheet.md); tool versions: [versions.md](versions.md); what binds: [executable-subset.md](executable-subset.md).
+One complete document with every construct family. Design mode, not executable. Prose rules: [cheat-sheet.md](cheat-sheet.md); what binds: [executable-subset.md](executable-subset.md).
 
-Blocking on every compiler: unquoted import, `@pii`, `reads` (PLAY0271), `starts with`, observable/list/filter query. Also blocking on the cratis-bundled compiler only: trigger, `given clock`, Automation and Translate slices, reactions, capture. Executable shapes are in the sibling examples. The first line of the fence marks it standalone-only, so the cratis pass skips it: `RecordingAPayment` lists the `InvoiceClosed` cascade, which the cratis-bundled 4.60.1 compiler rejects with a false PLAY0285 ("outcome cannot be produced by 'RecordPayment'").
+Binding blockers in this legacy control without protected-read opt-in: unquoted
+import, legacy `reads` (PLAY0271), condition-only `starts with` (PLAY0268).
+Property/concept text rules bind v24; eligible protected reads bind v25. Caller-supplied collection equality filters bind as ESM v14; context and single-result filters remain blocked. Executable shapes are in the sibling examples. `RecordingAPayment` lists the `InvoiceClosed` cascade; an older bundled compiler rejected it with a false PLAY0285 ("outcome cannot be produced by 'RecordPayment'").
 
-```screenplay
-// Needs the standalone screenplay compiler (ESM v6)
+Concept compliance itself binds as ESM v13; reasons remain report-only PLAY0270. Stage renders v13 concept
+protection. Binder-only PLAY0268 refusals and subject-lineage limits: command-surface `references/compliance.md`.
+
+```screenplay test=unbound
 // Design-mode cheat-sheet: every construct family; compiles warning-free on the standalone tool.
 domain Acme.Invoicing                      // optional; first line when present
 import Customers.CustomerRegistered        // unquoted = another bounded context's contract
@@ -14,7 +18,7 @@ import Customers.CustomerRegistered        // unquoted = another bounded context
 
 concept InvoiceId : Uuid                   // primitives: Uuid String Int Decimal Bool Date DateTime Enum
 concept PaymentId : Uuid
-concept Email : String @pii                // @pii / @sensitive (blocks executability today)
+concept Email : String pii                 // concept compliance binds as ESM v13
   pii reason "Identifies a person"
   validate
     not empty  message "An email is required"
@@ -131,9 +135,7 @@ module Billing
       command CancelInvoice
         invoiceId InvoiceId identifier
         authorize CanManage
-        produces InvoiceCancelled
-          for invoiceId
-      event InvoiceCancelled
+        produces event InvoiceCancelled
       specification CancellingAnInvoice
         given caller
           authenticated
@@ -155,9 +157,9 @@ module Billing
       readmodel InvoiceRow
         invoiceId InvoiceId
         number    String
-      query InvoiceById => InvoiceRow optional        // keyed: the only executable query shape
+      query InvoiceById => InvoiceRow optional        // keyed optional lookup (unfiltered lists bind too)
         by invoiceId InvoiceId
-      query ListInvoices => observable InvoiceRow[]   // design mode only (PLAY0268 at binding)
+      query ListInvoices => observable InvoiceRow[]   // caller-supplied equality filter: ESM v14
         filter number String optional
       projection InvoiceList => InvoiceRow
         from InvoiceRegistered
@@ -210,13 +212,9 @@ module Billing
         paymentId PaymentId identifier
         invoiceId InvoiceId
         amount    Decimal
-        produces PaymentRecorded
-          for paymentId
-          invoiceId = invoiceId                       // cross-stream reference is payload
-          amount    = amount
-      event PaymentRecorded
-        invoiceId InvoiceId
-        amount    Decimal
+        produces event PaymentRecorded
+          invoiceId InvoiceId = invoiceId             // cross-stream reference is payload
+          amount Decimal = amount
       specification RecordingAPayment
         given caller
           authenticated
@@ -232,15 +230,13 @@ module Billing
         then InvoiceClosed                            // ESM v6: the Reconciler cascade (amount > 0)
           for "9c858901-8a57-4791-81fe-4c455b099bc9"
 
-module Housekeeping                                   // no gates: a reaction's `invokes` has no caller
+module Housekeeping                                   // no gates: this reaction declares no `runs as`, so its `invokes` has no caller
   description "Background follow-up"
   feature FollowUp
     slice StateChange CloseInvoice
       command CloseInvoice
         invoiceId InvoiceId identifier
-        produces InvoiceClosed
-          for invoiceId
-      event InvoiceClosed
+        produces event InvoiceClosed
       specification ClosingAnInvoice
         when CloseInvoice
           invoiceId = "9c858901-8a57-4791-81fe-4c455b099bc9"
@@ -250,13 +246,10 @@ module Housekeeping                                   // no gates: a reaction's 
     slice StateChange MarkOverdue
       command MarkOverdue
         invoiceId InvoiceId identifier
-        produces InvoiceMarkedOverdue
-          for invoiceId
-          overdueAt = $context.occurred
-      event InvoiceMarkedOverdue
-        overdueAt DateTime
+        produces event InvoiceMarkedOverdue
+          overdueAt DateTime = $context.occurred
       // No command spec here: under ESM v6 it must list the ReminderSent cascade. The file is
-      // standalone-only because RecordingAPayment's cascade already gets a false PLAY0285 on cratis.
+      // RecordingAPayment's cascade: an older bundled compiler reported a false PLAY0285 here.
       // The cascade form: automation-translate-example.md (SubscribingAMember).
 
     slice Automation RemindOverdue
