@@ -32,7 +32,7 @@ public class when_generating_a_concept_with_conflicting_validation_rules : given
 
     [Fact] void should_report_the_rule_conflict() => _result.Diagnostics.Select(_ => _.Code).ShouldContain(GenerationDiagnosticCodes.ConflictingConceptValidationRule);
     [Fact] void should_keep_the_concept_representation() => _result.Source.ShouldContain("concept AccountNumber : String");
-    [Fact] void should_keep_the_concept_attribute() => _result.Source.ShouldContain("@sensitive");
-    [Fact] void should_keep_the_concept_attribute_reason() => _result.Source.ShouldContain("sensitive reason \"Used to route payments\"");
+    [Fact] void should_keep_the_concept_attribute() => _result.Source.ShouldContain("concept AccountNumber : String secret");
+    [Fact] void should_keep_the_concept_attribute_reason() => _result.Source.ShouldContain("secret reason \"Used to route payments\"");
     [Fact] void should_omit_the_conflicting_rule() => _result.Source.ShouldNotContain("rule Be");
 }
