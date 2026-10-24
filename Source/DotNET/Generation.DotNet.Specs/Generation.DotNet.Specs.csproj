@@ -5,18 +5,11 @@
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <DedicatedSpecsProject>true</DedicatedSpecsProject>
+        <TargetFrameworks Condition="'$(Configuration)' == 'Release'">net10.0</TargetFrameworks>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Cratis.Specifications" />
-        <PackageReference Include="Cratis.Specifications.XUnit" />
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <PackageReference Include="xunit" />
-        <PackageReference Include="xunit.runner.visualstudio">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
 
         <ProjectReference Include="../Generation.Contracts/Generation.Contracts.csproj" />
         <ProjectReference Include="../Generation.DotNet/Generation.DotNet.csproj" />

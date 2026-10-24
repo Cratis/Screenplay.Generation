@@ -36,5 +36,5 @@ public class when_overload_candidates_cannot_bind : given.a_compilation
 
     [Fact] void should_reproduce_an_overload_resolution_failure() => _candidateReason.ShouldEqual(CandidateReason.OverloadResolutionFailure);
     [Fact] void should_classify_the_failed_candidate_set_as_unbound() => _failure.Kind.ShouldEqual(DotNetValueFailureKind.Unbound);
-    [Fact] void should_locate_the_failure_at_the_incompatible_invocation() => _failure.Source.SourceTree!.GetText().ToString(_failure.Source.SourceSpan).ShouldEqual("Pick(42)");
+    [Fact] void should_locate_the_failure_at_the_incompatible_invocation() => _failure.Source.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(_failure.Source.SourceSpan).ShouldEqual("Pick(42)");
 }
