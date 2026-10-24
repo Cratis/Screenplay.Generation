@@ -61,7 +61,7 @@ public class when_generating_concepts : given.a_generator
     }
 
     [Fact] void should_succeed() => _result.IsSuccess.ShouldBeTrue();
-    [Fact] void should_generate_the_primitive_concept() => _result.Source.ShouldContain("concept OrderId : Uuid @pii @sensitive");
+    [Fact] void should_generate_the_primitive_concept() => _result.Source.ShouldContain("concept OrderId : Uuid pii secret");
     [Fact] void should_generate_the_attribute_reason() => _result.Source.ShouldContain("pii reason \"Used to locate a customer's order\"");
     [Fact] void should_generate_the_enumeration_concept() => _result.Source.ShouldContain("concept OrderStatus : Enum");
     [Fact] void should_generate_the_pending_enumeration_value() => _result.Source.ShouldContain("pending");

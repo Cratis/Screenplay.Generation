@@ -19,6 +19,11 @@ on:
       - "*.slnx"
       - "global.json"
       - "scripts/**"
+      - ".github/scripts/run-specifications.sh"
+      - ".github/scripts/run-specifications.test.mjs"
+      - ".github/workflows/dotnet-build.yml"
+      - ".globalconfig"
+      - ".editorconfig"
 
 jobs:
   build:
@@ -34,14 +39,29 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Build & run tests
-        run: dotnet test --configuration Debug
+      - name: Build Debug
+        run: dotnet build --configuration Debug
+
+      - name: Verify specification runner
+        run: bash .github/scripts/run-specifications.sh --self-test
 
       # The version is a sentinel, not a release. Package validation compares assembly versions, and one
       # below the baseline is rejected on that alone before the API surface is ever looked at - so it has to
       # be set on the build, since the pack below reuses what this produces.
       - name: Build Release
         run: dotnet build --configuration Release -p:Version=9999.0.0
+
+      - name: Run specifications
+        run: bash .github/scripts/run-specifications.sh Release
+
+      - name: Upload failed specification results
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: specification-results
+          path: TestResults/
+          if-no-files-found: ignore
+          retention-days: 3
 
       # Package validation only runs on pack, so a binary break was invisible until the release failed on
       # main - which is how eight versions came to be tagged with no package on NuGet. Packing here puts the

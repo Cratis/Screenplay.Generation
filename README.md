@@ -194,12 +194,32 @@ When an authored framework extension can alter discovery or runtime conventions 
 
 ## Build and test
 
+The specifications use Cratis.Specifications 5.0 and the native xUnit v3 executable runner. The three dedicated specification projects require .NET 10 in Debug and Release; the four libraries still target net8.0, net9.0, and net10.0 in Release and remain libraries.
+
 ```shell
-dotnet test Screenplay.Generation.slnx --configuration Debug
+dotnet build Screenplay.Generation.slnx --configuration Debug
+bash .github/scripts/run-specifications.sh Debug
 dotnet build Screenplay.Generation.slnx --configuration Release -p:Version=9999.0.0
+bash .github/scripts/run-specifications.sh Release
 dotnet pack Screenplay.Generation.slnx --no-build --configuration Release -o Artifacts/NuGet -p:Version=9999.0.0
 ./scripts/verify-package-consumers.sh 9999.0.0 Artifacts/NuGet
 ```
+
+The runner executes all three specification projects in parallel and writes fresh logs and TRX files under `TestResults/`. Missing projects or executables, nonzero child exits, and missing, invalid, or zero-test TRX results fail the run. Run `bash .github/scripts/run-specifications.sh --self-test` to exercise these guards (Node.js required); validating TRX results requires Python 3.
+
+Run one project directly (append `.exe` on Windows):
+
+```shell
+Source/DotNET/Generation.Specs/bin/Debug/net10.0/Cratis.Screenplay.Generation.Specs
+```
+
+Use `-class`, `-method`, or `-namespace` with fully qualified names to filter tests; `-?` lists all options. For example:
+
+```shell
+Source/DotNET/Generation.Specs/bin/Debug/net10.0/Cratis.Screenplay.Generation.Specs -namespace 'Cratis.Screenplay.Generation.for_ScreenplayDefinitionGenerator*'
+```
+
+`dotnet test Screenplay.Generation.slnx --configuration Debug --no-build` and IDE test explorers remain supported through the VSTest adapter; no Microsoft.Testing.Platform configuration is required. For Release, use `--configuration Release`.
 
 Package validation runs during pack against the latest released API baseline, `0.16.0`, for all four packages. Baseline strict mode remains disabled so intentional compatible additions are accepted while removals and signature changes still fail; no compatibility diagnostics are suppressed. The sentinel version must be applied to both the Release build and the no-build pack so package and assembly versions agree. The consumer smoke keeps clean legacy binaries compiled against the `0.1.0` core and `0.5.0` Vogen ancestry and runs them unchanged with current packages. A separate clean current-source consumer compiles only against the candidate packages and verifies the current authored-source, shared symbol helpers, declared concept nomination, neutral-fact, resolver, Vogen, adapter-composition, and deterministic compiler-verified generation APIs.
 

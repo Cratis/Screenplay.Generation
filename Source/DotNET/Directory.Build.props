@@ -4,13 +4,13 @@
     <PropertyGroup>
         <Version>1.0.0</Version>
         <Copyright>Copyright Cratis</Copyright>
-        <Authors>all contributors</Authors>
+        <Authors>Cratis</Authors>
         <DebugType>portable</DebugType>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryType>git</RepositoryType>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <RepositoryUrl>https://github.com/Cratis/Screenplay.Generation</RepositoryUrl>
-        <PackageProjectUrl>https://github.com/Cratis/Screenplay.Generation</PackageProjectUrl>
+        <PackageProjectUrl>https://www.cratis.io/screenplay/</PackageProjectUrl>
 
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
@@ -19,6 +19,8 @@
         <IsTestProject>false</IsTestProject>
         <IsPackable>false</IsPackable>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags Condition="'$(PackageTags)' == ''">cratis;screenplay;dsl;event-modeling;cqrs;compiler</PackageTags>
+        <PackageIcon>logo.png</PackageIcon>
         <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     </PropertyGroup>
 
@@ -28,6 +30,7 @@
 
     <ItemGroup Condition="'$(IsPackable)'=='true'">
         <None Include="$(MSBuildThisFileDirectory)/../../README.md" Pack="true" PackagePath="/" />
+        <None Include="$(MSBuildThisFileDirectory)/../../logo.png" Pack="true" PackagePath="/" />
     </ItemGroup>
 
     <!--
@@ -37,20 +40,6 @@
     -->
     <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
         <IsTestProject>true</IsTestProject>
-
-        <!-- The test SDK generates an entry point; projects with top-level statements keep their own. -->
-        <NoWarn>$(NoWarn);CS7022</NoWarn>
     </PropertyGroup>
 
-    <ItemGroup Condition="'$(Configuration)' == 'Debug' AND '$(DedicatedSpecsProject)' != 'true'">
-        <PackageReference Include="xunit" />
-        <PackageReference Include="xunit.runner.visualstudio">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
-        <PackageReference Include="NSubstitute" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <PackageReference Include="Cratis.Specifications" />
-        <PackageReference Include="Cratis.Specifications.XUnit" />
-    </ItemGroup>
 </Project>
