@@ -3,7 +3,7 @@ title: Build a .NET source adapter
 description: Recover a framework's authored .NET semantics as neutral facts and generate deterministic, compiler-verified Screenplay.
 ---
 
-Build a source adapter when you need to recover a framework's authored .NET semantics into a verified Screenplay model.
+Build a source adapter when you need to recover a framework's authored .NET semantics into a verified Screenplay model. Establish the host's source authority first, then implement the adapter and compose its contribution into verified output.
 
 A source adapter owns **framework interpretation**. It does not load an MSBuild workspace, start the analyzed application, inspect live infrastructure, construct Screenplay syntax, or print `.play` text.
 
@@ -36,7 +36,7 @@ Only these four Generation packages release in lockstep. Ecosystem adapters and 
 
 Keep runtime packages for the framework you analyze out of the adapter whenever Roslyn metadata names can express the contract. This avoids loading one framework version into a host that analyzes another version.
 
-Reference one version across all directly referenced Screenplay Generation packages.
+Reference one version across all directly referenced Screenplay Generation packages. Choose a package baseline using the support table below; current-main additions are not all part of the public release.
 
 :::note
 `v0.16.0` is the current public release and package-validation baseline. Described adapters, atomic admission, deterministic runner snapshots, and final fact dispositions are included in that lockstep package set. Granular type-use derivation is additive on `main`.
@@ -61,9 +61,98 @@ Reference one version across all directly referenced Screenplay Generation packa
 | Fixed-snapshot derivation rule and input/evidence lineage | No | Yes |
 | Exact nested .NET type-use fact emission | No | Yes |
 
+## Establish the analysis context in the host
+
+The workspace host owns project loading and source authority. `Cratis.Screenplay.Generation.DotNet` deliberately does not reference `MSBuildWorkspace`; an MSBuild host additionally references `Microsoft.CodeAnalysis.Workspaces.MSBuild` and `Microsoft.Build.Locator`. The host supplies a `DotNetAnalysisContext` built from its project compilations and authored source sets; adapters consume that context rather than loading the application.
+
+For each project, supply a `DotNetProjectCompilation` with:
+
+- a stable logical `Name`;
+- the Roslyn `Compilation`;
+- the exact `AuthoredSyntaxTrees` captured from project documents;
+- an optional `DotNetProjectSourceContext` for stable source identity and display paths;
+- `DotNetProjectRole.Application` or `DotNetProjectRole.Specifications`;
+- optional compatibility values such as `ProjectPath` and `SourceRoot`.
+
+The host example below constructs the context consumed by the adapter and runner. Replace the shown application-project path with a project whose documents and compilation references you control; workspace failures and compilation errors stop context construction before adapter analysis.
+
+```csharp
+using Cratis.Screenplay.Generation.DotNet;
+using Microsoft.Build.Locator;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.MSBuild;
+
+MSBuildLocator.RegisterDefaults();
+using var workspace = MSBuildWorkspace.Create();
+var workspaceFailures = new List<string>();
+workspace.WorkspaceFailed += (_, args) => workspaceFailures.Add(args.Diagnostic.Message);
+var projectPath = Path.GetFullPath("Source/Application/Application.csproj");
+var workspaceRoot = Path.GetFullPath(".");
+var loadedProject = await workspace.OpenProjectAsync(projectPath);
+var projectDirectory = Path.GetDirectoryName(projectPath)!;
+var authoredTrees = new HashSet<SyntaxTree>();
+var sourceDocuments = new List<DotNetSourceDocument>();
+
+foreach (var document in loadedProject.Documents.OrderBy(_ => _.FilePath, StringComparer.Ordinal))
+{
+    if (document.FilePath is null || await document.GetSyntaxTreeAsync() is not { } tree)
+    {
+        continue;
+    }
+
+    authoredTrees.Add(tree);
+    sourceDocuments.Add(new DotNetSourceDocument
+    {
+        SyntaxTree = tree,
+        ProjectRelativePath = Path.GetRelativePath(projectDirectory, document.FilePath),
+        WorkspaceRelativePath = Path.GetRelativePath(workspaceRoot, document.FilePath)
+    });
+}
+
+var compilation = await loadedProject.GetCompilationAsync() ??
+                  throw new InvalidOperationException("The project did not produce a compilation");
+var compilationErrors = compilation.GetDiagnostics()
+    .Where(_ => _.Severity == DiagnosticSeverity.Error)
+    .ToArray();
+if (workspaceFailures.Count > 0 || compilationErrors.Length > 0)
+{
+    throw new InvalidOperationException(string.Join(
+        Environment.NewLine,
+        workspaceFailures.Concat(compilationErrors.Select(_ => _.ToString()))));
+}
+
+var sourceContext = DotNetSourcePaths.Create(
+    "Source/Application/Application",
+    new DotNetSourcePathPolicy
+    {
+        Version = 1,
+        DisplayRoot = DotNetSourceDisplayRoot.Workspace,
+        CasePolicy = DotNetSourcePathCasePolicy.Ordinal
+    },
+    sourceDocuments);
+var project = new DotNetProjectCompilation
+{
+    Name = loadedProject.Name,
+    Role = DotNetProjectRole.Application,
+    ProjectPath = projectPath,
+    SourceContext = sourceContext,
+    Compilation = compilation,
+    AuthoredSyntaxTrees = authoredTrees
+};
+var context = new DotNetAnalysisContext([project]);
+```
+
+Capture authored trees from `Project.Documents`. Generated filenames and headers are useful corroboration, but they are not source authority. Assign `DotNetProjectRole.Specifications` to specification projects instead of inferring that role from their name.
+
+Use `DotNetSourcePaths.Create(...)` to map project documents into a stable source context. Physical checkout roots must not become identities. Prefer `DotNetSource.EvidenceFor(..., project, ...)` and `DotNetSource.RangeForProject(...)` over the legacy `SourceRoot` overloads.
+
+A modern adapter should declare `AdapterHostCapability.StableSourceLocations` when its probe, facts, or diagnostics depend on portable source identity. The runner then requires every project to expose authoritative authored trees and a complete `DotNetProjectSourceContext`; located probe evidence and contribution ranges must map to those exact trees and include their stable `SourceFileIdentity`. Missing host capability blocks before `Probe()`, malformed or nonauthoritative probe evidence blocks after `Probe()`, and nonauthoritative contribution source rejects that contribution atomically. The modern Vogen descriptor requires this capability. Legacy registrations retain path-only source compatibility.
+
+A truly source-neutral adapter can declare `AdapterSourceLanguage.SourceIndependent`, no host capabilities, and no source ranges. It can run with `new DotNetAnalysisContext([])`. Declaring any host capability intentionally restores host and project-roster gating.
+
 ## Implement the adapter contract
 
-The original `IDotNetScreenplayAdapter` remains supported for existing adapters and hosts. New adapters should implement `IDescribedDotNetScreenplayAdapter`. During migration, implement both interfaces over one analysis path: modern hosts receive a descriptor and structured probe, while legacy hosts retain `Identity`, `CanAnalyze()`, and byte-compatible contributions.
+The original `IDotNetScreenplayAdapter` remains supported for existing adapters and hosts. New adapters should implement `IDescribedDotNetScreenplayAdapter`. If you also support legacy hosts, implement both interfaces over one analysis path: modern hosts receive a descriptor and structured probe, while legacy hosts retain `Identity`, `CanAnalyze()`, and byte-compatible contributions. The example below follows that dual path and uses current-main granular type-use APIs.
 
 A descriptor states what the host is about to trust. Choose the narrow semantic `AdapterCategory` (`ApplicationFramework`, `EventSourcing`, `EventStore`, `Messaging`, `Concepts`, `Validation`, or `Integration`), declare `CSharp` or truly `SourceIndependent` input, bound compatible Generation versions when the adapter has a tested range, list required host services, name exact framework API capabilities that an applicable probe must prove, and list every neutral fact family analysis may emit. `Legacy` is reserved for the compatibility registration synthesized by `ForLegacy(...)`.
 
@@ -205,100 +294,80 @@ public sealed class AcmeScreenplayAdapter :
 
 Keep `Probe()` cheap, deterministic, and semantic. Package presence alone must not make a probe applicable. `AdapterProbeEvidence` can identify an exact required `AdapterApiCapability`, source range, and subject. Return `AdapterProbeBlocked` with valid diagnostics when the source applies but analysis cannot proceed safely. The runner admits and freezes probe evidence before it considers analysis.
 
-The compatibility `CanAnalyze()` above delegates to the modern probe without changing `Analyze()`. Existing binaries can continue to call the legacy interface, while a modern host registers the same adapter with `DotNetAdapterRegistration.For(...)`. This first pass emits only the exact command artifact. Add placement through the fixed source snapshot and shared derivation pipeline in [Derive source placement](#derive-source-placement); do not derive it ad hoc inside artifact discovery.
+The compatibility `CanAnalyze()` above delegates to the modern probe without changing `Analyze()`. Existing binaries can continue to call the legacy interface, while a modern host registers the same adapter with `DotNetAdapterRegistration.For(...)`. This discovery pass emits the exact command artifact plus member-declaration and type-use facts for its declared public readable instance properties, but no placement. Add placement through the fixed source snapshot and shared derivation pipeline in [Derive source placement](#derive-source-placement); do not derive it ad hoc inside artifact discovery.
 
-## Establish the analysis context in the host
+## Compose and verify once
 
-The workspace host owns project loading and source authority. `Cratis.Screenplay.Generation.DotNet` deliberately does not reference `MSBuildWorkspace`; an MSBuild host additionally references `Microsoft.CodeAnalysis.Workspaces.MSBuild` and `Microsoft.Build.Locator`.
-
-For each project, supply a `DotNetProjectCompilation` with:
-
-- a stable logical `Name`;
-- the Roslyn `Compilation`;
-- the exact `AuthoredSyntaxTrees` captured from project documents;
-- an optional `DotNetProjectSourceContext` for stable source identity and display paths;
-- `DotNetProjectRole.Application` or `DotNetProjectRole.Specifications`;
-- optional compatibility values such as `ProjectPath` and `SourceRoot`.
-
-A minimal trusted host looks like this:
+The host supplies an explicit registration roster. There is no package scanning or implicit adapter discovery. Pass the host's context and adapter options to the runner, then pass its admitted snapshot to Generation. The roster below includes an existing legacy adapter; omit that registration when the host selects only modern adapters:
 
 ```csharp
-using Cratis.Screenplay.Generation.DotNet;
-using Microsoft.Build.Locator;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.MSBuild;
-
-MSBuildLocator.RegisterDefaults();
-using var workspace = MSBuildWorkspace.Create();
-var workspaceFailures = new List<string>();
-workspace.WorkspaceFailed += (_, args) => workspaceFailures.Add(args.Diagnostic.Message);
-var projectPath = Path.GetFullPath("Source/Application/Application.csproj");
-var workspaceRoot = Path.GetFullPath(".");
-var loadedProject = await workspace.OpenProjectAsync(projectPath);
-var projectDirectory = Path.GetDirectoryName(projectPath)!;
-var authoredTrees = new HashSet<SyntaxTree>();
-var sourceDocuments = new List<DotNetSourceDocument>();
-
-foreach (var document in loadedProject.Documents.OrderBy(_ => _.FilePath, StringComparer.Ordinal))
+var roster = new DotNetAdapterRegistration[]
 {
-    if (document.FilePath is null || await document.GetSyntaxTreeAsync() is not { } tree)
-    {
-        continue;
-    }
-
-    authoredTrees.Add(tree);
-    sourceDocuments.Add(new DotNetSourceDocument
-    {
-        SyntaxTree = tree,
-        ProjectRelativePath = Path.GetRelativePath(projectDirectory, document.FilePath),
-        WorkspaceRelativePath = Path.GetRelativePath(workspaceRoot, document.FilePath)
-    });
-}
-
-var compilation = await loadedProject.GetCompilationAsync() ??
-                  throw new InvalidOperationException("The project did not produce a compilation");
-var compilationErrors = compilation.GetDiagnostics()
-    .Where(_ => _.Severity == DiagnosticSeverity.Error)
-    .ToArray();
-if (workspaceFailures.Count > 0 || compilationErrors.Length > 0)
-{
-    throw new InvalidOperationException(string.Join(
-        Environment.NewLine,
-        workspaceFailures.Concat(compilationErrors.Select(_ => _.ToString()))));
-}
-
-var sourceContext = DotNetSourcePaths.Create(
-    "Source/Application/Application",
-    new DotNetSourcePathPolicy
-    {
-        Version = 1,
-        DisplayRoot = DotNetSourceDisplayRoot.Workspace,
-        CasePolicy = DotNetSourcePathCasePolicy.Ordinal
-    },
-    sourceDocuments);
-var project = new DotNetProjectCompilation
-{
-    Name = loadedProject.Name,
-    Role = DotNetProjectRole.Application,
-    ProjectPath = projectPath,
-    SourceContext = sourceContext,
-    Compilation = compilation,
-    AuthoredSyntaxTrees = authoredTrees
+    DotNetAdapterRegistration.For(new AcmeScreenplayAdapter()),
+    DotNetAdapterRegistration.For(new VogenConceptScreenplayAdapter()),
+    DotNetAdapterRegistration.ForLegacy(unchangedLegacyAdapter)
 };
-var context = new DotNetAnalysisContext([project]);
+
+var snapshot = DotNetAdapterRunner.Run(roster, context, options);
+var result = new ScreenplayDefinitionGenerator().Generate(
+    snapshot,
+    new ScreenplayGenerationOptions { Domain = "Ordering" });
 ```
 
-Capture authored trees from `Project.Documents`. Generated filenames and headers are useful corroboration, but they are not source authority. Assign `DotNetProjectRole.Specifications` to specification projects instead of inferring that role from their name.
+`DotNetAdapterRunner` canonicalizes the roster and project input, considers every registration once, probes each eligible adapter once, and analyzes each applicable adapter once. `NotApplicable` and `Blocked` adapters never execute. Contributions remain separate and are admitted atomically before the runner returns a deeply frozen `AdapterRunSnapshot`; mutating adapter-owned lists or records after `Run()` cannot change it.
 
-Use `DotNetSourcePaths.Create(...)` to map project documents into a stable source context. Physical checkout roots must not become identities. Prefer `DotNetSource.EvidenceFor(..., project, ...)` and `DotNetSource.RangeForProject(...)` over the legacy `SourceRoot` overloads.
+The boundary fails closed at a precise stage:
 
-A modern adapter should declare `AdapterHostCapability.StableSourceLocations` when its probe, facts, or diagnostics depend on portable source identity. The runner then requires every project to expose authoritative authored trees and a complete `DotNetProjectSourceContext`; located probe evidence and contribution ranges must map to those exact trees and include their stable `SourceFileIdentity`. Missing host capability blocks before `Probe()`, malformed or nonauthoritative probe evidence blocks after `Probe()`, and nonauthoritative contribution source rejects that contribution atomically. The modern Vogen descriptor requires this capability. Legacy registrations retain path-only source compatibility.
+| Failure | Result |
+| --- | --- |
+| Duplicate adapter ID | Every duplicate registration is `RosterRejected` before probe or analysis |
+| Invalid descriptor | Registration is `RosterRejected` with deterministic descriptor-admission diagnostics |
+| Incompatible Generation version | `Blocked` before probe against the host's loaded `Generation.Contracts` version |
+| Unsupported language or missing host capability | `Blocked` before probe |
+| Ambiguous or duplicate project identity | Source-dependent adapters are `Blocked` before probe; a host-free source-independent adapter may continue |
+| Malformed or nonauthoritative probe evidence, or missing required API evidence | `Blocked` after one probe; analysis does not run |
+| Probe-declared known limitation | `AdapterProbeBlocked` preserves canonical diagnostics; analysis does not run |
+| Malformed, unscoped, undeclared, identity-mismatched, or nonauthoritative contribution | The complete contribution is `ContributionRejected`; no partial facts enter the snapshot |
+| Probe or analysis callback throws | `ExecutionFailed` with a stable boundary diagnostic; exception details and machine paths are not exposed |
 
-A truly source-neutral adapter can declare `AdapterSourceLanguage.SourceIndependent`, no host capabilities, and no source ranges. It can run with `new DotNetAnalysisContext([])`. Declaring any host capability intentionally restores host and project-roster gating.
+`AdapterRunSnapshot.Adapters` preserves each descriptor, structured probe, execution result, and disposition. Its admitted facts initially have `GenerationFactDisposition.Unknown`. `Generate(snapshot, options)` returns a new canonical snapshot in `GeneratedScreenplayDefinition.AdapterRun` with every admitted fact classified:
+
+| Disposition | Meaning |
+| --- | --- |
+| `Lowered` | The fact contributed directly to emitted Screenplay syntax |
+| `ProvenanceOnly` | The assertion was retained as supporting provenance but did not add syntax |
+| `OmittedWithDiagnostic` | Generation omitted the fact and attached the diagnostic that explains why |
+| `Conflicted` | The fact participated in an unresolved competing definition |
+
+The snapshot overload preserves runner, contribution, resolution, lowering, and verification diagnostics. For the same admitted contributions it produces the same canonical bytes as the original `Generate(IEnumerable<AdapterContribution>, ...)` overload. The original overload and `IDotNetScreenplayAdapter` remain supported; use them only when a host does not need the execution record.
+
+After generation, inspect `result.Diagnostics` even when `result.IsSuccess` is true. Check `result.Graph` or `result.Source` for the artifacts and relationships established by your authored input, and use `result.AdapterRun` to inspect adapter admission and final fact dispositions. The composition example does not define a fixture or prescribe particular generated source.
+
+`VogenConceptScreenplayAdapter` implements both interfaces. Prefer the modern registration when the host supplies stable mappings:
+
+```csharp
+var modern = DotNetAdapterRunner.Run(
+    [DotNetAdapterRegistration.For(new VogenConceptScreenplayAdapter())],
+    stableContext,
+    options);
+
+var legacy = DotNetAdapterRunner.Run(
+    [DotNetAdapterRegistration.ForLegacy(new VogenConceptScreenplayAdapter())],
+    legacyCompatibleContext,
+    options);
+```
+
+The modern descriptor has category `Concepts`, source language `CSharp`, requires authored source, stable source locations, semantic analysis, and exact Vogen declaration API evidence, and declares its concept fact families. Its probe distinguishes no declarations, safely applicable declarations, and unsafe mappings. Run the modern and legacy registrations separately: both use the `vogen` identity, so placing both in one roster is a deliberate duplicate rejection. When each path is safely applicable, their contribution facts and diagnostics are identical.
+
+Adapters never call the runner, resolver, lowerer, printer, or compiler themselves. Adopt a newly required API in this order:
+
+1. release Screenplay Generation;
+2. upgrade and release the ecosystem adapter;
+3. upgrade the composition host.
 
 ## Use shared Roslyn mechanics
 
-Prefer semantic helpers over adapter-specific syntax utilities:
+Use the shared helpers for symbol binding, bounded extraction, and evidence so each discovery rule supplies only the framework-specific meaning. These helpers do not decide which artifacts or relationships your framework proves:
 
 - `DotNetArtifactCatalog` provides canonical source type discovery;
 - `DotNetTypeShapes` converts public properties and exact type subjects;
@@ -358,6 +427,18 @@ Keep compatibility aggregate properties unbound with `DotNetTypeShapes.Propertie
 `DotNetTypeShapes.TypeUseFor(type, context)` orders shape nodes from the outermost wrapper to the terminal `Named` node. This distinguishes `Collection(Optional(Named))` from `Optional(Collection(Named))` and preserves nested collections. The current Screenplay grammar lowers only the shapes it can express exactly; unsupported distinctions remain diagnosed rather than flattened.
 
 Pass a `roleFor` callback to `DotNetTypeUseFacts.Emit(...)` only when source-framework semantics establish `ArtifactMemberRoleKind.Identifier` or `EventSourceIdentifier`. Never infer either role from a property name or primitive type. `EventSourceIdentifier` lowers through the existing identifier syntax; the distinct ordinary `Identifier` role remains provenance until Screenplay has separate syntax for it. A framework that already knows the exact target inside one adapter may continue setting `TypeReferenceDefinition.Subject` directly with `PropertiesOf(type, context)` or `TypeReferenceFor(type, context)`.
+
+### Derive facts from one fixed admitted snapshot
+
+`GenerationFactDerivation.Derive(...)` runs the closed built-in rule set once over `AdapterRunSnapshot.Facts`. Every rule sees the same deeply frozen base array. A rule never consumes another rule's output, inspects adapter registrations or instances, or reopens source-language state.
+
+The type-use binding rule joins an `ArtifactMemberTypeUseFact` to an exact declared `ArtifactKey`, including its role and subject. It does not join by display name and does not replace the owning artifact's complete property list. Its derived `TypeUseBindingFact` remains separate from the admitted base facts under `AdapterRunSnapshot.Derivation`; the resolved compatibility reference retains the role in `TypeReferenceDefinition.TargetArtifactKind` so a same-subject non-concept can never be substituted as a concept.
+
+Each derived `GenerationFactRecord` carries `GenerationFactLineage`: the stable derivation rule identity and version, canonical input `FactId` references, and complete input evidence. `GenerationDerivationRuleRecord` records the fixed inputs, outputs, and diagnostics for that rule execution. Directly invoking derivation leaves fact dispositions unknown because disposition is a later generation decision. `Generate(snapshot, options)` attaches the derivation result, propagates its diagnostics, resolves admitted and derived granular facets together, and applies an exact member binding as an overlay without publishing a replacement aggregate fact.
+
+Exact subjects can come from any source frontend. A C# member type use can bind a declaration contributed by another adapter, while a source-independent or non-.NET adapter can contribute the same neutral contracts without Roslyn or Screenplay-layout dependencies. Missing, malformed, ambiguous, conflicting, or currently unrepresentable member evidence omits the affected artifact instead of lowering a flattened legacy fallback.
+
+The execution and derivation snapshots are not a history model. They have no serializer or stable fingerprints; keep them in process and compare canonical generated bytes when determinism matters.
 
 ## Nominate declared concepts
 
@@ -479,85 +560,6 @@ This reports bounded default recovery without treating the entire framework as u
 A host must always display every diagnostic, even when `IsSuccess` is `true`. Errors block publication. Compiler warnings retain their `PLAY` code, message, warning severity, and source position in both generation overloads; they do not make `IsSuccess` false. Hosts may explicitly require warning-free output by rejecting results with warning diagnostics, but the default verification path never hides them. Information diagnostics describe known bounded loss.
 
 Tests must assert required artifacts and relationships directly from `Graph` or `Source`; `IsSuccess` alone proves only that no error diagnostic was produced.
-
-## Compose and verify once
-
-The host supplies an explicit registration roster. There is no package scanning or implicit adapter discovery:
-
-```csharp
-var roster = new DotNetAdapterRegistration[]
-{
-    DotNetAdapterRegistration.For(new AcmeScreenplayAdapter()),
-    DotNetAdapterRegistration.For(new VogenConceptScreenplayAdapter()),
-    DotNetAdapterRegistration.ForLegacy(unchangedLegacyAdapter)
-};
-
-var snapshot = DotNetAdapterRunner.Run(roster, context, options);
-var result = new ScreenplayDefinitionGenerator().Generate(
-    snapshot,
-    new ScreenplayGenerationOptions { Domain = "Ordering" });
-```
-
-`DotNetAdapterRunner` canonicalizes the roster and project input, considers every registration once, probes each eligible adapter once, and analyzes each applicable adapter once. `NotApplicable` and `Blocked` adapters never execute. Contributions remain separate and are admitted atomically before the runner returns a deeply frozen `AdapterRunSnapshot`; mutating adapter-owned lists or records after `Run()` cannot change it.
-
-The boundary fails closed at a precise stage:
-
-| Failure | Result |
-| --- | --- |
-| Duplicate adapter ID | Every duplicate registration is `RosterRejected` before probe or analysis |
-| Invalid descriptor | Registration is `RosterRejected` with deterministic descriptor-admission diagnostics |
-| Incompatible Generation version | `Blocked` before probe against the host's loaded `Generation.Contracts` version |
-| Unsupported language or missing host capability | `Blocked` before probe |
-| Ambiguous or duplicate project identity | Source-dependent adapters are `Blocked` before probe; a host-free source-independent adapter may continue |
-| Malformed or nonauthoritative probe evidence, or missing required API evidence | `Blocked` after one probe; analysis does not run |
-| Probe-declared known limitation | `AdapterProbeBlocked` preserves canonical diagnostics; analysis does not run |
-| Malformed, unscoped, undeclared, identity-mismatched, or nonauthoritative contribution | The complete contribution is `ContributionRejected`; no partial facts enter the snapshot |
-| Probe or analysis callback throws | `ExecutionFailed` with a stable boundary diagnostic; exception details and machine paths are not exposed |
-
-`AdapterRunSnapshot.Adapters` preserves each descriptor, structured probe, execution result, and disposition. Its admitted facts initially have `GenerationFactDisposition.Unknown`. `Generate(snapshot, options)` returns a new canonical snapshot in `GeneratedScreenplayDefinition.AdapterRun` with every admitted fact classified:
-
-| Disposition | Meaning |
-| --- | --- |
-| `Lowered` | The fact contributed directly to emitted Screenplay syntax |
-| `ProvenanceOnly` | The assertion was retained as supporting provenance but did not add syntax |
-| `OmittedWithDiagnostic` | Generation omitted the fact and attached the diagnostic that explains why |
-| `Conflicted` | The fact participated in an unresolved competing definition |
-
-The snapshot overload preserves runner, contribution, resolution, lowering, and verification diagnostics. For the same admitted contributions it produces the same canonical bytes as the original `Generate(IEnumerable<AdapterContribution>, ...)` overload. The original overload and `IDotNetScreenplayAdapter` remain supported; use them only when a host does not need the execution record.
-
-`VogenConceptScreenplayAdapter` implements both interfaces. Prefer the modern registration when the host supplies stable mappings:
-
-```csharp
-var modern = DotNetAdapterRunner.Run(
-    [DotNetAdapterRegistration.For(new VogenConceptScreenplayAdapter())],
-    stableContext,
-    options);
-
-var legacy = DotNetAdapterRunner.Run(
-    [DotNetAdapterRegistration.ForLegacy(new VogenConceptScreenplayAdapter())],
-    legacyCompatibleContext,
-    options);
-```
-
-The modern descriptor has category `Concepts`, source language `CSharp`, requires authored source, stable source locations, semantic analysis, and exact Vogen declaration API evidence, and declares its concept fact families. Its probe distinguishes no declarations, safely applicable declarations, and unsafe mappings. Run the modern and legacy registrations separately: both use the `vogen` identity, so placing both in one roster is a deliberate duplicate rejection. When each path is safely applicable, their contribution facts and diagnostics are identical.
-
-### Derive facts from one fixed admitted snapshot
-
-`GenerationFactDerivation.Derive(...)` runs the closed built-in rule set once over `AdapterRunSnapshot.Facts`. Every rule sees the same deeply frozen base array. A rule never consumes another rule's output, inspects adapter registrations or instances, or reopens source-language state.
-
-The type-use binding rule joins an `ArtifactMemberTypeUseFact` to an exact declared `ArtifactKey`, including its role and subject. It does not join by display name and does not replace the owning artifact's complete property list. Its derived `TypeUseBindingFact` remains separate from the admitted base facts under `AdapterRunSnapshot.Derivation`; the resolved compatibility reference retains the role in `TypeReferenceDefinition.TargetArtifactKind` so a same-subject non-concept can never be substituted as a concept.
-
-Each derived `GenerationFactRecord` carries `GenerationFactLineage`: the stable derivation rule identity and version, canonical input `FactId` references, and complete input evidence. `GenerationDerivationRuleRecord` records the fixed inputs, outputs, and diagnostics for that rule execution. Directly invoking derivation leaves fact dispositions unknown because disposition is a later generation decision. `Generate(snapshot, options)` attaches the derivation result, propagates its diagnostics, resolves admitted and derived granular facets together, and applies an exact member binding as an overlay without publishing a replacement aggregate fact.
-
-Exact subjects can come from any source frontend. A C# member type use can bind a declaration contributed by another adapter, while a source-independent or non-.NET adapter can contribute the same neutral contracts without Roslyn or Screenplay-layout dependencies. Missing, malformed, ambiguous, conflicting, or currently unrepresentable member evidence omits the affected artifact instead of lowering a flattened legacy fallback.
-
-The execution and derivation snapshots are not a history model. They have no issue #24 serializer or stable fingerprints; keep them in process and compare canonical generated bytes when determinism matters.
-
-Adapters never call the runner, resolver, lowerer, printer, or compiler themselves. Adopt a newly required API in this order:
-
-1. release Screenplay Generation;
-2. upgrade and release the ecosystem adapter;
-3. upgrade the composition host.
 
 ## Test the adapter
 
