@@ -21,7 +21,7 @@ function pathWithoutPython(directory) {
 }
 
 function fixture(t, options = {}) {
-    const { count = 3, expected = '', missing = -1, exits = {}, totals = {}, documents = {}, noTrx = -1, windows = false, missingPython = false } = options;
+    const { count = 3, expected = '', missing = -1, exits = {}, totals = {}, documents = {}, noTrx = -1, windows = false, missingPython = false, framework = 'net11.0' } = options;
     mkdirSync(join(root, '.ai-work'), { recursive: true });
     const directory = mkdtempSync(join(root, '.ai-work/run-specifications-test-'));
     t.after(() => rmSync(directory, { recursive: true }));
@@ -30,7 +30,7 @@ function fixture(t, options = {}) {
     copyFileSync(join(scripts, 'run-specifications.sh'), join(target, 'run-specifications.sh'));
     for (let index = 0; index < count; index++) {
         const project = join(directory, `Source/DotNET/Project${index}.Specs`);
-        const output = join(project, 'bin/Release/net10.0');
+        const output = join(project, `bin/Release/${framework}`);
         mkdirSync(output, { recursive: true });
         writeFileSync(join(project, `Project${index}.Specs.csproj`), `<Project><AssemblyName>Assembly${index}</AssemblyName></Project>`);
         if (index === missing) continue;
@@ -43,7 +43,7 @@ ${index === noTrx ? ':' : `printf '%s' '${document.replaceAll("'", "'\\''")}' > 
 exit ${exits[index] ?? 0}
 `, { mode: 0o755 });
     }
-    const result = spawnSync('bash', [join(target, 'run-specifications.sh'), 'Release'], {
+    const result = spawnSync('bash', [join(target, 'run-specifications.sh'), 'Release', ...(options.framework ? [framework] : [])], {
         encoding: 'utf8',
         timeout: 10000,
         env: {
@@ -66,6 +66,12 @@ test('runs all three executables and reports their logs and totals', t => {
     const files = readdirSync(join(runs, readdirSync(runs)[0]));
     assert.equal(files.filter(name => name.endsWith('.trx')).length, 3);
     assert.equal(files.filter(name => name.endsWith('.log')).length, 3);
+});
+
+test('runs specifications for an explicitly selected framework', t => {
+    const result = fixture(t, { framework: 'net10.0' });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal((result.stdout.match(/executed/g) ?? []).length, 3);
 });
 
 test('requires Python before starting any project', t => {
