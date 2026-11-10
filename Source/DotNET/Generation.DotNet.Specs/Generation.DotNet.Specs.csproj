@@ -5,7 +5,9 @@
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <DedicatedSpecsProject>true</DedicatedSpecsProject>
-        <TargetFrameworks Condition="'$(Configuration)' == 'Release'">net10.0</TargetFrameworks>
+        <SpecTargetFramework Condition="'$(SpecTargetFramework)' == ''">net11.0</SpecTargetFramework>
+        <TargetFrameworks></TargetFrameworks>
+        <TargetFramework>$(SpecTargetFramework)</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>

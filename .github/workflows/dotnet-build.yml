@@ -5,7 +5,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DOTNET_VERSION: "10.0.x"
+  DOTNET_VERSION: |
+    10.0.x
+    11.0.x
 
 on:
   workflow_dispatch:
@@ -53,6 +55,12 @@ jobs:
 
       - name: Run specifications
         run: bash .github/scripts/run-specifications.sh Release
+
+      - name: Build .NET 10 specifications
+        run: dotnet build --configuration Release -p:Version=9999.0.0 -p:SpecTargetFramework=net10.0
+
+      - name: Run .NET 10 specifications
+        run: bash .github/scripts/run-specifications.sh Release net10.0
 
       - name: Upload failed specification results
         if: failure()

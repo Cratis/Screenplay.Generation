@@ -13,6 +13,7 @@ if ! command -v python3 >/dev/null; then
     exit 2
 fi
 configuration=${1:-Release}
+framework=${2:-net11.0}
 expected=${EXPECTED_SPECIFICATION_PROJECTS:-3}
 shopt -s nullglob
 projects=("$root"/Source/DotNET/*.Specs/*.Specs.csproj)
@@ -33,7 +34,7 @@ for project in "${projects[@]}"; do
         echo "::error::Expected one AssemblyName in $project"
         exit 2
     fi
-    executable="${project%/*}/bin/$configuration/net10.0/$assembly$suffix"
+    executable="${project%/*}/bin/$configuration/$framework/$assembly$suffix"
     if [[ ! -x $executable ]]; then
         echo "::error::Missing specification executable: $executable"
         exit 2
