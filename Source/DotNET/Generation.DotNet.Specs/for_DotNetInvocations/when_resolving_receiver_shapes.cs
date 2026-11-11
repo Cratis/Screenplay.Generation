@@ -51,10 +51,10 @@ public class when_resolving_receiver_shapes : given.a_compilation
         var invocations = tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
 
         string? RootOf(InvocationExpressionSyntax invocation) =>
-            DotNetInvocations.ReceiverRootParameter(invocation, DotNetInvocations.MethodFor(invocation, semanticModel)!, semanticModel)?.Name;
+            DotNetInvocations.ReceiverRootParameter(invocation, DotNetInvocations.MethodFor(invocation, semanticModel), semanticModel)?.Name;
 
-        _instanceReceiver = DotNetInvocations.ReceiverFor(invocations[0], DotNetInvocations.MethodFor(invocations[0], semanticModel)!, semanticModel)?.ToString();
-        _staticReceiver = DotNetInvocations.ReceiverFor(invocations[1], DotNetInvocations.MethodFor(invocations[1], semanticModel)!, semanticModel)?.ToString();
+        _instanceReceiver = DotNetInvocations.ReceiverFor(invocations[0], DotNetInvocations.MethodFor(invocations[0], semanticModel), semanticModel)?.ToString();
+        _staticReceiver = DotNetInvocations.ReceiverFor(invocations[1], DotNetInvocations.MethodFor(invocations[1], semanticModel), semanticModel)?.ToString();
         _castRoot = RootOf(invocations[2]);
         _elementRoot = RootOf(invocations[3]);
         _localRoot = RootOf(invocations[4]);
