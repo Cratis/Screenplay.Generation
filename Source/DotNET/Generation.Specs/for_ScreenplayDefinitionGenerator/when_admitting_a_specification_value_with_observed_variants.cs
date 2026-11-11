@@ -9,7 +9,7 @@ public class when_admitting_a_specification_value_with_observed_variants : Speci
 {
     readonly List<string> _reads = [];
     bool _admitted;
-    AdmittedSpecificationValue? _value;
+    AdmittedSpecificationValue _value = null!;
 
     void Because()
     {
@@ -26,7 +26,7 @@ public class when_admitting_a_specification_value_with_observed_variants : Speci
         var admission = Activator.CreateInstance(type, values)!;
         object?[] arguments = [root.Key, step, null];
         _admitted = (bool)type.GetMethod("TryAdmit", BindingFlags.Public | BindingFlags.Instance)!.Invoke(admission, arguments)!;
-        _value = (AdmittedSpecificationValue?)arguments[2];
+        _value = (AdmittedSpecificationValue)arguments[2]!;
     }
 
     [Fact] void should_admit_the_value() => _admitted.ShouldBeTrue();
@@ -34,7 +34,7 @@ public class when_admitting_a_specification_value_with_observed_variants : Speci
     [Fact]
     void should_admit_the_children_in_declaration_order() => string.Join(
         '\n',
-        _value!.Children.Select(_ => $"{string.Join('.', _.Definition.Key.Path)} = {_.Definition.Scalar}")).ShouldEqual(
+        _value.Children.Select(_ => $"{string.Join('.', _.Definition.Key.Path)} = {_.Definition.Scalar}")).ShouldEqual(
         """
         address.street = Main
         address.city = Oslo
