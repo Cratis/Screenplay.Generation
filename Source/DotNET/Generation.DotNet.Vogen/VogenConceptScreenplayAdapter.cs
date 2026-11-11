@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
 
 namespace Cratis.Screenplay.Generation.DotNet.Vogen;
@@ -95,7 +96,8 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
 
             foreach (var declaration in DeclarationsIn(project))
             {
-                AddConcept(project, declaration.Type, declaration.Attribute, defaultAttribute, Identity, facts, diagnostics);
+                var scope = new ConceptScope(project, declaration.Type, project.SubjectForType(declaration.Type), Identity);
+                AddConcept(scope, declaration.Attribute, defaultAttribute, facts, diagnostics);
             }
         }
 
@@ -162,15 +164,13 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
     };
 
     static void AddConcept(
-        DotNetProjectCompilation project,
-        INamedTypeSymbol type,
+        ConceptScope scope,
         AttributeData attribute,
         AttributeData? defaultAttribute,
-        AdapterIdentity identity,
         List<GenerationFact> facts,
         List<GenerationDiagnostic> diagnostics)
     {
-        var subject = project.SubjectForType(type);
+        var (project, type, subject, identity) = scope;
         var conceptEvidence = DotNetSource.EvidenceFor(
             attribute,
             identity,
@@ -205,20 +205,18 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
         }
 
         var attributedDeclaration = DeclarationContaining(type, attribute);
-        AddValidation(project, type, attributedDeclaration, backing.Type, subject, identity, facts);
-        AddNormalizationDiagnostic(project, type, attributedDeclaration, backing.Type, subject, identity, diagnostics);
-        AddNamedInstanceDiagnostics(project, type, subject, identity, diagnostics);
+        AddValidation(scope, attributedDeclaration, backing.Type, facts);
+        AddNormalizationDiagnostic(scope, attributedDeclaration, backing.Type, diagnostics);
+        AddNamedInstanceDiagnostics(scope, diagnostics);
     }
 
     static void AddValidation(
-        DotNetProjectCompilation project,
-        INamedTypeSymbol type,
+        ConceptScope scope,
         SyntaxReference attributedDeclaration,
         ITypeSymbol backingType,
-        SubjectId subject,
-        AdapterIdentity identity,
         List<GenerationFact> facts)
     {
+        var (project, _, subject, identity) = scope;
         var validationType = project.Compilation.GetTypeByMetadataName(VogenMetadataNames.Validation);
         if (validationType is null)
         {
@@ -226,12 +224,9 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
         }
 
         var validation = ExactAuthoredMethod(
-            project,
-            type,
+            scope,
             attributedDeclaration,
-            ValidationPredicate,
-            backingType,
-            validationType);
+            new MethodShape(ValidationPredicate, backingType, validationType));
         if (validation is null)
         {
             return;
@@ -260,21 +255,16 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
     }
 
     static void AddNormalizationDiagnostic(
-        DotNetProjectCompilation project,
-        INamedTypeSymbol type,
+        ConceptScope scope,
         SyntaxReference attributedDeclaration,
         ITypeSymbol backingType,
-        SubjectId subject,
-        AdapterIdentity identity,
         List<GenerationDiagnostic> diagnostics)
     {
+        var (project, type, subject, identity) = scope;
         var normalization = ExactAuthoredMethod(
-            project,
-            type,
+            scope,
             attributedDeclaration,
-            "NormalizeInput",
-            backingType,
-            backingType);
+            new MethodShape("NormalizeInput", backingType, backingType));
         if (normalization is null)
         {
             return;
@@ -291,13 +281,9 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
         });
     }
 
-    static void AddNamedInstanceDiagnostics(
-        DotNetProjectCompilation project,
-        INamedTypeSymbol type,
-        SubjectId subject,
-        AdapterIdentity identity,
-        List<GenerationDiagnostic> diagnostics)
+    static void AddNamedInstanceDiagnostics(ConceptScope scope, List<GenerationDiagnostic> diagnostics)
     {
+        var (project, type, subject, identity) = scope;
         foreach (var attribute in DotNetSource.AuthoredAttributesOf(type, project.AuthoredSyntaxTrees)
                      .Where(_ => string.Equals(MetadataName(_), VogenMetadataNames.InstanceAttribute, StringComparison.Ordinal)))
         {
@@ -356,29 +342,17 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
     }
 
     static AuthoredMethod? ExactAuthoredMethod(
-        DotNetProjectCompilation project,
-        INamedTypeSymbol type,
+        ConceptScope scope,
         SyntaxReference attributedDeclaration,
-        string name,
-        ITypeSymbol parameterType,
-        ITypeSymbol returnType) =>
-        type.GetMembers(name)
+        MethodShape shape) =>
+        scope.Type.GetMembers(shape.Name)
             .OfType<IMethodSymbol>()
-            .Where(method =>
-                method.MethodKind == MethodKind.Ordinary &&
-                method.IsStatic &&
-                !method.IsGenericMethod &&
-                !method.ReturnsByRef &&
-                !method.ReturnsByRefReadonly &&
-                SymbolEqualityComparer.Default.Equals(method.ReturnType, returnType) &&
-                method.Parameters is [var parameter] &&
-                parameter.RefKind == RefKind.None &&
-                SymbolEqualityComparer.Default.Equals(parameter.Type, parameterType))
-            .SelectMany(method => DotNetSource.AuthoredDeclarationsOf(method, project.AuthoredSyntaxTrees)
+            .Where(shape.Matches)
+            .SelectMany(method => DotNetSource.AuthoredDeclarationsOf(method, scope.Project.AuthoredSyntaxTrees)
                 .Where(reference =>
                     reference.SyntaxTree == attributedDeclaration.SyntaxTree &&
                     attributedDeclaration.Span.Contains(reference.Span) &&
-                    project.Compilation.GetSemanticModel(reference.SyntaxTree).GetOperation(reference.GetSyntax()) is not null)
+                    scope.Project.Compilation.GetSemanticModel(reference.SyntaxTree).GetOperation(reference.GetSyntax()) is not null)
                 .Select(reference => new AuthoredMethod(method, reference)))
             .OrderBy(_ => _.Reference.SyntaxTree.FilePath, StringComparer.Ordinal)
             .ThenBy(_ => _.Reference.Span.Start)
@@ -425,21 +399,26 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
             return null;
         }
 
-        var definition = DotNetInvocations.DefinitionOf(invalid.Method!);
+        return ConstantFirstArgument(invalid.Invocation, invalid.Method!, semanticModel);
+    }
+
+    static string? ConstantFirstArgument(
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        SemanticModel semanticModel)
+    {
+        var definition = DotNetInvocations.DefinitionOf(method);
         var parameter = definition.Parameters.SingleOrDefault(candidate => candidate.Ordinal == 0);
         if (parameter is null ||
-            DotNetInvocations.ArgumentForParameter(
-                invalid.Invocation,
-                invalid.Method!,
-                parameter.Name,
-                semanticModel) is not { } argument ||
-            DotNetSourceValues.Constant<string>(argument.Expression, semanticModel) is not DotNetKnown<string> { Value: var message } ||
-            string.IsNullOrEmpty(message))
+            DotNetInvocations.ArgumentForParameter(invocation, method, parameter.Name, semanticModel) is not { } argument)
         {
             return null;
         }
 
-        return message;
+        return DotNetSourceValues.Constant<string>(argument.Expression, semanticModel) is DotNetKnown<string> { Value: var message } &&
+               !string.IsNullOrEmpty(message)
+            ? message
+            : null;
     }
 
     static bool IsDirectlyReturnedFromValidation(IOperation operation)
@@ -505,6 +484,24 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
 
     static string DisplayName(ITypeSymbol type) =>
         type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty, StringComparison.Ordinal);
+
+    sealed record ConceptScope(DotNetProjectCompilation Project, INamedTypeSymbol Type, SubjectId Subject, AdapterIdentity Identity);
+
+    sealed record MethodShape(string Name, ITypeSymbol ParameterType, ITypeSymbol ReturnType)
+    {
+        public bool Matches(IMethodSymbol method) =>
+            method.MethodKind == MethodKind.Ordinary &&
+            method.IsStatic &&
+            !method.IsGenericMethod &&
+            !method.ReturnsByRef &&
+            SymbolEqualityComparer.Default.Equals(method.ReturnType, ReturnType) &&
+            HasExactParameter(method);
+
+        bool HasExactParameter(IMethodSymbol method) =>
+            method.Parameters is [var parameter] &&
+            parameter.RefKind == RefKind.None &&
+            SymbolEqualityComparer.Default.Equals(parameter.Type, ParameterType);
+    }
 
     sealed record AuthoredMethod(IMethodSymbol Method, SyntaxReference Reference);
 

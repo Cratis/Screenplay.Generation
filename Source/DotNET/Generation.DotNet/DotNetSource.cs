@@ -208,9 +208,7 @@ public static class DotNetSource
     /// <exception cref="DotNetSourceTreeNotMapped">The authored tree is missing from the explicit source context.</exception>
     public static SourceRange? RangeForProject(Location location, DotNetProjectCompilation project)
     {
-        if (!location.IsInSource ||
-            location.SourceTree is null ||
-            !project.AuthoredSyntaxTrees.Contains(location.SourceTree))
+        if (!IsAuthoredSource(location, project))
         {
             return null;
         }
@@ -220,9 +218,9 @@ public static class DotNetSource
             return Range(location, project.SourceRoot);
         }
 
-        if (!project.SourceContext.Files.TryGetValue(location.SourceTree, out var sourceFile))
+        if (!project.SourceContext.Files.TryGetValue(location.SourceTree!, out var sourceFile))
         {
-            throw new DotNetSourceTreeNotMapped(location.SourceTree.FilePath);
+            throw new DotNetSourceTreeNotMapped(location.SourceTree!.FilePath);
         }
 
         var span = location.GetLineSpan();
@@ -382,44 +380,52 @@ public static class DotNetSource
         }
     }
 
+    static bool IsAuthoredSource(Location location, DotNetProjectCompilation project) =>
+        location.IsInSource &&
+        location.SourceTree is not null &&
+        project.AuthoredSyntaxTrees.Contains(location.SourceTree);
+
     static IReadOnlyList<SyntaxTree> AuthoredTreesIn(DotNetProjectCompilation project)
     {
         var compilationTrees = project.Compilation.SyntaxTrees.ToHashSet();
-        foreach (var tree in project.AuthoredSyntaxTrees)
+        var foreign = project.AuthoredSyntaxTrees.FirstOrDefault(tree => !compilationTrees.Contains(tree));
+        if (foreign is not null)
         {
-            if (!compilationTrees.Contains(tree))
-            {
-                throw new DotNetAuthoredSyntaxTreeNotInCompilation(tree.FilePath);
-            }
+            throw new DotNetAuthoredSyntaxTreeNotInCompilation(foreign.FilePath);
         }
 
-        if (project.SourceContext is null)
-        {
-            var paths = project.AuthoredSyntaxTrees.Select(tree => tree.FilePath.Replace('\\', '/')).ToArray();
-            if (paths.Any(string.IsNullOrWhiteSpace) || paths.Distinct(StringComparer.Ordinal).Count() != paths.Length)
-            {
-                throw new DotNetAuthoredSyntaxTreeIdentityNotUnique();
-            }
+        return project.SourceContext is null
+            ? UnmappedAuthoredTreesIn(project)
+            : MappedAuthoredTreesIn(project, project.SourceContext);
+    }
 
-            return
-            [
-                .. project.AuthoredSyntaxTrees.OrderBy(tree => tree.FilePath, StringComparer.Ordinal)
-            ];
+    static IReadOnlyList<SyntaxTree> UnmappedAuthoredTreesIn(DotNetProjectCompilation project)
+    {
+        var paths = project.AuthoredSyntaxTrees.Select(tree => tree.FilePath.Replace('\\', '/')).ToArray();
+        if (paths.Any(string.IsNullOrWhiteSpace) || paths.Distinct(StringComparer.Ordinal).Count() != paths.Length)
+        {
+            throw new DotNetAuthoredSyntaxTreeIdentityNotUnique();
         }
 
-        foreach (var tree in project.AuthoredSyntaxTrees)
+        return
+        [
+            .. project.AuthoredSyntaxTrees.OrderBy(tree => tree.FilePath, StringComparer.Ordinal)
+        ];
+    }
+
+    static IReadOnlyList<SyntaxTree> MappedAuthoredTreesIn(DotNetProjectCompilation project, DotNetProjectSourceContext sourceContext)
+    {
+        var unmapped = project.AuthoredSyntaxTrees.FirstOrDefault(tree => !sourceContext.Files.ContainsKey(tree));
+        if (unmapped is not null)
         {
-            if (!project.SourceContext.Files.ContainsKey(tree))
-            {
-                throw new DotNetSourceTreeNotMapped(tree.FilePath);
-            }
+            throw new DotNetSourceTreeNotMapped(unmapped.FilePath);
         }
 
         return
         [
             .. project.AuthoredSyntaxTrees
-                .OrderBy(tree => project.SourceContext.Files[tree].Identity.Project, StringComparer.Ordinal)
-                .ThenBy(tree => project.SourceContext.Files[tree].Identity.Path, StringComparer.Ordinal)
+                .OrderBy(tree => sourceContext.Files[tree].Identity.Project, StringComparer.Ordinal)
+                .ThenBy(tree => sourceContext.Files[tree].Identity.Path, StringComparer.Ordinal)
         ];
     }
 

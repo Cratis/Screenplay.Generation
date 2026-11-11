@@ -45,23 +45,13 @@ public static class DotNetInvocations
         string parameterName,
         SemanticModel semanticModel)
     {
-        var definition = DefinitionOf(method);
-        var parameterExists =
-            method.Parameters.Any(_ => string.Equals(_.Name, parameterName, StringComparison.Ordinal)) ||
-            (definition.IsExtensionMethod &&
-             definition.Parameters.FirstOrDefault() is { } receiver &&
-             string.Equals(receiver.Name, parameterName, StringComparison.Ordinal));
-        if (!parameterExists || semanticModel.GetOperation(invocation) is not IInvocationOperation operation)
+        if (!ParameterExists(method, parameterName) ||
+            semanticModel.GetOperation(invocation) is not IInvocationOperation operation)
         {
             return null;
         }
 
-        var arguments = operation.Arguments
-            .Where(_ => string.Equals(_.Parameter?.Name, parameterName, StringComparison.Ordinal) &&
-                        !_.IsImplicit &&
-                        _.Syntax is ArgumentSyntax)
-            .Select(_ => (ArgumentSyntax)_.Syntax)
-            .ToArray();
+        var arguments = AuthoredArgumentsFor(operation, parameterName);
         return arguments.Length == 1 ? arguments[0] : null;
     }
 
@@ -79,14 +69,7 @@ public static class DotNetInvocations
     {
         if (method.ReducedFrom is not null)
         {
-            return invocation.Expression switch
-            {
-                MemberAccessExpressionSyntax member => member.Expression,
-                MemberBindingExpressionSyntax => invocation.Parent is ConditionalAccessExpressionSyntax conditional
-                    ? conditional.Expression
-                    : null,
-                _ => null
-            };
+            return AuthoredReceiverOf(invocation);
         }
 
         var definition = DefinitionOf(method);
@@ -100,14 +83,7 @@ public static class DotNetInvocations
             return null;
         }
 
-        return invocation.Expression switch
-        {
-            MemberAccessExpressionSyntax memberAccess => memberAccess.Expression,
-            MemberBindingExpressionSyntax => invocation.Parent is ConditionalAccessExpressionSyntax conditional
-                ? conditional.Expression
-                : null,
-            _ => null
-        };
+        return AuthoredReceiverOf(invocation);
     }
 
     /// <summary>
@@ -142,23 +118,53 @@ public static class DotNetInvocations
                 return parameter;
             }
 
-            expression = expression switch
-            {
-                ParenthesizedExpressionSyntax parenthesized => parenthesized.Expression,
-                CastExpressionSyntax cast => cast.Expression,
-                MemberAccessExpressionSyntax member => member.Expression,
-                MemberBindingExpressionSyntax binding => binding.Ancestors()
-                    .OfType<ConditionalAccessExpressionSyntax>()
-                    .FirstOrDefault()?.Expression!,
-                ElementAccessExpressionSyntax element => element.Expression,
-                ConditionalAccessExpressionSyntax conditional => conditional.Expression,
-                _ => null!
-            };
-
-            if (expression is null)
+            var inner = InnerExpressionOf(expression);
+            if (inner is null)
             {
                 return null;
             }
+
+            expression = inner;
         }
     }
+
+    static ExpressionSyntax? InnerExpressionOf(ExpressionSyntax expression) => expression switch
+    {
+        ParenthesizedExpressionSyntax parenthesized => parenthesized.Expression,
+        CastExpressionSyntax cast => cast.Expression,
+        MemberAccessExpressionSyntax member => member.Expression,
+        MemberBindingExpressionSyntax binding => binding.Ancestors()
+            .OfType<ConditionalAccessExpressionSyntax>()
+            .FirstOrDefault()?.Expression,
+        ElementAccessExpressionSyntax element => element.Expression,
+        ConditionalAccessExpressionSyntax conditional => conditional.Expression,
+        _ => null
+    };
+
+    static bool ParameterExists(IMethodSymbol method, string parameterName)
+    {
+        var definition = DefinitionOf(method);
+        return method.Parameters.Any(_ => string.Equals(_.Name, parameterName, StringComparison.Ordinal)) ||
+               (definition.IsExtensionMethod &&
+                definition.Parameters.FirstOrDefault() is { } receiver &&
+                string.Equals(receiver.Name, parameterName, StringComparison.Ordinal));
+    }
+
+    static ArgumentSyntax[] AuthoredArgumentsFor(IInvocationOperation operation, string parameterName) =>
+    [
+        .. operation.Arguments
+            .Where(_ => string.Equals(_.Parameter?.Name, parameterName, StringComparison.Ordinal) &&
+                        !_.IsImplicit &&
+                        _.Syntax is ArgumentSyntax)
+            .Select(_ => (ArgumentSyntax)_.Syntax)
+    ];
+
+    static ExpressionSyntax? AuthoredReceiverOf(InvocationExpressionSyntax invocation) => invocation.Expression switch
+    {
+        MemberAccessExpressionSyntax member => member.Expression,
+        MemberBindingExpressionSyntax => invocation.Parent is ConditionalAccessExpressionSyntax conditional
+            ? conditional.Expression
+            : null,
+        _ => null
+    };
 }
