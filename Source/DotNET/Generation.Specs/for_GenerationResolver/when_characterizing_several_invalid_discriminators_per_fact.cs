@@ -28,32 +28,32 @@ public class when_characterizing_several_invalid_discriminators_per_fact : given
 
     [Fact] void should_reject_every_invalid_fact_and_report_nothing_else() => _result.Diagnostics.Count.ShouldEqual(Expected.Length);
 
-    [Fact] void should_report_every_failure_with_its_literal_code_severity_outcome_subject_line_and_message() => Lines().ShouldEqual(Expected);
+    [Fact] void should_report_every_failure_with_its_literal_code_severity_outcome_subject_source_range_and_message() => Lines().ShouldEqual(Expected);
 
     static string[] Expected =>
     [
-        "Warning|GEN0022|Unknown|dotnet://Invalid/artifact|1|Fact 'artifact' from adapter 'first' uses unknown ArtifactKind value '-1'; the affected fact was omitted",
-        "Warning|GEN0022|Unsupported|dotnet://Invalid/artifact|1|Fact 'artifact' from adapter 'first' uses undefined ArtifactKind value '99'; the affected fact was omitted",
-        "Warning|GEN0022|Unsupported|dotnet://Invalid/placement|2|Fact 'placement' from adapter 'first' uses undefined ArtifactKind value '99'; the affected fact was omitted",
-        "Warning|GEN0022|Unknown|dotnet://Invalid/unknown-shape-node|3|Fact 'unknown-shape-node' from adapter 'first' uses unknown ArtifactKind value '-1'; the affected fact was omitted",
-        "Warning|GEN0022|Unknown|dotnet://Invalid/binding|7|Fact 'binding' from adapter 'first' uses unknown ArtifactKind value '-1'; the affected fact was omitted",
-        "Warning|GEN0022|Unsupported|dotnet://Invalid/binding|7|Fact 'binding' from adapter 'first' uses undefined ArtifactKind value '55'; the affected fact was omitted",
-        "Warning|GEN0022|Unsupported|dotnet://Invalid/role|8|Fact 'role' from adapter 'first' uses undefined ArtifactKind value '66'; the affected fact was omitted",
-        "Warning|GEN0022|Unsupported|dotnet://Invalid/step|9|Fact 'step' from adapter 'first' uses undefined ArtifactKind value '44'; the affected fact was omitted",
-        "Warning|GEN0022|Unsupported|dotnet://Invalid/value|10|Fact 'value' from adapter 'first' uses undefined ArtifactKind value '33'; the affected fact was omitted",
-        "Warning|GEN0022|Unsupported|dotnet://Invalid/scenario|11|Fact 'scenario' from adapter 'first' uses undefined ArtifactKind value '22'; the affected fact was omitted",
-        "Warning|GEN0023|Unknown|dotnet://Invalid/placement|2|Fact 'placement' from adapter 'first' uses unknown GenerationSliceKind value '-1'; the affected fact was omitted",
-        "Warning|GEN0025|Unsupported|dotnet://Invalid/representation|12|Fact 'representation' from adapter 'first' uses undefined ConceptRepresentationKind value '12'; the affected fact was omitted",
-        "Warning|GEN0026|Unsupported|dotnet://Invalid/representation|12|Fact 'representation' from adapter 'first' uses undefined GenerationPrimitiveKind value '13'; the affected fact was omitted",
-        "Warning|GEN0029|Unknown|dotnet://Invalid/artifact|1|Fact 'artifact' from adapter 'first' uses unknown EvidenceStrength value '-1'; the affected fact was omitted",
-        "Warning|GEN0030|Unknown|dotnet://Invalid/step|9|Fact 'step' from adapter 'first' uses unknown SpecificationStepPhase value '-1'; the affected fact was omitted",
-        "Warning|GEN0031|Unsupported|dotnet://Invalid/step|9|Fact 'step' from adapter 'first' uses undefined SpecificationStepKind value '99'; the affected fact was omitted",
-        "Warning|GEN0032|Unknown|dotnet://Invalid/value|10|Fact 'value' from adapter 'first' uses unknown SpecificationValueKind value '-1'; the affected fact was omitted",
-        "Warning|GEN0052|Unknown|dotnet://Invalid/unknown-shape-node|3|Fact 'unknown-shape-node' from adapter 'first' uses unknown TypeUseShapeKind value '-1'; the affected fact was omitted",
-        "Warning|GEN0052|Unsupported|dotnet://Invalid/undefined-shape-node|6|Fact 'undefined-shape-node' from adapter 'first' uses undefined TypeUseShapeKind value '77'; the affected fact was omitted",
-        "Warning|GEN0053|Unknown|dotnet://Invalid/role|8|Fact 'role' from adapter 'first' uses unknown ArtifactMemberRoleKind value '-1'; the affected fact was omitted",
-        "Error|GEN0049|Unsupported|dotnet://Invalid/repeated-named|4|Fact 'repeated-named' uses malformed exact type-use shape 'Named -> Named'; the affected fact was omitted",
-        "Error|GEN0049|Unknown|dotnet://Invalid/empty-shape|5|Fact 'empty-shape' uses malformed exact type-use shape '<empty>'; the affected fact was omitted"
+        "Warning|GEN0022|Unknown|dotnet://Invalid/artifact|Invalid/Facts.cs@1:2-1:9|Fact 'artifact' from adapter 'first' uses unknown ArtifactKind value '-1'; the affected fact was omitted",
+        "Warning|GEN0022|Unsupported|dotnet://Invalid/artifact|Invalid/Facts.cs@1:2-1:9|Fact 'artifact' from adapter 'first' uses undefined ArtifactKind value '99'; the affected fact was omitted",
+        "Warning|GEN0022|Unsupported|dotnet://Invalid/placement|Invalid/Facts.cs@2:2-2:9|Fact 'placement' from adapter 'first' uses undefined ArtifactKind value '99'; the affected fact was omitted",
+        "Warning|GEN0022|Unknown|dotnet://Invalid/unknown-shape-node|Invalid/Facts.cs@3:2-3:9|Fact 'unknown-shape-node' from adapter 'first' uses unknown ArtifactKind value '-1'; the affected fact was omitted",
+        "Warning|GEN0022|Unknown|dotnet://Invalid/binding|Invalid/Facts.cs@7:2-7:9|Fact 'binding' from adapter 'first' uses unknown ArtifactKind value '-1'; the affected fact was omitted",
+        "Warning|GEN0022|Unsupported|dotnet://Invalid/binding|Invalid/Facts.cs@7:2-7:9|Fact 'binding' from adapter 'first' uses undefined ArtifactKind value '55'; the affected fact was omitted",
+        "Warning|GEN0022|Unsupported|dotnet://Invalid/role|Invalid/Facts.cs@8:2-8:9|Fact 'role' from adapter 'first' uses undefined ArtifactKind value '66'; the affected fact was omitted",
+        "Warning|GEN0022|Unsupported|dotnet://Invalid/step|Invalid/Facts.cs@9:2-9:9|Fact 'step' from adapter 'first' uses undefined ArtifactKind value '44'; the affected fact was omitted",
+        "Warning|GEN0022|Unsupported|dotnet://Invalid/value|Invalid/Facts.cs@10:2-10:9|Fact 'value' from adapter 'first' uses undefined ArtifactKind value '33'; the affected fact was omitted",
+        "Warning|GEN0022|Unsupported|dotnet://Invalid/scenario|Invalid/Facts.cs@11:2-11:9|Fact 'scenario' from adapter 'first' uses undefined ArtifactKind value '22'; the affected fact was omitted",
+        "Warning|GEN0023|Unknown|dotnet://Invalid/placement|Invalid/Facts.cs@2:2-2:9|Fact 'placement' from adapter 'first' uses unknown GenerationSliceKind value '-1'; the affected fact was omitted",
+        "Warning|GEN0025|Unsupported|dotnet://Invalid/representation|Invalid/Facts.cs@12:2-12:9|Fact 'representation' from adapter 'first' uses undefined ConceptRepresentationKind value '12'; the affected fact was omitted",
+        "Warning|GEN0026|Unsupported|dotnet://Invalid/representation|Invalid/Facts.cs@12:2-12:9|Fact 'representation' from adapter 'first' uses undefined GenerationPrimitiveKind value '13'; the affected fact was omitted",
+        "Warning|GEN0029|Unknown|dotnet://Invalid/artifact|Invalid/Facts.cs@1:2-1:9|Fact 'artifact' from adapter 'first' uses unknown EvidenceStrength value '-1'; the affected fact was omitted",
+        "Warning|GEN0030|Unknown|dotnet://Invalid/step|Invalid/Facts.cs@9:2-9:9|Fact 'step' from adapter 'first' uses unknown SpecificationStepPhase value '-1'; the affected fact was omitted",
+        "Warning|GEN0031|Unsupported|dotnet://Invalid/step|Invalid/Facts.cs@9:2-9:9|Fact 'step' from adapter 'first' uses undefined SpecificationStepKind value '99'; the affected fact was omitted",
+        "Warning|GEN0032|Unknown|dotnet://Invalid/value|Invalid/Facts.cs@10:2-10:9|Fact 'value' from adapter 'first' uses unknown SpecificationValueKind value '-1'; the affected fact was omitted",
+        "Warning|GEN0052|Unknown|dotnet://Invalid/unknown-shape-node|Invalid/Facts.cs@3:2-3:9|Fact 'unknown-shape-node' from adapter 'first' uses unknown TypeUseShapeKind value '-1'; the affected fact was omitted",
+        "Warning|GEN0052|Unsupported|dotnet://Invalid/undefined-shape-node|Invalid/Facts.cs@6:2-6:9|Fact 'undefined-shape-node' from adapter 'first' uses undefined TypeUseShapeKind value '77'; the affected fact was omitted",
+        "Warning|GEN0053|Unknown|dotnet://Invalid/role|Invalid/Facts.cs@8:2-8:9|Fact 'role' from adapter 'first' uses unknown ArtifactMemberRoleKind value '-1'; the affected fact was omitted",
+        "Error|GEN0049|Unsupported|dotnet://Invalid/repeated-named|Invalid/Facts.cs@4:2-4:9|Fact 'repeated-named' uses malformed exact type-use shape 'Named -> Named'; the affected fact was omitted",
+        "Error|GEN0049|Unknown|dotnet://Invalid/empty-shape|Invalid/Facts.cs@5:2-5:9|Fact 'empty-shape' uses malformed exact type-use shape '<empty>'; the affected fact was omitted"
     ];
 
     static ArtifactKey Artifact(string name, ArtifactKind kind = ArtifactKind.Command) =>
@@ -223,6 +223,6 @@ public class when_characterizing_several_invalid_discriminators_per_fact : given
     string[] Lines() =>
     [
         .. _result.Diagnostics.Select(diagnostic =>
-            $"{diagnostic.Severity}|{diagnostic.Code}|{diagnostic.Outcome}|{diagnostic.Subject?.Value}|{diagnostic.Source?.StartLine}|{diagnostic.Message}")
+            $"{diagnostic.Severity}|{diagnostic.Code}|{diagnostic.Outcome}|{diagnostic.Subject?.Value}|{diagnostic.Source?.Path}@{diagnostic.Source?.StartLine}:{diagnostic.Source?.StartColumn}-{diagnostic.Source?.EndLine}:{diagnostic.Source?.EndColumn}|{diagnostic.Message}")
     ];
 }

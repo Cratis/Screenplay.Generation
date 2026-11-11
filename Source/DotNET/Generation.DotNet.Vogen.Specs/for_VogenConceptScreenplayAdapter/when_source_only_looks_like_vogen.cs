@@ -100,6 +100,6 @@ public class when_source_only_looks_like_vogen : given.a_vogen_compilation
     [Fact] void should_ignore_unmarked_generated_declarations() => _contribution.Facts.OfType<ArtifactFact>().Any(_ => _.Definition.Name == "UnmarkedGenerated").ShouldBeFalse();
     [Fact] void should_ignore_non_partial_declarations() => _contribution.Facts.OfType<ArtifactFact>().Any(_ => _.Definition.Name == "NotPartial").ShouldBeFalse();
     [Fact] void should_not_use_generated_members_or_names_as_primary_evidence() => _contribution.Facts.OfType<ArtifactFact>().Any(_ => _.Definition.Name == "CustomerId").ShouldBeFalse();
-    [Fact] void should_anchor_the_real_concept_in_authored_source() => ConceptNamed(_contribution, "RealCode").Evidence.Source.Path.ShouldEqual("Concepts/Authored.cs");
+    [Fact] void should_anchor_the_real_concept_in_authored_source() => Range(ConceptNamed(_contribution, "RealCode").Evidence.Source).ShouldEqual("Concepts/Authored.cs@19:6-19:31");
     [Fact] void should_not_recognize_a_context_with_lookalikes_only() => _canAnalyze_without_authored_vogen_evidence.ShouldBeFalse();
 }

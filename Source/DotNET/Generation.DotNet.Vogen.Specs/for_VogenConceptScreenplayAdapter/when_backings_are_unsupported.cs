@@ -31,5 +31,5 @@ public class when_backings_are_unsupported : given.a_vogen_compilation
     [Fact] void should_emit_one_vogen_diagnostic_per_concept() => _contribution.Diagnostics.Select(_ => _.Code).ShouldEqual(Enumerable.Repeat(VogenGenerationDiagnosticCodes.UnsupportedBackingType, 4));
     [Fact] void should_warn_about_representation_loss() => _contribution.Diagnostics.All(_ => _.Severity == GenerationDiagnosticSeverity.Warning).ShouldBeTrue();
     [Fact] void should_identify_the_exact_subject() => _contribution.Diagnostics.Single(_ => _.Message.Contains("CharacterCode", StringComparison.Ordinal)).Subject.Value.ShouldEqual("dotnet://Concepts.Project/Concepts/Concepts.CharacterCode");
-    [Fact] void should_anchor_the_diagnostic_at_the_authored_attribute() => _contribution.Diagnostics.Single(_ => _.Message.Contains("CharacterCode", StringComparison.Ordinal)).Source.StartLine.ShouldEqual(3);
+    [Fact] void should_anchor_the_diagnostic_at_the_authored_attribute() => Range(_contribution.Diagnostics.Single(_ => _.Message.Contains("CharacterCode", StringComparison.Ordinal)).Source).ShouldEqual("Concepts/Unsupported.cs@3:2-3:25");
 }
