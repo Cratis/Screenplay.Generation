@@ -31,7 +31,8 @@ public class when_admitting_applicable_and_not_applicable_probes : given.a_probe
 
     [Fact] void should_admit_the_applicable_probe() => _applicable.Probe.ShouldBeOfExactType<AdapterProbeApplicable>();
     [Fact] void should_analyze_the_applicable_probe() => _applicableAdapter.AnalyzeCount.ShouldEqual(1);
-    [Fact] void should_order_the_evidence_canonically() => string.Join(';', _applicable.Probe.Evidence.Select(Describe)).ShouldEqual(
+    [Fact]
+    void should_order_the_evidence_canonically() => string.Join(';', _applicable.Probe.Evidence.Select(Describe)).ShouldEqual(
         "no capability|||-;" +
         "a first|a.cap|https://host|1-2;" +
         "with spaces inside|b.cap||-;" +

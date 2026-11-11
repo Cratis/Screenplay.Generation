@@ -31,7 +31,8 @@ public class when_required_capabilities_are_not_proven : given.a_probe_admission
 
     [Fact] void should_block_the_applicable_probe() => _blocked.Disposition.ShouldEqual(AdapterRunDisposition.Blocked);
     [Fact] void should_keep_the_evidence_of_the_blocked_probe_in_canonical_order() => string.Join(';', _blocked.Probe.Evidence.Select(item => item.Description)).ShouldEqual("proves mid;unrelated");
-    [Fact] void should_report_the_missing_capabilities_in_the_admitted_descriptor_order() => Diagnostics(_blocked.Probe).ShouldEqual(
+    [Fact]
+    void should_report_the_missing_capabilities_in_the_admitted_descriptor_order() => Diagnostics(_blocked.Probe).ShouldEqual(
         Describe(DotNetAdapterGenerationDiagnosticCodes.MissingApiCapabilityEvidence, "Adapter 'probe-adapter' applicable probe did not prove required API capability 'alpha.cap'") + ";" +
         Describe(DotNetAdapterGenerationDiagnosticCodes.MissingApiCapabilityEvidence, "Adapter 'probe-adapter' applicable probe did not prove required API capability 'zeta.cap'"));
     [Fact] void should_not_analyze_the_blocked_probe() => _blockedAdapter.AnalyzeCount.ShouldEqual(0);
