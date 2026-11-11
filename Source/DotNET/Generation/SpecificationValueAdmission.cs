@@ -13,7 +13,7 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
         SpecificationValueKey key,
         SpecificationStepKey step,
         out AdmittedSpecificationValue? admitted) =>
-        TryAdmit(key, step, new HashSet<string>(StringComparer.Ordinal), out admitted);
+        TryAdmit(key, step, [with(StringComparer.Ordinal)], out admitted);
 
     static bool SameStep(SpecificationStepKey left, SpecificationStepKey right) =>
         Structural.SpecificationStepKey(left) == Structural.SpecificationStepKey(right);

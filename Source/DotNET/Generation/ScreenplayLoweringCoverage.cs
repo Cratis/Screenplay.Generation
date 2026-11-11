@@ -83,9 +83,9 @@ internal sealed record ScreenplayLoweringCoverage
 
 internal sealed class ScreenplayLoweringCoverageBuilder
 {
-    readonly Dictionary<string, List<GenerationDiagnostic>> _diagnostics = new(StringComparer.Ordinal);
-    readonly HashSet<string> _lowered = new(StringComparer.Ordinal);
-    readonly HashSet<string> _conflicted = new(StringComparer.Ordinal);
+    readonly Dictionary<string, List<GenerationDiagnostic>> _diagnostics = [with(StringComparer.Ordinal)];
+    readonly HashSet<string> _lowered = [with(StringComparer.Ordinal)];
+    readonly HashSet<string> _conflicted = [with(StringComparer.Ordinal)];
 
     public void Lowered(string key) => _lowered.Add(key);
 
