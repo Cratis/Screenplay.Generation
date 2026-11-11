@@ -954,11 +954,11 @@ public sealed class ScreenplayLowerer
 
     sealed class FeatureNode(string name)
     {
-        readonly Dictionary<string, List<PlacedArtifact>> _slices = new(StringComparer.Ordinal);
+        readonly Dictionary<string, List<PlacedArtifact>> _slices = [with(StringComparer.Ordinal)];
 
         public string Name { get; } = name;
 
-        public SortedDictionary<string, FeatureNode> Children { get; } = new(StringComparer.Ordinal);
+        public SortedDictionary<string, FeatureNode> Children { get; } = [with(StringComparer.Ordinal)];
 
         public FeatureNode Feature(string featureName)
         {
