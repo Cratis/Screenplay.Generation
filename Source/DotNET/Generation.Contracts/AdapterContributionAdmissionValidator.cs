@@ -52,13 +52,6 @@ static class AdapterContributionAdmissionValidator
         }
     }
 
-    static bool IsStableAbsoluteUri(string value) =>
-        AdapterContributionText.IsNormalized(value, false) &&
-        !value.Contains('\\') &&
-        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
-        !string.IsNullOrWhiteSpace(uri.Scheme) &&
-        !HasAuthoredDotPathSegment(value);
-
     public static void ValidateRequiredText(
         string? value,
         string path,
@@ -143,6 +136,13 @@ static class AdapterContributionAdmissionValidator
 
         ValidateGenerationVersionRange(descriptor, context);
     }
+
+    static bool IsStableAbsoluteUri(string value) =>
+        AdapterContributionText.IsNormalized(value, false) &&
+        !value.Contains('\\') &&
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        !string.IsNullOrWhiteSpace(uri.Scheme) &&
+        !HasAuthoredDotPathSegment(value);
 
     static void ValidateDescriptorIdentity(
         AdapterDescriptor descriptor,

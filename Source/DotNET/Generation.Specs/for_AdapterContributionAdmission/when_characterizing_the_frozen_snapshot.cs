@@ -7,7 +7,7 @@ public class when_characterizing_the_frozen_snapshot : given.a_characterized_adm
 {
     string _snapshot = null!;
 
-    void Because() => _snapshot = SnapshotLines(Admit().Snapshot!);
+    void Because() => _snapshot = SnapshotLines(Admit().Snapshot);
 
     [Fact] void should_freeze_every_fact_family_to_the_canonical_snapshot() => _snapshot.ShouldEqual(Expected);
 

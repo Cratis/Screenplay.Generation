@@ -39,8 +39,8 @@ public class when_characterizing_source_ranges : given.a_characterized_admission
             cases.Add(($"path[{path}]", AdmitSource(source => source with { Path = path })));
         }
 
-        cases.Add(("identity-path", AdmitSource(source => source with { FileIdentity = source.FileIdentity! with { Path = "../x.cs" } })));
-        cases.Add(("identity-project", AdmitSource(source => source with { FileIdentity = source.FileIdentity! with { Project = " " } })));
+        cases.Add(("identity-path", AdmitSource(source => source with { FileIdentity = source.FileIdentity with { Path = "../x.cs" } })));
+        cases.Add(("identity-project", AdmitSource(source => source with { FileIdentity = source.FileIdentity with { Project = " " } })));
         cases.Add(("identity-null", AdmitSource(source => source with { FileIdentity = null })));
         cases.Add(("zero-start-line", AdmitSource(source => source with { StartLine = 0 })));
         cases.Add(("zero-start-column", AdmitSource(source => source with { StartColumn = 0 })));
@@ -112,7 +112,7 @@ diagnostic-source-accepted => admitted
     static AdapterContributionAdmissionResult AdmitSourceWith(ISourceAuthorityValidator? validator, Func<SourceRange, SourceRange> change)
     {
         var fact = EveryFact().OfType<ArtifactFact>().Single();
-        var changed = fact with { Evidence = fact.Evidence with { Source = change(fact.Evidence.Source!) } };
+        var changed = fact with { Evidence = fact.Evidence with { Source = change(fact.Evidence.Source) } };
         return AdapterContributionAdmission.Admit(Descriptor(GenerationFactCapability.Artifact), Contribution([changed]), validator);
     }
 

@@ -82,7 +82,7 @@ everything-wrong => InvalidContributionDiagnostic|Contribution.Diagnostics[0].Me
         Code = "ATOMIC0001",
         Severity = GenerationDiagnosticSeverity.Warning,
         Message = "Something",
-        Facts = ImmutableArray<FactId>.Empty
+        Facts = []
     };
 
     static AdapterContributionAdmissionResult AdmitDiagnostic(GenerationDiagnostic diagnostic) =>
