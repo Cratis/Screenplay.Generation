@@ -14,6 +14,7 @@ public class when_lowering_a_slice_with_observed_members : given.a_specification
         StepSpec when = new(SpecificationStepPhase.When, SpecificationStepKind.Command, _command, Values: [new("name", SpecificationValueKind.Text, "Alice")]);
         GenerationFact[] facts =
         [
+            .. Artifact(ArtifactKind.Reducer, "AccountReducer", "Register", GenerationSliceKind.StateChange, 5, properties: [name]),
             .. Artifact(ArtifactKind.ReadModel, "AccountView", "Register", GenerationSliceKind.StateChange, 3, properties: [name]),
             .. Artifact(ArtifactKind.Query, "GetAccount", "Register", GenerationSliceKind.StateChange, 4, properties: [name]),
             .. Artifact(ArtifactKind.Event, "AccountRegistered", "Register", GenerationSliceKind.StateChange, 2, properties: [name]),
@@ -52,6 +53,7 @@ public class when_lowering_a_slice_with_observed_members : given.a_specification
         Event:AccountRegistered
         Query:GetAccount
         ReadModel:AccountView
+        Reducer:AccountReducer
         Specifications
         """);
 
