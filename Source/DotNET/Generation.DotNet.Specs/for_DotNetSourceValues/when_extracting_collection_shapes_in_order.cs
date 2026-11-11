@@ -74,7 +74,8 @@ public class when_extracting_collection_shapes_in_order : given.a_value_snapshot
 
     void Because() => _snapshot = SnapshotOf("/workspace/Collections.cs", Source);
 
-    [Fact] void should_snapshot_every_shape_in_declaration_order() => _snapshot.ShouldEqual(
+    [Fact]
+    void should_snapshot_every_shape_in_declaration_order() => _snapshot.ShouldEqual(
     [
         "Flag: known const(True:bool)",
         "C01: known collection(int[])[10:42-10:43=const(1:int), 10:45-10:46=const(2:int)]",

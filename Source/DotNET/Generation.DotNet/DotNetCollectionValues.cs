@@ -5,6 +5,7 @@ using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace Cratis.Screenplay.Generation.DotNet;
 
@@ -298,7 +299,7 @@ internal static class DotNetCollectionValues
     static bool IsExactDimension(
         ExpressionSyntax size,
         SemanticModel semanticModel,
-        Microsoft.CodeAnalysis.IOperation? operation,
+        IOperation? operation,
         ITypeSymbol? dimensionType) =>
         IsIntegralDimensionType(dimensionType) &&
         !DotNetSourceValues.HasInvalidOperation(operation) &&
@@ -324,8 +325,8 @@ internal static class DotNetCollectionValues
             sbyte or byte or short or ushort or int or uint or long or ulong =>
                 Convert.ToDecimal(value, CultureInfo.InvariantCulture),
             char typed => typed,
-            IntPtr typed => (long)typed,
-            UIntPtr typed => (ulong)typed,
+            IntPtr typed => typed,
+            UIntPtr typed => typed,
             _ => (decimal?)null
         };
         var isLength = exact is >= 0 and <= int.MaxValue;

@@ -80,7 +80,8 @@ public class when_extracting_scalar_and_typeof_shapes_in_order : given.a_value_s
 
     void Because() => _snapshot = SnapshotOf("/workspace/Scalars.cs", Source);
 
-    [Fact] void should_snapshot_every_shape_in_declaration_order() => _snapshot.ShouldEqual(
+    [Fact]
+    void should_snapshot_every_shape_in_declaration_order() => _snapshot.ShouldEqual(
     [
         "Known: known const(5:int)",
         "Flag: known const(True:bool)",

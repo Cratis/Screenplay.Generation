@@ -108,7 +108,8 @@ public class when_extracting_payload_shapes_in_order : given.a_value_snapshot
 
     void Because() => _snapshot = SnapshotOf("/workspace/Payloads.cs", Source);
 
-    [Fact] void should_snapshot_every_shape_in_declaration_order() => _snapshot.ShouldEqual(
+    [Fact]
+    void should_snapshot_every_shape_in_declaration_order() => _snapshot.ShouldEqual(
     [
         "Flag: known const(True:bool)",
         "P01: known payload(Values.Point){x@44:40-44:41=const(1:int), y@44:43-44:44=const(2:int)}",

@@ -17,11 +17,12 @@ public class a_value_snapshot : a_compilation
         var compilation = CompilationFrom(new SourceFile(path, source));
         var tree = compilation.SyntaxTrees.Single();
         var semanticModel = compilation.GetSemanticModel(tree);
-        var lines = tree.GetRoot().DescendantNodes().OfType<VariableDeclaratorSyntax>()
-            .Where(declarator => declarator.Parent?.Parent is FieldDeclarationSyntax && declarator.Initializer is not null)
-            .Select(declarator => $"{declarator.Identifier.ValueText}: {Describe(DotNetSourceValues.Extract(declarator.Initializer!.Value, semanticModel))}")
-            .ToArray();
-        return lines;
+        return
+        [
+            .. tree.GetRoot().DescendantNodes().OfType<VariableDeclaratorSyntax>()
+                .Where(declarator => declarator.Parent?.Parent is FieldDeclarationSyntax && declarator.Initializer is not null)
+                .Select(declarator => $"{declarator.Identifier.ValueText}: {Describe(DotNetSourceValues.Extract(declarator.Initializer.Value, semanticModel))}")
+        ];
     }
 
     static string Describe(DotNetBounded<DotNetSourceValue> result) => result switch

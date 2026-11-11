@@ -347,7 +347,12 @@ internal static class DotNetPayloadValues
     static void Add(string name, ISymbol symbol, ExpressionSyntax expression, PayloadState state)
     {
         var semanticModel = state.SemanticModel;
-        var isDuplicate = !state.Symbols.Add(symbol);
+        var isDuplicate = state.Symbols.Exists(existing => SymbolEqualityComparer.Default.Equals(existing, symbol));
+        if (!isDuplicate)
+        {
+            state.Symbols.Add(symbol);
+        }
+
         if (isDuplicate)
         {
             DotNetSourceValues.AddFailure(state.Failures, new(
@@ -419,7 +424,7 @@ internal static class DotNetPayloadValues
     {
         public SemanticModel SemanticModel { get; } = semanticModel;
 
-        public HashSet<ISymbol> Symbols { get; } = new(SymbolEqualityComparer.Default);
+        public List<ISymbol> Symbols { get; } = [];
 
         public List<DotNetNamedValue> Values { get; } = [];
 
