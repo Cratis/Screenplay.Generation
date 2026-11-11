@@ -41,6 +41,6 @@ public class when_lowering_a_read_model_specification_without_a_when : given.spe
     [Fact] void should_lower_the_exact_read_model_value() => Specification().ThenReadModels.Single().Properties.Single().Property.ShouldEqual("name");
     [Fact] void should_be_independent_of_fact_order() => _reversedSource.ShouldEqual(_source);
 
-    Cratis.Screenplay.Syntax.Specifications.SpecificationSyntax Specification() =>
+    Syntax.Specifications.SpecificationSyntax Specification() =>
         _lowering.Application.Modules.SelectMany(_ => _.Features).SelectMany(_ => _.Slices).Single(_ => _.Specifications.Any()).Specifications.Single();
 }

@@ -255,7 +255,7 @@ static class TypeUseBindingDerivation
 
     static IReadOnlyList<DeclaredMember> MemberDeclarations(IEnumerable<GenerationFact> facts) =>
     [
-        .. facts.SelectMany<GenerationFact, DeclaredMember>(fact => fact switch
+        .. facts.SelectMany(fact => fact switch
         {
             ArtifactFact artifact => artifact.Definition.Properties.Select((property, order) =>
                 new DeclaredMember(

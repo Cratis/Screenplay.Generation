@@ -37,7 +37,7 @@ static class Canonical
             definition.Concept.Value,
             definition.Kind.ToString(),
             definition.Primitive?.ToString(),
-            string.Concat(definition.EnumerationValues.Select(_ => $"{_.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{_}")));
+            string.Concat(definition.EnumerationValues.Select(_ => $"{_.Length.ToString(CultureInfo.InvariantCulture)}:{_}")));
 
     public static string ConceptAttribute(ConceptAttributeDefinition definition) =>
         Join(definition.Concept.Value, definition.Kind.ToString(), Encode(definition.Name), Encode(definition.Reason));
