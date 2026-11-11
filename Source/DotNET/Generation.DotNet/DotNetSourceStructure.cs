@@ -300,7 +300,7 @@ public static class DotNetSourceStructureResolver
         DotNetSourceStructurePolicy policy,
         string[] featureRoot)
     {
-        List<ArtifactPlacement> folderPlacements = [];
+        var folderPlacements = new List<ArtifactPlacement>();
         foreach (var path in structure.ProjectRelativePaths.Order(StringComparer.Ordinal))
         {
             if (!TryNormalizeRelativePath(path, out var sourceSegments))
