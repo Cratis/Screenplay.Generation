@@ -67,6 +67,5 @@ internal sealed class LoweringContext(
             graph,
             placement,
             artifact => ArtifactName(artifact.Subject, artifact.Kind),
-            Sink.Diagnostics,
-            Sink.Coverage);
+            Sink);
 }
