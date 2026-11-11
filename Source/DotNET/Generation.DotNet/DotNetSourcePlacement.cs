@@ -145,8 +145,8 @@ public static class DotNetSourcePlacementDerivation
             .OrderBy(_ => _.Key, StringComparer.Ordinal)
             .Select(_ => _.First())
             .ToArray();
-        var placements = new List<DotNetSourcePlacement>();
-        var diagnostics = new List<GenerationDiagnostic>();
+        List<DotNetSourcePlacement> placements = [];
+        List<GenerationDiagnostic> diagnostics = [];
 
         foreach (var group in canonicalRequests
                      .GroupBy(_ => CanonicalArtifact(_.Artifact), StringComparer.Ordinal)

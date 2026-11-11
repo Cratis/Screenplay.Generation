@@ -30,7 +30,7 @@ internal static class ConceptLowering
         var conceptDefinitions = definitions.Where(_ => _.Key.Kind == ArtifactKind.Concept).ToArray();
         var conflictingNames = ReportNameConflicts(conceptDefinitions, sink);
         var concepts = new List<ConceptSyntax>();
-        var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        Dictionary<string, string> names = [with(StringComparer.Ordinal)];
         foreach (var definition in conceptDefinitions
                      .Where(_ => !conflictingNames.Contains(_.Name))
                      .OrderBy(_ => _.Name, StringComparer.Ordinal)
