@@ -34,6 +34,9 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
         };
     }
 
+    static bool HasUniqueChildren(SpecificationValueDefinition definition) =>
+        definition.Children.Select(Structural.SpecificationValueKey).Distinct(StringComparer.Ordinal).Count() == definition.Children.Count;
+
     bool TryAdmit(
         SpecificationValueKey key,
         SpecificationStepKey step,
@@ -41,38 +44,64 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
         out AdmittedSpecificationValue? admitted)
     {
         admitted = null;
-        var canonicalKey = Structural.SpecificationValueKey(key);
-        if (!SameStep(key.Step, step) || !visiting.Add(canonicalKey) ||
-            !_values.TryGetValue(canonicalKey, out var resolved) || resolved.IsConflicted)
+        if (!TryResolve(key, step, visiting, out var resolved) ||
+            TryAdmitChildren(resolved!.Variants.Single().Definition, step, visiting) is not { } children)
         {
             return false;
         }
 
         var variant = resolved.Variants.Single();
-        var definition = variant.Definition;
-        if (!IsValidShape(definition) ||
-            definition.Children.Select(Structural.SpecificationValueKey).Distinct(StringComparer.Ordinal).Count() != definition.Children.Count)
+        admitted = new()
+        {
+            Definition = variant.Definition,
+            Evidence = variant.Evidence,
+            Children = children
+        };
+        return true;
+    }
+
+    bool TryResolve(
+        SpecificationValueKey key,
+        SpecificationStepKey step,
+        HashSet<string> visiting,
+        out ResolvedSpecificationValue? resolved)
+    {
+        resolved = null;
+        var canonicalKey = Structural.SpecificationValueKey(key);
+        if (!SameStep(key.Step, step) ||
+            !visiting.Add(canonicalKey) ||
+            !_values.TryGetValue(canonicalKey, out var candidate) ||
+            candidate.IsConflicted)
         {
             return false;
         }
 
+        var definition = candidate.Variants.Single().Definition;
+        if (!IsValidShape(definition) || !HasUniqueChildren(definition))
+        {
+            return false;
+        }
+
+        resolved = candidate;
+        return true;
+    }
+
+    List<AdmittedSpecificationValue>? TryAdmitChildren(
+        SpecificationValueDefinition definition,
+        SpecificationStepKey step,
+        HashSet<string> visiting)
+    {
         var children = new List<AdmittedSpecificationValue>();
         foreach (var child in definition.Children)
         {
             if (!TryAdmit(child, step, new HashSet<string>(visiting, StringComparer.Ordinal), out var admittedChild))
             {
-                return false;
+                return null;
             }
 
             children.Add(admittedChild!);
         }
 
-        admitted = new()
-        {
-            Definition = definition,
-            Evidence = variant.Evidence,
-            Children = children
-        };
-        return true;
+        return children;
     }
 }

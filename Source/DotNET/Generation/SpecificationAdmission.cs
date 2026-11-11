@@ -5,33 +5,36 @@ namespace Cratis.Screenplay.Generation;
 
 internal static class SpecificationAdmission
 {
+    static readonly Dictionary<SpecificationStepKind, ArtifactKind> _artifactKinds = new()
+    {
+        [SpecificationStepKind.Event] = ArtifactKind.Event,
+        [SpecificationStepKind.ReadModel] = ArtifactKind.ReadModel,
+        [SpecificationStepKind.Command] = ArtifactKind.Command,
+        [SpecificationStepKind.Read] = ArtifactKind.Query
+    };
+
     public static AdmittedSpecificationScenario[] Admit(
         ResolvedSpecificationFacts facts,
         IReadOnlyList<ResolvedArtifact> artifacts,
         IReadOnlyList<ResolvedArtifactPlacement> placements,
         ICollection<GenerationDiagnostic> diagnostics)
     {
-        var artifactsByKey = artifacts
-            .Where(artifact => !artifact.IsConflicted)
-            .ToDictionary(artifact => Structural.ArtifactKey(artifact.Key), StringComparer.Ordinal);
-        var placementsByKey = placements
-            .Where(placement => !placement.IsConflicted)
-            .ToDictionary(placement => Structural.ArtifactKey(placement.Artifact), StringComparer.Ordinal);
-        var stepsByKey = facts.Steps.ToDictionary(step => Structural.SpecificationStepKey(step.Key), StringComparer.Ordinal);
-        var valueAdmission = new SpecificationValueAdmission(facts.Values);
+        var index = new AdmissionIndex(
+            artifacts
+                .Where(artifact => !artifact.IsConflicted)
+                .ToDictionary(artifact => Structural.ArtifactKey(artifact.Key), StringComparer.Ordinal),
+            placements
+                .Where(placement => !placement.IsConflicted)
+                .ToDictionary(placement => Structural.ArtifactKey(placement.Artifact), StringComparer.Ordinal),
+            facts.Steps.ToDictionary(step => Structural.SpecificationStepKey(step.Key), StringComparer.Ordinal),
+            new SpecificationValueAdmission(facts.Values));
         var admitted = new List<AdmittedSpecificationScenario>();
 
         foreach (var scenario in facts.Scenarios)
         {
-            if (TryAdmit(
-                    scenario,
-                    stepsByKey,
-                    valueAdmission,
-                    artifactsByKey,
-                    placementsByKey,
-                    out var admittedScenario))
+            if (TryAdmit(scenario, index) is { } admittedScenario)
             {
-                admitted.Add(admittedScenario!);
+                admitted.Add(admittedScenario);
                 continue;
             }
 
@@ -41,94 +44,85 @@ internal static class SpecificationAdmission
         return [.. admitted];
     }
 
-    static bool TryAdmit(
-        ResolvedSpecificationScenario scenario,
-        Dictionary<string, ResolvedSpecificationStep> steps,
-        SpecificationValueAdmission values,
-        Dictionary<string, ResolvedArtifact> artifacts,
-        Dictionary<string, ResolvedArtifactPlacement> placements,
-        out AdmittedSpecificationScenario? admitted)
+    static AdmittedSpecificationScenario? TryAdmit(ResolvedSpecificationScenario scenario, AdmissionIndex index)
     {
-        admitted = null;
         if (scenario.IsConflicted)
         {
-            return false;
+            return null;
         }
 
         var variant = scenario.Variants.Single();
         var definition = variant.Definition;
         var targetKey = Structural.ArtifactKey(definition.TargetArtifact);
-        if (!artifacts.ContainsKey(targetKey) || !placements.TryGetValue(targetKey, out var placement) ||
-            placement.EffectiveVariants.Count != 1 || !ValidStepKeys(definition))
+        if (!index.Artifacts.ContainsKey(targetKey) ||
+            !index.Placements.TryGetValue(targetKey, out var placement) ||
+            placement.EffectiveVariants.Count != 1 ||
+            !ValidStepKeys(definition))
         {
-            return false;
+            return null;
         }
 
+        var admittedSteps = AdmitSteps(definition, index);
+        return admittedSteps is not null && ValidPhases(admittedSteps)
+            ? new()
+            {
+                Definition = definition,
+                Placement = placement.EffectiveVariants.Single().Placement,
+                Evidence = variant.Evidence,
+                Steps = admittedSteps
+            }
+            : null;
+    }
+
+    static List<AdmittedSpecificationStep>? AdmitSteps(SpecificationScenarioDefinition definition, AdmissionIndex index)
+    {
         var admittedSteps = new List<AdmittedSpecificationStep>();
         foreach (var stepKey in definition.Steps)
         {
-            if (!steps.TryGetValue(Structural.SpecificationStepKey(stepKey), out var step) ||
-                !TryAdmitStep(step, values, artifacts, out var admittedStep))
+            if (!index.Steps.TryGetValue(Structural.SpecificationStepKey(stepKey), out var step) ||
+                TryAdmitStep(step, index) is not { } admittedStep)
             {
-                return false;
+                return null;
             }
 
-            admittedSteps.Add(admittedStep!);
+            admittedSteps.Add(admittedStep);
         }
 
-        if (!ValidPhases(admittedSteps))
-        {
-            return false;
-        }
-
-        admitted = new()
-        {
-            Definition = definition,
-            Placement = placement.EffectiveVariants.Single().Placement,
-            Evidence = variant.Evidence,
-            Steps = admittedSteps
-        };
-        return true;
+        return admittedSteps;
     }
 
-    static bool TryAdmitStep(
-        ResolvedSpecificationStep step,
-        SpecificationValueAdmission values,
-        Dictionary<string, ResolvedArtifact> artifacts,
-        out AdmittedSpecificationStep? admitted)
+    static AdmittedSpecificationStep? TryAdmitStep(ResolvedSpecificationStep step, AdmissionIndex index)
     {
-        admitted = null;
         if (step.IsConflicted)
         {
-            return false;
+            return null;
         }
 
         var variant = step.Variants.Single();
         var definition = variant.Definition;
-        if (!ValidStepShape(definition, artifacts) ||
+        if (!ValidStepShape(definition, index.Artifacts) ||
             definition.Values.Select(Structural.SpecificationValueKey).Distinct(StringComparer.Ordinal).Count() != definition.Values.Count)
         {
-            return false;
+            return null;
         }
 
         var admittedValues = new List<AdmittedSpecificationValue>();
         foreach (var value in definition.Values)
         {
-            if (!values.TryAdmit(value, definition.Key, out var admittedValue))
+            if (!index.Values.TryAdmit(value, definition.Key, out var admittedValue))
             {
-                return false;
+                return null;
             }
 
             admittedValues.Add(admittedValue!);
         }
 
-        admitted = new()
+        return new()
         {
             Definition = definition,
             Evidence = variant.Evidence,
             Values = admittedValues
         };
-        return true;
     }
 
     static bool ValidStepKeys(SpecificationScenarioDefinition definition) =>
@@ -139,29 +133,22 @@ internal static class SpecificationAdmission
 
     static bool ValidStepShape(
         SpecificationStepDefinition step,
-        Dictionary<string, ResolvedArtifact> artifacts)
-    {
-        if (step.Kind == SpecificationStepKind.Error)
-        {
-            return step.Phase == SpecificationStepPhase.Then && step.Artifact is null && step.Values.Count == 0;
-        }
+        Dictionary<string, ResolvedArtifact> artifacts) =>
+        step.Kind == SpecificationStepKind.Error
+            ? IsValidErrorStep(step)
+            : HasNoErrorData(step) &&
+              step.Artifact is not null &&
+              artifacts.TryGetValue(Structural.ArtifactKey(step.Artifact), out var artifact) &&
+              artifact.Key.Kind == ExpectedArtifactKind(step.Kind);
 
-        if (step.Artifact is null || step.ErrorCode is not null || step.ErrorMessage is not null ||
-            !artifacts.TryGetValue(Structural.ArtifactKey(step.Artifact), out var artifact))
-        {
-            return false;
-        }
+    static bool IsValidErrorStep(SpecificationStepDefinition step) =>
+        step.Phase == SpecificationStepPhase.Then && step.Artifact is null && step.Values.Count == 0;
 
-        var expectedKind = step.Kind switch
-        {
-            SpecificationStepKind.Event => ArtifactKind.Event,
-            SpecificationStepKind.ReadModel => ArtifactKind.ReadModel,
-            SpecificationStepKind.Command => ArtifactKind.Command,
-            SpecificationStepKind.Read => ArtifactKind.Query,
-            _ => ArtifactKind.Unknown
-        };
-        return artifact.Key.Kind == expectedKind;
-    }
+    static bool HasNoErrorData(SpecificationStepDefinition step) =>
+        step.ErrorCode is null && step.ErrorMessage is null;
+
+    static ArtifactKind ExpectedArtifactKind(SpecificationStepKind kind) =>
+        _artifactKinds.GetValueOrDefault(kind, ArtifactKind.Unknown);
 
     static bool ValidPhases(IReadOnlyList<AdmittedSpecificationStep> steps)
     {
@@ -187,4 +174,10 @@ internal static class SpecificationAdmission
         Source = FirstSource(scenario.Variants.SelectMany(variant => variant.Evidence)),
         Subject = scenario.Key.Scenario
     };
+
+    sealed record AdmissionIndex(
+        Dictionary<string, ResolvedArtifact> Artifacts,
+        Dictionary<string, ResolvedArtifactPlacement> Placements,
+        Dictionary<string, ResolvedSpecificationStep> Steps,
+        SpecificationValueAdmission Values);
 }
