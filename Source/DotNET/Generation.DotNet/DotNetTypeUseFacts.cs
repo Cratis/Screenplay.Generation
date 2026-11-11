@@ -26,7 +26,7 @@ public static class DotNetTypeUseFacts
         Evidence evidence,
         Func<IPropertySymbol, ArtifactMemberRoleKind?>? roleFor = null)
     {
-        var facts = new List<GenerationFact>();
+        List<GenerationFact> facts = [];
         var properties = DotNetTypeShapes.PublicReadablePropertiesOf(type);
         for (var order = 0; order < properties.Count; order++)
         {

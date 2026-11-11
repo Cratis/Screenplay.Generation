@@ -38,8 +38,8 @@ public static class DotNetSourceStructures
     /// <returns>The canonical source structures and typed diagnostics.</returns>
     public static DotNetSourceStructureSnapshot Create(DotNetAnalysisContext context)
     {
-        var structures = new List<DotNetSourceStructure>();
-        var diagnostics = new List<GenerationDiagnostic>();
+        List<DotNetSourceStructure> structures = [];
+        List<GenerationDiagnostic> diagnostics = [];
 
         foreach (var project in context.Projects)
         {
@@ -134,7 +134,7 @@ public static class DotNetSourceStructures
         IReadOnlyList<SyntaxReference> declarations,
         DotNetProjectSourceContext sourceContext)
     {
-        var mappedDeclarations = new List<MappedDeclaration>();
+        List<MappedDeclaration> mappedDeclarations = [];
         foreach (var declaration in declarations)
         {
             if (!sourceContext.Files.TryGetValue(declaration.SyntaxTree, out var sourceFile))
