@@ -375,7 +375,7 @@ static class AdapterContributionAdmissionValidator
         string path,
         AdapterContributionAdmissionContext context)
     {
-        var linkedFactIds = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string> linkedFactIds = [with(StringComparer.Ordinal)];
         var factPrefix = $"{adapterId}:";
         for (var factIndex = 0; factIndex < diagnostic.Facts.Length; factIndex++)
         {

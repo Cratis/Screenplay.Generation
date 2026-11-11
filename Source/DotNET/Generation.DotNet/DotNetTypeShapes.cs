@@ -34,7 +34,7 @@ public static class DotNetTypeShapes
     /// <returns>The exact source-neutral type use from outermost wrapper to terminal named type.</returns>
     public static TypeUseDefinition TypeUseFor(ITypeSymbol type, DotNetAnalysisContext context)
     {
-        var shape = new List<TypeUseShapeKind>();
+        List<TypeUseShapeKind> shape = [];
         var current = type;
         while (true)
         {
