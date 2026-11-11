@@ -66,7 +66,7 @@ public class when_deriving_type_use_bindings_for_several_members : given.a_deriv
         foreach (var record in result.Facts)
         {
             var fact = (TypeUseBindingFact)record.Fact;
-            lines.Add($"fact {fact.Definition.Member.Name} -> {fact.Definition.Target.Subject.Value}/{fact.Definition.Target.Kind} | {fact.Subject.Value} | {record.Lineage!.Producer.Id} {record.Lineage.Producer.Version}");
+            lines.Add($"fact {fact.Definition.Member.Name} -> {fact.Definition.Target.Subject.Value}/{fact.Definition.Target.Kind} | {fact.Subject.Value} | {record.Lineage.Producer.Id} {record.Lineage.Producer.Version}");
             lines.Add($"  inputs {string.Join(", ", record.Lineage.Inputs.Select(_ => _.Value))}");
             lines.Add($"  evidence {string.Join(", ", record.Lineage.Evidence.Select(_ => $"{_.Adapter.Id}@{_.Source?.Path}:{_.Source?.StartLine}"))}");
         }
@@ -76,6 +76,6 @@ public class when_deriving_type_use_bindings_for_several_members : given.a_deriv
             lines.Add($"diagnostic {diagnostic.Code} | {diagnostic.Severity} | {diagnostic.Outcome} | {diagnostic.Subject?.Value} | {diagnostic.Source?.Path}:{diagnostic.Source?.StartLine} | {string.Join(", ", diagnostic.Facts.Select(_ => _.Value))} | {diagnostic.Message}");
         }
 
-        return string.Join("\n", lines);
+        return string.Join('\n', lines);
     }
 }

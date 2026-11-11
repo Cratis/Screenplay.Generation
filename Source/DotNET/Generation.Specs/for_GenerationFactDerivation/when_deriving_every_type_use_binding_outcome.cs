@@ -56,7 +56,7 @@ public class when_deriving_every_type_use_binding_outcome : given.a_derivation
             ("conflicting-target-kinds", [CommandDeclaration(), MemberDeclaration("customerCode", 0, "member"), Concept(ConceptSubject, "customer-code"), kindConflict, TypeUse("customerCode", ConceptSubject, "use")]),
             ("conflicting-target-declarations", [CommandDeclaration(), MemberDeclaration("customerCode", 0, "member"), Concept(ConceptSubject, "customer-code"), Concept(ConceptSubject, "customer-code-b", "OtherName"), TypeUse("customerCode", ConceptSubject, "use")])
         };
-        _result = string.Join("\n", cases.Select(_ => Render(_.Name, Derive(_.Facts))));
+        _result = string.Join('\n', cases.Select(_ => Render(_.Name, Derive(_.Facts))));
     }
 
     [Fact] void should_render_the_fixed_outcome_of_every_case() => _result.ShouldEqual(Expected);
@@ -106,7 +106,7 @@ public class when_deriving_every_type_use_binding_outcome : given.a_derivation
         {
             var fact = (TypeUseBindingFact)record.Fact;
             lines.Add($"fact {fact.Id.Value} | {fact.Subject.Value} | {fact.Definition.Member.Artifact.Subject.Value}.{fact.Definition.Member.Name} -> {fact.Definition.Target.Subject.Value}/{fact.Definition.Target.Kind}");
-            lines.Add($"  producer {record.Lineage!.Producer.Id} {record.Lineage.Producer.Version}");
+            lines.Add($"  producer {record.Lineage.Producer.Id} {record.Lineage.Producer.Version}");
             lines.Add($"  inputs {string.Join(", ", record.Lineage.Inputs.Select(_ => _.Value))}");
             lines.Add($"  evidence {string.Join(", ", record.Lineage.Evidence.Select(_ => $"{_.Adapter.Id}@{_.Source?.Path}:{_.Source?.StartLine}"))}");
         }
@@ -116,6 +116,6 @@ public class when_deriving_every_type_use_binding_outcome : given.a_derivation
             lines.Add($"diagnostic {diagnostic.Code} | {diagnostic.Severity} | {diagnostic.Outcome} | {diagnostic.Subject?.Value} | {diagnostic.Source?.Path}:{diagnostic.Source?.StartLine} | {string.Join(", ", diagnostic.Facts.Select(_ => _.Value))} | {diagnostic.Message}");
         }
 
-        return string.Join("\n", lines);
+        return string.Join('\n', lines);
     }
 }

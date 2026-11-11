@@ -29,39 +29,3 @@ internal sealed class LoweringSink
         }
     }
 }
-
-/// <summary>
-/// Provides the shared building blocks of the Screenplay lowering steps.
-/// </summary>
-internal static class LoweringSupport
-{
-    public static SourceLocation Generated { get; } = SourceLocation.Start;
-
-    public static GenerationDiagnostic Warning(string code, GenerationDiagnosticOutcome outcome, string message) => new()
-    {
-        Code = code,
-        Severity = GenerationDiagnosticSeverity.Warning,
-        Outcome = outcome,
-        Message = message
-    };
-
-    public static SourceRange? FirstSource(IEnumerable<Evidence> evidence) =>
-        evidence
-            .Where(_ => _.Source is not null)
-            .OrderBy(Canonical.Evidence, StringComparer.Ordinal)
-            .Select(_ => _.Source)
-            .FirstOrDefault();
-
-    public static bool IsKnownArtifactKind(ArtifactKind kind) => Enum.IsDefined(kind) && kind != ArtifactKind.Unknown;
-
-    public static bool CanLower(ArtifactKind kind) => kind is ArtifactKind.Command or ArtifactKind.Event or ArtifactKind.Query or ArtifactKind.ReadModel or ArtifactKind.Reducer;
-
-    public static GenerationDiagnosticOutcome OutcomeFor<TEnum>(TEnum value, TEnum unknown)
-        where TEnum : struct, Enum =>
-        EqualityComparer<TEnum>.Default.Equals(value, unknown)
-            ? GenerationDiagnosticOutcome.Unknown
-            : GenerationDiagnosticOutcome.Unsupported;
-
-    public static FileReferenceSyntax? FileFrom(string? path) =>
-        path is null ? null : new FileReferenceSyntax(path.Replace('\\', '/'), Generated);
-}

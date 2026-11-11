@@ -94,7 +94,7 @@ internal static class SliceLowering
 
     static GenerationDiagnostic? KindProblem(string name, GenerationSliceKind[] kinds)
     {
-        if (kinds.Where(IsUnsupportedKind).Select(_ => (GenerationSliceKind?)_).FirstOrDefault() is { } unsupportedKind)
+        if (kinds.Where(IsUnsupportedKind).Cast<GenerationSliceKind?>().FirstOrDefault() is { } unsupportedKind)
         {
             return Warning(
                 GenerationDiagnosticCodes.UnsupportedSliceKind,
