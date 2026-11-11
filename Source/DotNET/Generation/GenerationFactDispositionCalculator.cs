@@ -29,7 +29,7 @@ internal static class GenerationFactDispositionCalculator
     {
         var admitted = facts.ToArray();
         var conflictingIdentities = admitted
-            .Where(HasSupportedDiscriminators)
+            .Where(GenerationFactDiscriminators.AreSupported)
             .GroupBy(_ => _.Id.Value, StringComparer.Ordinal)
             .Where(group => group
                 .Select(SemanticIdentity)
@@ -37,83 +37,73 @@ internal static class GenerationFactDispositionCalculator
                 .Count() > 1)
             .Select(group => group.Key)
             .ToHashSet(StringComparer.Ordinal);
+        var context = new CalculationContext(graph, coverage, diagnostics);
 
         return
         [
-            .. admitted.Select(fact => Calculate(
-                fact,
-                conflictingIdentities.Contains(fact.Id.Value),
-                graph,
-                coverage,
-                diagnostics))
+            .. admitted.Select(fact => Calculate(fact, conflictingIdentities.Contains(fact.Id.Value), context))
         ];
     }
 
-    static GenerationFactRecord Calculate(
-        GenerationFact fact,
-        bool hasConflictingIdentity,
-        ResolvedApplicationGraph graph,
-        ScreenplayLoweringCoverage coverage,
-        IReadOnlyList<GenerationDiagnostic> diagnostics)
+    static GenerationFactRecord Calculate(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
     {
-        if (!HasSupportedDiscriminators(fact))
+        if (!GenerationFactDiscriminators.AreSupported(fact))
         {
-            return Omitted(fact, coverage, diagnostics);
+            return Omitted(fact, context);
         }
 
-        if (hasConflictingIdentity ||
-            IsConflicted(fact, graph, coverage) ||
-            AssociatedDiagnostics(fact, coverage, diagnostics).Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict))
+        if (hasConflictingIdentity || IsConflicted(fact, context))
         {
-            return Conflicted(fact, coverage, diagnostics);
+            return Conflicted(fact, context);
         }
 
-        var granularDisposition = GranularDisposition(fact, graph, coverage, diagnostics);
-        if (granularDisposition is not null)
-        {
-            return granularDisposition;
-        }
+        return GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+    }
 
-        if (fact is ArtifactFact legacyArtifact &&
-            graph.Artifacts
-                .Where(resolved => resolved.Key == legacyArtifact.Definition.Key)
-                .SelectMany(resolved => resolved.Variants)
-                .Any(variant =>
-                    Structural.Artifact(legacyArtifact.Definition) != Structural.Artifact(variant.Definition) &&
-                    variant.SupportingFacts.Any(id => id == legacyArtifact.Id) &&
-                    coverage.Lowered.Contains(GenerationFactSemanticKey.Artifact(variant.Definition))))
+    static bool IsConflicted(GenerationFact fact, CalculationContext context) =>
+        GenerationFactConflictDetector.IsConflicted(fact, context.Graph, context.Coverage) ||
+        AssociatedDiagnostics(fact, context).Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict);
+
+    static GenerationFactRecord ClassifiedBySemanticKey(GenerationFact fact, CalculationContext context)
+    {
+        if (fact is ArtifactFact legacyArtifact && IsSupersededByLoweredVariant(legacyArtifact, context))
         {
-            return new GenerationFactRecord
-            {
-                Fact = fact,
-                Disposition = GenerationFactDisposition.ProvenanceOnly
-            };
+            return Record(fact, GenerationFactDisposition.ProvenanceOnly);
         }
 
         var key = GenerationFactSemanticKey.For(fact);
-        if (key is not null && coverage.Lowered.Contains(key))
+        if (key is not null && context.Coverage.Lowered.Contains(key))
         {
-            return new GenerationFactRecord
-            {
-                Fact = fact,
-                Disposition = GenerationFactDisposition.Lowered
-            };
+            return Record(fact, GenerationFactDisposition.Lowered);
         }
 
-        if (fact is ArtifactPlacementFact placement && IsWeakerPlacement(placement, graph))
+        if (fact is ArtifactPlacementFact placement && IsWeakerPlacement(placement, context.Graph))
         {
-            return new GenerationFactRecord
-            {
-                Fact = fact,
-                Disposition = GenerationFactDisposition.ProvenanceOnly
-            };
+            return Record(fact, GenerationFactDisposition.ProvenanceOnly);
         }
 
-        if (key is not null)
-        {
-            return Omitted(fact, coverage, diagnostics);
-        }
+        return key is not null
+            ? Omitted(fact, context)
+            : Unclassified(fact);
+    }
 
+    static GenerationFactRecord Record(GenerationFact fact, GenerationFactDisposition disposition) => new()
+    {
+        Fact = fact,
+        Disposition = disposition
+    };
+
+    static bool IsSupersededByLoweredVariant(ArtifactFact legacyArtifact, CalculationContext context) =>
+        context.Graph.Artifacts
+            .Where(resolved => resolved.Key == legacyArtifact.Definition.Key)
+            .SelectMany(resolved => resolved.Variants)
+            .Any(variant =>
+                Structural.Artifact(legacyArtifact.Definition) != Structural.Artifact(variant.Definition) &&
+                variant.SupportingFacts.Any(id => id == legacyArtifact.Id) &&
+                context.Coverage.Lowered.Contains(GenerationFactSemanticKey.Artifact(variant.Definition)));
+
+    static GenerationFactRecord Unclassified(GenerationFact fact)
+    {
         var diagnostic = new GenerationDiagnostic
         {
             Code = GenerationDiagnosticCodes.UnclassifiedGenerationFact,
@@ -132,29 +122,14 @@ internal static class GenerationFactDispositionCalculator
         };
     }
 
-    static GenerationFactRecord Conflicted(
-        GenerationFact fact,
-        ScreenplayLoweringCoverage coverage,
-        IReadOnlyList<GenerationDiagnostic> diagnostics)
+    static GenerationFactRecord Conflicted(GenerationFact fact, CalculationContext context)
     {
-        var associated = AssociatedDiagnostics(fact, coverage, diagnostics)
+        var associated = AssociatedDiagnostics(fact, context)
             .Where(_ => _.Outcome == GenerationDiagnosticOutcome.Conflict)
             .ToArray();
         if (associated.Length == 0)
         {
-            associated =
-            [
-                new GenerationDiagnostic
-                {
-                    Code = GenerationDiagnosticCodes.ConflictingGenerationFact,
-                    Severity = GenerationDiagnosticSeverity.Error,
-                    Outcome = GenerationDiagnosticOutcome.Conflict,
-                    Message = $"Admitted fact '{fact.Id.Value}' participated in an unresolved semantic conflict",
-                    Facts = [fact.Id],
-                    Source = fact.Evidence.Source,
-                    Subject = DiagnosticSubject(fact)
-                }
-            ];
+            associated = [ConflictingFact(fact)];
         }
 
         return new GenerationFactRecord
@@ -165,38 +140,28 @@ internal static class GenerationFactDispositionCalculator
         };
     }
 
-    static GenerationFactRecord Omitted(
-        GenerationFact fact,
-        ScreenplayLoweringCoverage coverage,
-        IReadOnlyList<GenerationDiagnostic> diagnostics)
+    static GenerationDiagnostic ConflictingFact(GenerationFact fact) => new()
     {
-        var associated = AssociatedDiagnostics(fact, coverage, diagnostics).ToList();
-        if (fact is RelationshipFact relationship && HasSupportedDiscriminators(fact))
+        Code = GenerationDiagnosticCodes.ConflictingGenerationFact,
+        Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Conflict,
+        Message = $"Admitted fact '{fact.Id.Value}' participated in an unresolved semantic conflict",
+        Facts = [fact.Id],
+        Source = fact.Evidence.Source,
+        Subject = GenerationFactDescription.DiagnosticSubject(fact)
+    };
+
+    static GenerationFactRecord Omitted(GenerationFact fact, CalculationContext context)
+    {
+        var associated = AssociatedDiagnostics(fact, context).ToList();
+        if (fact is RelationshipFact relationship && GenerationFactDiscriminators.AreSupported(fact))
         {
-            associated.Add(new GenerationDiagnostic
-            {
-                Code = GenerationDiagnosticCodes.UnsupportedRelationship,
-                Severity = GenerationDiagnosticSeverity.Warning,
-                Outcome = GenerationDiagnosticOutcome.Unsupported,
-                Message = $"Relationship '{relationship.Definition.Key.Kind}' from '{relationship.Definition.Key.Source.Value}' to '{relationship.Definition.Key.Target.Value}' did not contribute to emitted Screenplay syntax and was omitted",
-                Facts = [fact.Id],
-                Source = fact.Evidence.Source,
-                Subject = relationship.Definition.Key.Source
-            });
+            associated.Add(UnsupportedRelationship(relationship));
         }
 
         if (associated.Count == 0)
         {
-            associated.Add(new GenerationDiagnostic
-            {
-                Code = GenerationDiagnosticCodes.OmittedGenerationFact,
-                Severity = GenerationDiagnosticSeverity.Warning,
-                Outcome = GenerationDiagnosticOutcome.Unsupported,
-                Message = $"Admitted {FactFamily(fact)} fact '{fact.Id.Value}' did not contribute to emitted Screenplay syntax and was omitted",
-                Facts = [fact.Id],
-                Source = fact.Evidence.Source,
-                Subject = DiagnosticSubject(fact)
-            });
+            associated.Add(OmittedFact(fact));
         }
 
         return new GenerationFactRecord
@@ -207,13 +172,32 @@ internal static class GenerationFactDispositionCalculator
         };
     }
 
-    static IEnumerable<GenerationDiagnostic> AssociatedDiagnostics(
-        GenerationFact fact,
-        ScreenplayLoweringCoverage coverage,
-        IReadOnlyList<GenerationDiagnostic> diagnostics)
+    static GenerationDiagnostic UnsupportedRelationship(RelationshipFact relationship) => new()
+    {
+        Code = GenerationDiagnosticCodes.UnsupportedRelationship,
+        Severity = GenerationDiagnosticSeverity.Warning,
+        Outcome = GenerationDiagnosticOutcome.Unsupported,
+        Message = $"Relationship '{relationship.Definition.Key.Kind}' from '{relationship.Definition.Key.Source.Value}' to '{relationship.Definition.Key.Target.Value}' did not contribute to emitted Screenplay syntax and was omitted",
+        Facts = [relationship.Id],
+        Source = relationship.Evidence.Source,
+        Subject = relationship.Definition.Key.Source
+    };
+
+    static GenerationDiagnostic OmittedFact(GenerationFact fact) => new()
+    {
+        Code = GenerationDiagnosticCodes.OmittedGenerationFact,
+        Severity = GenerationDiagnosticSeverity.Warning,
+        Outcome = GenerationDiagnosticOutcome.Unsupported,
+        Message = $"Admitted {GenerationFactDescription.Family(fact)} fact '{fact.Id.Value}' did not contribute to emitted Screenplay syntax and was omitted",
+        Facts = [fact.Id],
+        Source = fact.Evidence.Source,
+        Subject = GenerationFactDescription.DiagnosticSubject(fact)
+    };
+
+    static IEnumerable<GenerationDiagnostic> AssociatedDiagnostics(GenerationFact fact, CalculationContext context)
     {
         var key = GenerationFactSemanticKey.For(fact);
-        if (key is not null && coverage.Diagnostics.TryGetValue(key, out var loweringDiagnostics))
+        if (key is not null && context.Coverage.Diagnostics.TryGetValue(key, out var loweringDiagnostics))
         {
             foreach (var diagnostic in loweringDiagnostics)
             {
@@ -221,131 +205,55 @@ internal static class GenerationFactDispositionCalculator
             }
         }
 
-        foreach (var diagnostic in diagnostics.Where(diagnostic =>
+        foreach (var diagnostic in context.Diagnostics.Where(diagnostic =>
                      diagnostic.Outcome is not null && diagnostic.Facts.Any(link => link == fact.Id)))
         {
             yield return diagnostic;
         }
     }
 
-    static GenerationFactRecord? GranularDisposition(
-        GenerationFact fact,
-        ResolvedApplicationGraph graph,
-        ScreenplayLoweringCoverage coverage,
-        IReadOnlyList<GenerationDiagnostic> diagnostics)
+    static GenerationFactRecord? GranularDisposition(GenerationFact fact, CalculationContext context)
     {
-        var artifact = fact switch
-        {
-            ArtifactDeclarationFact declaration => declaration.Definition.Artifact,
-            ArtifactMemberDeclarationFact member => member.Definition.Member.Artifact,
-            ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact,
-            TypeUseBindingFact binding => binding.Definition.Member.Artifact,
-            ArtifactMemberRoleFact role => role.Definition.Member.Artifact,
-            _ => null
-        };
+        var artifact = GranularArtifact(fact);
         if (artifact is null)
         {
             return null;
         }
 
-        var variants = graph.Artifacts
+        var appliedVariants = context.Graph.Artifacts
             .Where(resolved => resolved.Key == artifact)
             .SelectMany(resolved => resolved.Variants)
-            .ToArray();
-        var appliedVariants = variants
             .Where(variant => variant.SupportingFacts.Any(id => id == fact.Id))
             .ToArray();
         if (appliedVariants.Length == 0)
         {
-            return Omitted(fact, coverage, diagnostics);
+            return Omitted(fact, context);
         }
 
         var lowered = appliedVariants.Any(variant =>
-            coverage.Lowered.Contains(GenerationFactSemanticKey.Artifact(variant.Definition)));
-        var contributesSyntax = fact switch
-        {
-            TypeUseBindingFact => lowered,
-            ArtifactMemberRoleFact role =>
-                lowered && role.Definition.Role == ArtifactMemberRoleKind.EventSourceIdentifier,
-            _ => false
-        };
-        var disposition = contributesSyntax
-            ? GenerationFactDisposition.Lowered
-            : GenerationFactDisposition.ProvenanceOnly;
-        return new GenerationFactRecord
-        {
-            Fact = fact,
-            Disposition = disposition
-        };
+            context.Coverage.Lowered.Contains(GenerationFactSemanticKey.Artifact(variant.Definition)));
+        return Record(
+            fact,
+            ContributesSyntax(fact, lowered) ? GenerationFactDisposition.Lowered : GenerationFactDisposition.ProvenanceOnly);
     }
 
-    static bool IsConflicted(
-        GenerationFact fact,
-        ResolvedApplicationGraph graph,
-        ScreenplayLoweringCoverage coverage)
+    static ArtifactKey? GranularArtifact(GenerationFact fact) => fact switch
     {
-        var semanticKey = GenerationFactSemanticKey.For(fact);
-        if (semanticKey is not null && coverage.Conflicted.Contains(semanticKey))
-        {
-            return true;
-        }
+        ArtifactDeclarationFact declaration => declaration.Definition.Artifact,
+        ArtifactMemberDeclarationFact member => member.Definition.Member.Artifact,
+        ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact,
+        TypeUseBindingFact binding => binding.Definition.Member.Artifact,
+        ArtifactMemberRoleFact role => role.Definition.Member.Artifact,
+        _ => null
+    };
 
-        return fact switch
-        {
-            ArtifactFact artifact => graph.Artifacts.Any(resolved =>
-                resolved.IsConflicted &&
-                Structural.ArtifactKey(resolved.Key) == Structural.ArtifactKey(artifact.Definition.Key) &&
-                resolved.Variants.Any(variant => variant.SupportingFacts.Any(id => id == artifact.Id))),
-            ArtifactPlacementFact placement => ConflictingPlacement(placement, graph),
-            ArtifactDeclarationFact or
-            ArtifactMemberDeclarationFact or
-            ArtifactMemberTypeUseFact or
-            TypeUseBindingFact or
-            ArtifactMemberRoleFact => graph.Artifacts.Any(resolved =>
-                resolved.IsConflicted &&
-                resolved.Variants.Any(variant => variant.SupportingFacts.Any(id => id == fact.Id))),
-            RelationshipFact relationship => graph.Relationships.Any(resolved =>
-                resolved.IsConflicted &&
-                Structural.RelationshipKey(resolved.Key) == Structural.RelationshipKey(relationship.Definition.Key) &&
-                resolved.Definitions.Any(definition => Structural.Relationship(definition) == Structural.Relationship(relationship.Definition))),
-            ConceptRepresentationFact representation => graph.ConceptRepresentations.Any(resolved =>
-                resolved.IsConflicted &&
-                resolved.Concept == representation.Definition.Concept &&
-                resolved.Variants.Any(variant => Structural.ConceptRepresentation(variant.Definition) == Structural.ConceptRepresentation(representation.Definition))),
-            ConceptAttributeFact attribute => graph.ConceptAttributes.Any(resolved =>
-                resolved.IsConflicted &&
-                resolved.Variants.Any(variant => Structural.ConceptAttribute(variant.Definition) == Structural.ConceptAttribute(attribute.Definition))),
-            ConceptValidationRuleFact validation => graph.ConceptValidationRules.Any(resolved =>
-                resolved.IsConflicted &&
-                resolved.Variants.Any(variant => Structural.ConceptValidationRule(variant.Definition) == Structural.ConceptValidationRule(validation.Definition))),
-            SpecificationScenarioFact scenario => graph.SpecificationScenarios.Any(resolved =>
-                resolved.IsConflicted &&
-                Structural.SpecificationScenarioKey(resolved.Key) == Structural.SpecificationScenarioKey(scenario.Definition.Key) &&
-                resolved.Variants.Any(variant => Structural.SpecificationScenario(variant.Definition) == Structural.SpecificationScenario(scenario.Definition))),
-            SpecificationStepFact step => graph.SpecificationSteps.Any(resolved =>
-                resolved.IsConflicted &&
-                Structural.SpecificationStepKey(resolved.Key) == Structural.SpecificationStepKey(step.Definition.Key) &&
-                resolved.Variants.Any(variant => Structural.SpecificationStep(variant.Definition) == Structural.SpecificationStep(step.Definition))),
-            SpecificationValueFact value => graph.SpecificationValues.Any(resolved =>
-                resolved.IsConflicted &&
-                Structural.SpecificationValueKey(resolved.Key) == Structural.SpecificationValueKey(value.Definition.Key) &&
-                resolved.Variants.Any(variant => Structural.SpecificationValue(variant.Definition) == Structural.SpecificationValue(value.Definition))),
-            _ => false
-        };
-    }
-
-    static bool ConflictingPlacement(ArtifactPlacementFact fact, ResolvedApplicationGraph graph)
+    static bool ContributesSyntax(GenerationFact fact, bool lowered) => fact switch
     {
-        var resolved = graph.Placements.FirstOrDefault(_ =>
-            Structural.ArtifactKey(_.Artifact) == Structural.ArtifactKey(fact.Artifact));
-        if (resolved?.IsConflicted != true)
-        {
-            return false;
-        }
-
-        var placement = Structural.Placement(fact.Placement);
-        return resolved.EffectiveVariants.Any(_ => Structural.Placement(_.Placement) == placement);
-    }
+        TypeUseBindingFact => lowered,
+        ArtifactMemberRoleFact role =>
+            lowered && role.Definition.Role == ArtifactMemberRoleKind.EventSourceIdentifier,
+        _ => false
+    };
 
     static bool IsWeakerPlacement(ArtifactPlacementFact fact, ResolvedApplicationGraph graph)
     {
@@ -371,90 +279,8 @@ internal static class GenerationFactDispositionCalculator
         ]
     };
 
-    static bool HasSupportedDiscriminators(GenerationFact fact)
-    {
-        if (!Supported(fact.Evidence.Strength, EvidenceStrength.Unknown))
-        {
-            return false;
-        }
-
-        return fact switch
-        {
-            ArtifactFact artifact => Supported(artifact.Definition.Key.Kind, ArtifactKind.Unknown),
-            ArtifactPlacementFact placement =>
-                Supported(placement.Artifact.Kind, ArtifactKind.Unknown) &&
-                Supported(placement.Placement.SliceKind, GenerationSliceKind.Unknown),
-            ArtifactDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
-            ArtifactMemberDeclarationFact member => Supported(member.Definition.Member.Artifact.Kind, ArtifactKind.Unknown),
-            ArtifactMemberTypeUseFact typeUse =>
-                Supported(typeUse.Definition.Member.Artifact.Kind, ArtifactKind.Unknown) &&
-                typeUse.Definition.Type.Shape.All(shape => Supported(shape, TypeUseShapeKind.Unknown)),
-            TypeUseBindingFact binding =>
-                Supported(binding.Definition.Member.Artifact.Kind, ArtifactKind.Unknown) &&
-                Supported(binding.Definition.Target.Kind, ArtifactKind.Unknown),
-            ArtifactMemberRoleFact role =>
-                Supported(role.Definition.Member.Artifact.Kind, ArtifactKind.Unknown) &&
-                Supported(role.Definition.Role, ArtifactMemberRoleKind.Unknown),
-            RelationshipFact relationship => Supported(relationship.Definition.Key.Kind, RelationshipKind.Unknown),
-            ConceptRepresentationFact representation =>
-                Supported(representation.Definition.Kind, ConceptRepresentationKind.Unknown) &&
-                (representation.Definition.Primitive is not { } primitive || Supported(primitive, GenerationPrimitiveKind.Unknown)),
-            ConceptAttributeFact attribute => Supported(attribute.Definition.Kind, ConceptAttributeKind.Unknown),
-            ConceptValidationRuleFact validation => Supported(validation.Definition.Kind, ConceptValidationRuleKind.Unknown),
-            SpecificationScenarioFact scenario => Supported(scenario.Definition.TargetArtifact.Kind, ArtifactKind.Unknown),
-            SpecificationStepFact step =>
-                Supported(step.Definition.Phase, SpecificationStepPhase.Unknown) &&
-                Supported(step.Definition.Kind, SpecificationStepKind.Unknown) &&
-                (step.Definition.Artifact is not { } artifact || Supported(artifact.Kind, ArtifactKind.Unknown)),
-            SpecificationValueFact value => Supported(value.Definition.Kind, SpecificationValueKind.Unknown),
-            _ => true
-        };
-    }
-
-    static bool Supported<TEnum>(TEnum value, TEnum unknown)
-        where TEnum : struct, Enum =>
-        !EqualityComparer<TEnum>.Default.Equals(value, unknown) && Enum.IsDefined(value);
-
-    static SubjectId DiagnosticSubject(GenerationFact fact) => fact switch
-    {
-        ArtifactFact artifact => artifact.Definition.Key.Subject,
-        ArtifactPlacementFact placement => placement.Artifact.Subject,
-        ArtifactDeclarationFact declaration => declaration.Definition.Artifact.Subject,
-        ArtifactMemberDeclarationFact member => member.Definition.Member.Artifact.Subject,
-        ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact.Subject,
-        TypeUseBindingFact binding => binding.Definition.Member.Artifact.Subject,
-        ArtifactMemberRoleFact role => role.Definition.Member.Artifact.Subject,
-        RelationshipFact relationship => relationship.Definition.Key.Source,
-        ConceptRepresentationFact representation => representation.Definition.Concept,
-        ConceptAttributeFact attribute => attribute.Definition.Concept,
-        ConceptValidationRuleFact validation => validation.Definition.Concept,
-        SpecificationScenarioFact scenario => scenario.Definition.Key.Scenario,
-        SpecificationStepFact step => step.Definition.Key.Scenario.Scenario,
-        SpecificationValueFact value => value.Definition.Key.Step.Scenario.Scenario,
-        _ => fact.Subject
-    };
-
     static string SemanticIdentity(GenerationFact fact) =>
         GenerationFactSemanticKey.For(fact) ?? fact.GetType().FullName ?? fact.GetType().Name;
-
-    static string FactFamily(GenerationFact fact) => fact switch
-    {
-        ArtifactFact => "artifact",
-        ArtifactPlacementFact => "artifact placement",
-        ArtifactDeclarationFact => "artifact declaration",
-        ArtifactMemberDeclarationFact => "artifact member declaration",
-        ArtifactMemberTypeUseFact => "artifact member type use",
-        TypeUseBindingFact => "type-use binding",
-        ArtifactMemberRoleFact => "artifact member role",
-        RelationshipFact => "relationship",
-        ConceptRepresentationFact => "concept representation",
-        ConceptAttributeFact => "concept attribute",
-        ConceptValidationRuleFact => "concept validation rule",
-        SpecificationScenarioFact => "specification scenario",
-        SpecificationStepFact => "specification step",
-        SpecificationValueFact => "specification value",
-        _ => "generation"
-    };
 
     static ImmutableArray<GenerationDiagnostic> CanonicalDiagnostics(IEnumerable<GenerationDiagnostic> diagnostics) =>
     [
@@ -463,4 +289,9 @@ internal static class GenerationFactDispositionCalculator
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => group.First())
     ];
+
+    sealed record CalculationContext(
+        ResolvedApplicationGraph Graph,
+        ScreenplayLoweringCoverage Coverage,
+        IReadOnlyList<GenerationDiagnostic> Diagnostics);
 }
