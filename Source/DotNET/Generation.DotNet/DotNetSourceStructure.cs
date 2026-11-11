@@ -210,33 +210,10 @@ public static class DotNetSourceStructureResolver
         GenerationSliceKind sliceKind,
         DotNetSourceStructurePolicy policy)
     {
-        if (policy.Version != 1 ||
-            policy.NamespaceSegmentsToSkip < 0 ||
-            (policy.Module is not null && !IsName(policy.Module)))
+        var unsupported = UnsupportedInput(structure, sliceKind, policy);
+        if (unsupported is not null)
         {
-            return Failed(
-                structure,
-                DotNetSourceStructureDiagnosticCodes.UnsupportedPolicy,
-                "The .NET source-structure policy is unsupported");
-        }
-
-        if (structure.ProjectRole is not DotNetProjectRole.Application and not DotNetProjectRole.Specifications)
-        {
-            return Failed(
-                structure,
-                DotNetSourceStructureDiagnosticCodes.UnsupportedProjectRole,
-                $"The .NET project role '{structure.ProjectRole}' is unsupported");
-        }
-
-        if (sliceKind is not GenerationSliceKind.StateChange and
-            not GenerationSliceKind.StateView and
-            not GenerationSliceKind.Automation and
-            not GenerationSliceKind.Translate)
-        {
-            return Failed(
-                structure,
-                DotNetSourceStructureDiagnosticCodes.UnsupportedSliceKind,
-                $"The semantic slice kind '{sliceKind}' is unsupported");
+            return unsupported;
         }
 
         string[] featureRoot = [];
@@ -248,38 +225,13 @@ public static class DotNetSourceStructureResolver
                 $"The project-relative feature root '{policy.FeatureRoot}' is invalid");
         }
 
-        var folderPlacements = new List<ArtifactPlacement>();
-        foreach (var path in structure.ProjectRelativePaths.Order(StringComparer.Ordinal))
+        var scan = ScanFolders(structure, sliceKind, policy, featureRoot);
+        if (scan.Failure is not null)
         {
-            if (!TryNormalizeRelativePath(path, out var sourceSegments))
-            {
-                return Failed(
-                    structure,
-                    DotNetSourceStructureDiagnosticCodes.InvalidPath,
-                    $"The project-relative source path '{path}' is invalid");
-            }
-
-            var directorySegments = sourceSegments[..^1];
-            if (featureRoot.Length > 0)
-            {
-                if (!StartsWith(directorySegments, featureRoot))
-                {
-                    return Failed(
-                        structure,
-                        DotNetSourceStructureDiagnosticCodes.MissingFeatureRoot,
-                        $"The source path '{path}' is not beneath feature root '{policy.FeatureRoot}'");
-                }
-
-                directorySegments = directorySegments[featureRoot.Length..];
-            }
-
-            if (PlacementFrom(directorySegments, sliceKind, policy.Module) is { } candidate &&
-                !folderPlacements.Exists(existing => SamePlacement(existing, candidate)))
-            {
-                folderPlacements.Add(candidate);
-            }
+            return scan.Failure;
         }
 
+        var folderPlacements = scan.Placements;
         if (folderPlacements.Count > 1)
         {
             return Failed(
@@ -299,15 +251,116 @@ public static class DotNetSourceStructureResolver
 
         var namespaceSegments = declaredNamespaceSegments.Skip(policy.NamespaceSegmentsToSkip).ToArray();
         var namespacePlacement = PlacementFrom(namespaceSegments, sliceKind, policy.Module);
+        return Merge(structure, folderPlacement, namespacePlacement);
+    }
 
-        if (folderPlacement is not null &&
-            namespacePlacement is not null &&
-            !SamePlacement(folderPlacement, namespacePlacement))
+    static DotNetSourceStructureResolution? UnsupportedInput(
+        DotNetSourceStructure structure,
+        GenerationSliceKind sliceKind,
+        DotNetSourceStructurePolicy policy)
+    {
+        if (!IsSupportedPolicy(policy))
+        {
+            return Failed(
+                structure,
+                DotNetSourceStructureDiagnosticCodes.UnsupportedPolicy,
+                "The .NET source-structure policy is unsupported");
+        }
+
+        if (structure.ProjectRole is not DotNetProjectRole.Application and not DotNetProjectRole.Specifications)
+        {
+            return Failed(
+                structure,
+                DotNetSourceStructureDiagnosticCodes.UnsupportedProjectRole,
+                $"The .NET project role '{structure.ProjectRole}' is unsupported");
+        }
+
+        return IsSupportedSliceKind(sliceKind)
+            ? null
+            : Failed(
+                structure,
+                DotNetSourceStructureDiagnosticCodes.UnsupportedSliceKind,
+                $"The semantic slice kind '{sliceKind}' is unsupported");
+    }
+
+    static bool IsSupportedPolicy(DotNetSourceStructurePolicy policy) =>
+        policy.Version == 1 &&
+        policy.NamespaceSegmentsToSkip >= 0 &&
+        (policy.Module is null || IsName(policy.Module));
+
+    static bool IsSupportedSliceKind(GenerationSliceKind sliceKind) =>
+        sliceKind is GenerationSliceKind.StateChange or
+            GenerationSliceKind.StateView or
+            GenerationSliceKind.Automation or
+            GenerationSliceKind.Translate;
+
+    static FolderScan ScanFolders(
+        DotNetSourceStructure structure,
+        GenerationSliceKind sliceKind,
+        DotNetSourceStructurePolicy policy,
+        string[] featureRoot)
+    {
+        var folderPlacements = new List<ArtifactPlacement>();
+        foreach (var path in structure.ProjectRelativePaths.Order(StringComparer.Ordinal))
+        {
+            if (!TryNormalizeRelativePath(path, out var sourceSegments))
+            {
+                return new(
+                    Failed(
+                        structure,
+                        DotNetSourceStructureDiagnosticCodes.InvalidPath,
+                        $"The project-relative source path '{path}' is invalid"),
+                    folderPlacements);
+            }
+
+            if (!TryStripFeatureRoot(sourceSegments[..^1], featureRoot, out var directorySegments))
+            {
+                return new(
+                    Failed(
+                        structure,
+                        DotNetSourceStructureDiagnosticCodes.MissingFeatureRoot,
+                        $"The source path '{path}' is not beneath feature root '{policy.FeatureRoot}'"),
+                    folderPlacements);
+            }
+
+            if (PlacementFrom(directorySegments, sliceKind, policy.Module) is { } candidate &&
+                !folderPlacements.Exists(existing => SamePlacement(existing, candidate)))
+            {
+                folderPlacements.Add(candidate);
+            }
+        }
+
+        return new(null, folderPlacements);
+    }
+
+    static bool TryStripFeatureRoot(string[] directorySegments, string[] featureRoot, out string[] remaining)
+    {
+        remaining = directorySegments;
+        if (featureRoot.Length == 0)
+        {
+            return true;
+        }
+
+        if (!StartsWith(directorySegments, featureRoot))
+        {
+            return false;
+        }
+
+        remaining = directorySegments[featureRoot.Length..];
+        return true;
+    }
+
+    static DotNetSourceStructureResolution Merge(
+        DotNetSourceStructure structure,
+        ArtifactPlacement? folderPlacement,
+        ArtifactPlacement? namespacePlacement)
+    {
+        if (AreConflicting(folderPlacement, namespacePlacement))
         {
             return Failed(
                 structure,
                 DotNetSourceStructureDiagnosticCodes.ConflictingStructure,
-                $"Folder placement '{Describe(folderPlacement)}' conflicts with namespace placement '{Describe(namespacePlacement)}'");
+                $"Folder placement '{Describe(folderPlacement!)}' conflicts with namespace placement '{Describe(namespacePlacement!)}'");
         }
 
         var placement = folderPlacement ?? namespacePlacement;
@@ -357,94 +410,73 @@ public static class DotNetSourceStructureResolver
             return null;
         }
 
-        if (configuredModule is not null)
+        if (configuredModule is null)
         {
-            var remaining = segments.Length > 0 && string.Equals(segments[0], configuredModule, StringComparison.Ordinal)
-                ? segments[1..]
-                : segments;
-            if (remaining.Length == 0)
-            {
-                return null;
-            }
-
-            return new()
-            {
-                Module = configuredModule,
-                Features = remaining.Length == 1 ? [] : remaining[..^1],
-                Slice = remaining[^1],
-                SliceKind = sliceKind
-            };
+            return segments.Length < 2 ? null : Place(segments[0], segments[1..], sliceKind);
         }
 
-        if (segments.Length < 2)
-        {
-            return null;
-        }
-
-        return new()
-        {
-            Module = segments[0],
-            Features = segments.Length == 2 ? [] : segments[1..^1],
-            Slice = segments[^1],
-            SliceKind = sliceKind
-        };
+        var remaining = segments.Length > 0 && string.Equals(segments[0], configuredModule, StringComparison.Ordinal)
+            ? segments[1..]
+            : segments;
+        return remaining.Length == 0 ? null : Place(configuredModule, remaining, sliceKind);
     }
+
+    static ArtifactPlacement Place(string module, string[] featuresAndSlice, GenerationSliceKind sliceKind) => new()
+    {
+        Module = module,
+        Features = featuresAndSlice.Length == 1 ? [] : featuresAndSlice[..^1],
+        Slice = featuresAndSlice[^1],
+        SliceKind = sliceKind
+    };
 
     static bool TryNormalizeRelativePath(string value, out string[] segments)
     {
         segments = [];
-        string normalized;
+        if (!TryNormalize(value, out var normalized))
+        {
+            return false;
+        }
+
+        var folded = normalized.Replace('\\', '/');
+        if (IsUnusablePath(folded))
+        {
+            return false;
+        }
+
+        var parts = folded.Split('/').Where(part => !string.IsNullOrEmpty(part) && part != ".").ToArray();
+        if (parts.Length == 0 || !parts.All(IsName))
+        {
+            return false;
+        }
+
+        segments = parts;
+        return true;
+    }
+
+    static bool TryNormalize(string value, out string normalized)
+    {
+        normalized = string.Empty;
         try
         {
-            normalized = value.Normalize().Replace('\\', '/');
+            normalized = value.Normalize();
+            return true;
         }
         catch (ArgumentException)
         {
             return false;
         }
-
-        if (string.IsNullOrWhiteSpace(normalized) ||
-            normalized.Any(char.IsControl) ||
-            normalized[0] == '/' ||
-            (normalized.Length >= 2 && char.IsLetter(normalized[0]) && normalized[1] == ':'))
-        {
-            return false;
-        }
-
-        var parts = new List<string>();
-        foreach (var part in normalized.Split('/'))
-        {
-            if (string.IsNullOrEmpty(part) || part == ".")
-            {
-                continue;
-            }
-
-            if (part == ".." || !IsName(part))
-            {
-                return false;
-            }
-
-            parts.Add(part);
-        }
-
-        if (parts.Count == 0)
-        {
-            return false;
-        }
-
-        segments = [.. parts];
-        return true;
     }
+
+    static bool IsUnusablePath(string normalized) =>
+        string.IsNullOrWhiteSpace(normalized) ||
+        normalized.Any(char.IsControl) ||
+        normalized[0] == '/' ||
+        (normalized.Length >= 2 && char.IsLetter(normalized[0]) && normalized[1] == ':');
 
     static bool TryNamespaceSegments(string value, out string[] segments)
     {
         segments = [];
-        string normalized;
-        try
-        {
-            normalized = value.Normalize();
-        }
-        catch (ArgumentException)
+        if (!TryNormalize(value, out var normalized))
         {
             return false;
         }
@@ -454,10 +486,7 @@ public static class DotNetSourceStructureResolver
             return true;
         }
 
-        if (normalized.Any(char.IsControl) ||
-            normalized[0] == '.' ||
-            normalized[^1] == '.' ||
-            normalized.Contains("..", StringComparison.Ordinal))
+        if (normalized.Any(char.IsControl) || HasEmptyDottedSegment(normalized))
         {
             return false;
         }
@@ -465,6 +494,11 @@ public static class DotNetSourceStructureResolver
         segments = normalized.Split('.');
         return segments.All(IsName);
     }
+
+    static bool HasEmptyDottedSegment(string normalized) =>
+        normalized[0] == '.' ||
+        normalized[^1] == '.' ||
+        normalized.Contains("..", StringComparison.Ordinal);
 
     static bool StartsWith(string[] source, string[] prefix) =>
         source.Length >= prefix.Length &&
@@ -484,4 +518,11 @@ public static class DotNetSourceStructureResolver
 
     static string Describe(ArtifactPlacement placement) =>
         string.Join('/', new[] { placement.Module }.Concat(placement.Features).Append(placement.Slice));
+
+    static bool AreConflicting(ArtifactPlacement? folderPlacement, ArtifactPlacement? namespacePlacement) =>
+        folderPlacement is not null &&
+        namespacePlacement is not null &&
+        !SamePlacement(folderPlacement, namespacePlacement);
+
+    sealed record FolderScan(DotNetSourceStructureResolution? Failure, List<ArtifactPlacement> Placements);
 }
