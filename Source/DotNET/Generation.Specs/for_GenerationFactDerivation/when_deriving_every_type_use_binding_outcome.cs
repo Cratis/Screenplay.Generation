@@ -66,31 +66,31 @@ public class when_deriving_every_type_use_binding_outcome : given.a_derivation
             fact generation:derive:type-use-binding:1:0064006F0074006E00650074003A002F002F004F00720064006500720069006E0067002F0043006F006D006D0061006E00640073002E005200650067006900730074006500720043007500730074006F006D00650072:3:0063007500730074006F006D006500720043006F00640065:0064006F0074006E00650074003A002F002F004F00720064006500720069006E0067002F0043006F006E00630065007000740073002E0043007500730074006F006D006500720043006F00640065:1 | dotnet://Ordering/Commands.RegisterCustomer | dotnet://Ordering/Commands.RegisterCustomer.customerCode -> dotnet://Ordering/Concepts.CustomerCode/Concept
               producer cratis.screenplay.type-use-binding 1.0.0
               inputs application:command, application:member, application:use, concepts:customer-code
-              evidence application@Commands/RegisterCustomer.cs:1, application@Commands/RegisterCustomer.cs:2, application@Commands/RegisterCustomer.cs:10, concepts@Concepts/customer-code.cs:1
+              evidence application@Commands/RegisterCustomer.cs:1:1-1:20, application@Commands/RegisterCustomer.cs:2:1-2:20, application@Commands/RegisterCustomer.cs:10:1-10:20, concepts@Concepts/customer-code.cs:1:1-1:20
             ## legacy-target
             fact generation:derive:type-use-binding:1:0064006F0074006E00650074003A002F002F004F00720064006500720069006E0067002F0043006F006D006D0061006E00640073002E005200650067006900730074006500720043007500730074006F006D00650072:3:0063007500730074006F006D006500720043006F00640065:0064006F0074006E00650074003A002F002F004F00720064006500720069006E0067002F0043006F006E00630065007000740073002E0043007500730074006F006D006500720043006F00640065:1 | dotnet://Ordering/Commands.RegisterCustomer | dotnet://Ordering/Commands.RegisterCustomer.customerCode -> dotnet://Ordering/Concepts.CustomerCode/Concept
               producer cratis.screenplay.type-use-binding 1.0.0
               inputs application:legacy, application:use, concepts:customer-code
-              evidence application@Commands/RegisterCustomer.cs:1, application@Commands/RegisterCustomer.cs:10, concepts@Concepts/customer-code.cs:1
+              evidence application@Commands/RegisterCustomer.cs:1:1-1:20, application@Commands/RegisterCustomer.cs:10:1-10:20, concepts@Concepts/customer-code.cs:1:1-1:20
             ## legacy-conflict
-            diagnostic GEN0047 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:1 | application:legacy, application:legacy-b, application:use | Artifact member 'customerCode' retains incompatible exact legacy target roles. Input facts: 'application:legacy', 'application:legacy-b', 'application:use'
+            diagnostic GEN0047 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:1:1-1:20 | application:legacy, application:legacy-b, application:use | Artifact member 'customerCode' retains incompatible exact legacy target roles. Input facts: 'application:legacy', 'application:legacy-b', 'application:use'
             ## primitive
             ## conflicting-type-use
-            diagnostic GEN0046 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10 | application:use-a, application:use-b | Incompatible exact type uses were asserted for member 'customerCode'. Input facts: 'application:use-a', 'application:use-b'
+            diagnostic GEN0046 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10:1-10:20 | application:use-a, application:use-b | Incompatible exact type uses were asserted for member 'customerCode'. Input facts: 'application:use-a', 'application:use-b'
             ## missing-owner
-            diagnostic GEN0043 | Error | Unknown | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10 | application:use | Artifact owner 'dotnet://Ordering/Commands.RegisterCustomer' was not declared for member 'customerCode'. Input facts: 'application:use'
+            diagnostic GEN0043 | Error | Unknown | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10:1-10:20 | application:use | Artifact owner 'dotnet://Ordering/Commands.RegisterCustomer' was not declared for member 'customerCode'. Input facts: 'application:use'
             ## conflicting-owner
-            diagnostic GEN0048 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:1 | application:command, application:command-renamed, application:use | Incompatible declarations were asserted for artifact owner 'dotnet://Ordering/Commands.RegisterCustomer'. Input facts: 'application:command', 'application:command-renamed', 'application:use'
+            diagnostic GEN0048 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:1:1-1:20 | application:command, application:command-renamed, application:use | Incompatible declarations were asserted for artifact owner 'dotnet://Ordering/Commands.RegisterCustomer'. Input facts: 'application:command', 'application:command-renamed', 'application:use'
             ## missing-member
-            diagnostic GEN0044 | Error | Unknown | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:1 | application:command, application:use | Member 'customerCode' was not declared on artifact owner 'dotnet://Ordering/Commands.RegisterCustomer'. Input facts: 'application:command', 'application:use'
+            diagnostic GEN0044 | Error | Unknown | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:1:1-1:20 | application:command, application:use | Member 'customerCode' was not declared on artifact owner 'dotnet://Ordering/Commands.RegisterCustomer'. Input facts: 'application:command', 'application:use'
             ## conflicting-order
-            diagnostic GEN0048 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:2 | application:member-a, application:member-b, application:use | Incompatible declaration orders were asserted for member 'customerCode'. Input facts: 'application:member-a', 'application:member-b', 'application:use'
+            diagnostic GEN0048 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:2:1-2:20 | application:member-a, application:member-b, application:use | Incompatible declaration orders were asserted for member 'customerCode'. Input facts: 'application:member-a', 'application:member-b', 'application:use'
             ## missing-target
-            diagnostic GEN0045 | Error | Unknown | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10 | application:use | Observed type subject 'dotnet://Ordering/Concepts.CustomerCode' has no declared artifact target. Input facts: 'application:use'
+            diagnostic GEN0045 | Error | Unknown | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10:1-10:20 | application:use | Observed type subject 'dotnet://Ordering/Concepts.CustomerCode' has no declared artifact target. Input facts: 'application:use'
             ## conflicting-target-kinds
-            diagnostic GEN0047 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10 | application:use, concepts:customer-code, concepts:target-kind | Observed type subject 'dotnet://Ordering/Concepts.CustomerCode' declares incompatible artifact targets. Input facts: 'application:use', 'concepts:customer-code', 'concepts:target-kind'
+            diagnostic GEN0047 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10:1-10:20 | application:use, concepts:customer-code, concepts:target-kind | Observed type subject 'dotnet://Ordering/Concepts.CustomerCode' declares incompatible artifact targets. Input facts: 'application:use', 'concepts:customer-code', 'concepts:target-kind'
             ## conflicting-target-declarations
-            diagnostic GEN0048 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10 | application:use, concepts:customer-code, concepts:customer-code-b | Observed type subject 'dotnet://Ordering/Concepts.CustomerCode' has incompatible declarations. Input facts: 'application:use', 'concepts:customer-code', 'concepts:customer-code-b'
+            diagnostic GEN0048 | Error | Conflict | dotnet://Ordering/Commands.RegisterCustomer | Commands/RegisterCustomer.cs:10:1-10:20 | application:use, concepts:customer-code, concepts:customer-code-b | Observed type subject 'dotnet://Ordering/Concepts.CustomerCode' has incompatible declarations. Input facts: 'application:use', 'concepts:customer-code', 'concepts:customer-code-b'
             """;
 
     static PropertyDefinition LegacyProperty(string name, ArtifactKind kind) => new()
@@ -108,12 +108,12 @@ public class when_deriving_every_type_use_binding_outcome : given.a_derivation
             lines.Add($"fact {fact.Id.Value} | {fact.Subject.Value} | {fact.Definition.Member.Artifact.Subject.Value}.{fact.Definition.Member.Name} -> {fact.Definition.Target.Subject.Value}/{fact.Definition.Target.Kind}");
             lines.Add($"  producer {record.Lineage.Producer.Id} {record.Lineage.Producer.Version}");
             lines.Add($"  inputs {string.Join(", ", record.Lineage.Inputs.Select(_ => _.Value))}");
-            lines.Add($"  evidence {string.Join(", ", record.Lineage.Evidence.Select(_ => $"{_.Adapter.Id}@{_.Source?.Path}:{_.Source?.StartLine}"))}");
+            lines.Add($"  evidence {string.Join(", ", record.Lineage.Evidence.Select(_ => $"{_.Adapter.Id}@{_.Source?.Path}:{_.Source?.StartLine}:{_.Source?.StartColumn}-{_.Source?.EndLine}:{_.Source?.EndColumn}"))}");
         }
 
         foreach (var diagnostic in snapshot.Diagnostics)
         {
-            lines.Add($"diagnostic {diagnostic.Code} | {diagnostic.Severity} | {diagnostic.Outcome} | {diagnostic.Subject?.Value} | {diagnostic.Source?.Path}:{diagnostic.Source?.StartLine} | {string.Join(", ", diagnostic.Facts.Select(_ => _.Value))} | {diagnostic.Message}");
+            lines.Add($"diagnostic {diagnostic.Code} | {diagnostic.Severity} | {diagnostic.Outcome} | {diagnostic.Subject?.Value} | {diagnostic.Source?.Path}:{diagnostic.Source?.StartLine}:{diagnostic.Source?.StartColumn}-{diagnostic.Source?.EndLine}:{diagnostic.Source?.EndColumn} | {string.Join(", ", diagnostic.Facts.Select(_ => _.Value))} | {diagnostic.Message}");
         }
 
         return string.Join('\n', lines);

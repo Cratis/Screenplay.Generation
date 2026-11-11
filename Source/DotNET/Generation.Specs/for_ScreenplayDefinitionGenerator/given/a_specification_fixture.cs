@@ -103,7 +103,7 @@ public class a_specification_fixture : a_lowering_fixture
     static SpecificationValueKey ValueKey(SpecificationStepKey[] stepKeys, int index, ValueSpec value) => new()
     {
         Step = value.OtherStep is { } other ? stepKeys[other] : stepKeys[index],
-        Path = value.PathDepth == 2 ? ["nested", "name"] : [value.Name]
+        Path = value.Path ?? (value.PathDepth == 2 ? ["nested", "name"] : [value.Name])
     };
 
     List<GenerationFact> ValueFacts(string id, SubjectId scenario, SpecificationStepKey[] stepKeys, int index, ValueSpec value, SpecificationValueKey key)
@@ -158,5 +158,6 @@ public class a_specification_fixture : a_lowering_fixture
         ValueSpec[]? Children = null,
         int PathDepth = 1,
         bool SelfPath = false,
-        int? OtherStep = null);
+        int? OtherStep = null,
+        string[]? Path = null);
 }
