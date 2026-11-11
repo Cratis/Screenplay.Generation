@@ -89,6 +89,18 @@ public class when_extracting_payload_shapes_in_order : given.a_value_snapshot
             public static Derived P37 = new Derived { D = 2, B = 1 };
             public static Point P38 = new Point { X = 1, [0] = Runtime(), Y = 2 };
             public static Point P39 = new Point { 1, X = 2 };
+            public static Holder P40 = new Holder { W = 5 };
+            public static Holder P41 = new Holder { W = 5, W = 6 };
+        }
+
+        public readonly struct Wrapped
+        {
+            public static implicit operator Wrapped(int value) => default;
+        }
+
+        public class Holder
+        {
+            public Wrapped W { get; set; }
         }
         """;
 
@@ -137,6 +149,8 @@ public class when_extracting_payload_shapes_in_order : given.a_value_snapshot
         "P36: known payload(Values.Pair){First@79:38-79:39=const(1:int), Second@79:41-79:44=const(a:string)}",
         "P37: known payload(Values.Derived){D@80:50-80:51=const(2:int), B@80:57-80:58=const(1:int)}",
         "P38: unknown [Unsupported 81:49-81:52 'The payload initializer is not a direct member assignment'; Computed 81:55-81:64 'The value is computed by executable code']",
-        "P39: unknown [Unsupported 82:42-82:43 'A payload initializer contains a non-assignment element']"
+        "P39: unknown [Unsupported 82:42-82:43 'A payload initializer contains a non-assignment element']",
+        "P40: unknown [Unsupported 83:48-83:49 'The payload value conversion is not semantically valid']",
+        "P41: unknown [Unsupported 84:48-84:49 'The payload value conversion is not semantically valid'; DuplicateMember 84:55-84:56 'Payload member 'W' is assigned more than once'; Unsupported 84:55-84:56 'The payload value conversion is not semantically valid']"
     ]);
 }
