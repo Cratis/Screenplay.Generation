@@ -222,7 +222,8 @@ static class GranularArtifactResolver
         }
 
         var selected = typeUseVariants.Length == 1 ? typeUseVariants[0] : null;
-        var candidate = new MemberTypeUses(typeUseFacts, selected, member.Existing?.Property.Type);
+        var selectedFact = selected?.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
+        var candidate = new MemberTypeUses(typeUseFacts, selected, selectedFact, member.Existing?.Property.Type);
         if (selected is not null)
         {
             var overlaid = OverlayTypeUse(member, candidate);
@@ -551,11 +552,8 @@ static class GranularArtifactResolver
     sealed record MemberTypeUses(
         ArtifactMemberTypeUseFact[] Facts,
         IGrouping<string, ArtifactMemberTypeUseFact>? Variant,
-        TypeReferenceDefinition? Type)
-    {
-        public ArtifactMemberTypeUseFact? Selected =>
-            Variant?.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
-    }
+        ArtifactMemberTypeUseFact? Selected,
+        TypeReferenceDefinition? Type);
 
     sealed record MemberContext(
         ArtifactVariant Variant,
