@@ -76,15 +76,15 @@ public class when_source_authority_meets_hostile_shapes : given.a_runner_context
         _coordinateResults = [.. _coordinates.Select(_ => $"{_.Label}|{Authoritative(legacy, "a/b.cs", null, _.StartLine, _.StartColumn, _.EndLine, _.EndColumn)}")];
 
         var plain = MappedProject("project", "Project", "Project", "/checkout/Code.cs", Content, "a/b.cs");
-        var plainIdentity = plain.SourceContext!.Files.Values.Single().Identity;
+        var plainIdentity = plain.SourceContext.Files.Values.Single().Identity;
         _modernPlain = Authoritative(plain, "a/b.cs", plainIdentity);
         _missingIdentity = Authoritative(plain, "a/b.cs", null, stable: true);
         _wrongIdentity = Authoritative(plain, "a/b.cs", new SourceFileIdentity { Project = "project", Path = "other.cs" });
 
         var encoded = MappedProject("project", "Project", "Project", "/checkout/Code.cs", Content, "%2e%2e/a.cs");
-        _modernEncodedDotDot = Authoritative(encoded, "%2e%2e/a.cs", encoded.SourceContext!.Files.Values.Single().Identity);
+        _modernEncodedDotDot = Authoritative(encoded, "%2e%2e/a.cs", encoded.SourceContext.Files.Values.Single().Identity);
         var spaced = MappedProject("project", "Project", "Project", "/checkout/Code.cs", Content, " a.cs");
-        _modernLeadingSpace = Authoritative(spaced, " a.cs", spaced.SourceContext!.Files.Values.Single().Identity);
+        _modernLeadingSpace = Authoritative(spaced, " a.cs", spaced.SourceContext.Files.Values.Single().Identity);
     }
 
     [Fact]

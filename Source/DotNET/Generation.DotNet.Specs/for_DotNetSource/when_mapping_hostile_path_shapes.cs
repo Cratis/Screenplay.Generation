@@ -118,8 +118,8 @@ public class when_mapping_hostile_path_shapes : Specification
                     new DotNetSourceDocument
                     {
                         SyntaxTree = tree,
-                        ProjectRelativePath = path!,
-                        WorkspaceRelativePath = path!
+                        ProjectRelativePath = path,
+                        WorkspaceRelativePath = path
                     }
                 ]);
             var file = context.Files.Values.Single();

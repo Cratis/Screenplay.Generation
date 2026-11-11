@@ -197,7 +197,7 @@ public class with_hostile_path_and_namespace_shapes : Specification
             });
 
     static string Describe(DotNetSourceStructureResolution resolution) => resolution.IsSuccess
-        ? Escape($"placement:{resolution.Placement!.Module}/{string.Join('/', resolution.Placement.Features)}/{resolution.Placement.Slice}")
+        ? Escape($"placement:{resolution.Placement.Module}/{string.Join('/', resolution.Placement.Features)}/{resolution.Placement.Slice}")
         : string.Join(';', resolution.Diagnostics.Select(_ => $"{_.Code}:{Escape(_.Message)}"));
 
     static string Escape(string value) => string.Concat(value.Select(character =>
