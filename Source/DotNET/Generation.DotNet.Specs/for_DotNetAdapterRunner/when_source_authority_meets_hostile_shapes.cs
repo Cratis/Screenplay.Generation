@@ -223,7 +223,12 @@ public class when_source_authority_meets_hostile_shapes : given.a_runner_context
             [DotNetAdapterRegistration.For(adapter)],
             new DotNetAnalysisContext([project]),
             Options).Adapters.Single();
-        return record.Disposition == AdapterRunDisposition.Blocked ? "rejected" : "authoritative";
+        return record.Disposition switch
+        {
+            AdapterRunDisposition.Blocked => "rejected",
+            AdapterRunDisposition.Admitted => "authoritative",
+            _ => $"unexpected disposition {record.Disposition}"
+        };
     }
 
     static DotNetProjectCompilation LegacyProject(string treePath)
