@@ -1,0 +1,32 @@
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+namespace Cratis.Screenplay.Generation.for_AdapterContributionAdmission;
+
+public class when_characterizing_the_frozen_snapshot : given.a_characterized_admission
+{
+    string _snapshot = null!;
+
+    void Because() => _snapshot = SnapshotLines(Admit().Snapshot!);
+
+    [Fact] void should_freeze_every_fact_family_to_the_canonical_snapshot() => _snapshot.ShouldEqual(Expected);
+
+    const string Expected = """
+Descriptor {"Identity":{"Id":"atomic","Version":"1.2.3"},"SourceLanguage":"CSharp","Category":"ApplicationFramework","CompatibleGenerationVersions":{"MinimumInclusive":"0.14.0","MaximumExclusive":"2.0.0"},"RequiredHostCapabilities":["AuthoredSource","SemanticAnalysis"],"RequiredApiCapabilities":[],"EmittedFactCapabilities":["Artifact","ArtifactPlacement","Relationship","ConceptRepresentation","ConceptAttribute","ConceptValidationRule","SpecificationScenario","SpecificationStep","SpecificationValue","ArtifactDeclaration","ArtifactMemberDeclaration","ArtifactMemberTypeUse","TypeUseBinding","ArtifactMemberRole"]}
+Evidence {"Adapter":{"Id":"atomic","Version":"1.2.3"},"Strength":"Exact","Source":{"Path":"Accounts/Register.cs","FileIdentity":{"Project":"Accounts","Path":"Accounts/Register.cs"},"StartLine":3,"StartColumn":1,"EndLine":3,"EndColumn":20},"Explanation":null}
+ArtifactFact {"Definition":{"Key":{"Subject":{"Value":"dotnet://Accounts/artifact"},"Kind":"Command"},"Name":"Register","Description":null,"File":null,"Properties":[{"Name":"second","Type":{"Name":"External","Subject":{"Value":"python://catalog/shared-type"},"TargetArtifactKind":"Concept","IsCollection":false,"IsOptional":false},"IsIdentifier":false},{"Name":"first","Type":{"Name":"String","Subject":null,"TargetArtifactKind":null,"IsCollection":false,"IsOptional":false},"IsIdentifier":false}]},"Id":{"Value":"atomic:artifact"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+ArtifactDeclarationFact {"Definition":{"Artifact":{"Subject":{"Value":"dotnet://Accounts/artifact"},"Kind":"Command"},"Name":"Register","Description":null,"File":null},"Id":{"Value":"atomic:artifact-declaration"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+ArtifactMemberDeclarationFact {"Definition":{"Member":{"Artifact":{"Subject":{"Value":"dotnet://Accounts/artifact"},"Kind":"Command"},"Name":"second"},"DeclarationOrder":0},"Id":{"Value":"atomic:artifact-member"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+ArtifactMemberRoleFact {"Definition":{"Member":{"Artifact":{"Subject":{"Value":"dotnet://Accounts/artifact"},"Kind":"Command"},"Name":"second"},"Role":"Identifier"},"Id":{"Value":"atomic:artifact-member-role"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+ArtifactMemberTypeUseFact {"Definition":{"Member":{"Artifact":{"Subject":{"Value":"dotnet://Accounts/artifact"},"Kind":"Command"},"Name":"second"},"Type":{"Name":"External","ObservedTypeSubject":{"Value":"python://catalog/shared-type"},"Shape":["Optional","Collection","Named"]}},"Id":{"Value":"atomic:artifact-member-type-use"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+ConceptAttributeFact {"Definition":{"Concept":{"Value":"dotnet://Accounts/artifact"},"Kind":"Named","Name":"sensitive","Reason":null},"Id":{"Value":"atomic:concept-attribute"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+ConceptRepresentationFact {"Definition":{"Concept":{"Value":"dotnet://Accounts/artifact"},"Kind":"Primitive","Primitive":"Text","EnumerationValues":[]},"Id":{"Value":"atomic:concept-representation"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+ConceptValidationRuleFact {"Definition":{"Concept":{"Value":"dotnet://Accounts/artifact"},"RuleIdentity":"not-empty","Kind":"NamedPredicate","Predicate":"IsNotEmpty","Message":null,"ImplementationFile":null},"Id":{"Value":"atomic:concept-validation"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+ArtifactPlacementFact {"Artifact":{"Subject":{"Value":"dotnet://Accounts/artifact"},"Kind":"Command"},"Placement":{"Module":"Accounts","Features":["Registration","Commands"],"Slice":"Register","SliceKind":"StateChange"},"Id":{"Value":"atomic:placement"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+RelationshipFact {"Definition":{"Key":{"Kind":"Produces","Source":{"Value":"dotnet://Accounts/artifact"},"Target":{"Value":"python://catalog/shared-type"},"Discriminator":null},"SourceMember":null,"TargetMember":null,"IsCollection":false,"IsOptional":false},"Id":{"Value":"atomic:relationship"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+SpecificationScenarioFact {"Definition":{"Key":{"Scenario":{"Value":"dotnet://Accounts/scenario"}},"Name":"registering an account","TargetArtifact":{"Subject":{"Value":"python://catalog/shared-type"},"Kind":"Command"},"Steps":[{"Scenario":{"Scenario":{"Value":"dotnet://Accounts/scenario"}},"Index":0}]},"Id":{"Value":"atomic:scenario"},"Subject":{"Value":"dotnet://Accounts/scenario"},"Evidence":<evidence>}
+SpecificationStepFact {"Definition":{"Key":{"Scenario":{"Scenario":{"Value":"dotnet://Accounts/scenario"}},"Index":0},"Phase":"When","Kind":"Command","Artifact":{"Subject":{"Value":"python://catalog/shared-type"},"Kind":"Command"},"ErrorCode":null,"ErrorMessage":null,"Values":[{"Step":{"Scenario":{"Scenario":{"Value":"dotnet://Accounts/scenario"}},"Index":0},"Path":["arguments","name"]}]},"Id":{"Value":"atomic:step"},"Subject":{"Value":"dotnet://Accounts/scenario/step/0"},"Evidence":<evidence>}
+TypeUseBindingFact {"Definition":{"Member":{"Artifact":{"Subject":{"Value":"dotnet://Accounts/artifact"},"Kind":"Command"},"Name":"second"},"Target":{"Subject":{"Value":"python://catalog/shared-type"},"Kind":"Concept"}},"Id":{"Value":"atomic:type-use-binding"},"Subject":{"Value":"dotnet://Accounts/artifact"},"Evidence":<evidence>}
+SpecificationValueFact {"Definition":{"Key":{"Step":{"Scenario":{"Scenario":{"Value":"dotnet://Accounts/scenario"}},"Index":0},"Path":["arguments","name"]},"Kind":"Text","Type":{"Name":"External","Subject":{"Value":"python://catalog/shared-type"},"TargetArtifactKind":null,"IsCollection":false,"IsOptional":false},"Scalar":"Alice","Children":[]},"Id":{"Value":"atomic:value"},"Subject":{"Value":"dotnet://Accounts/scenario/step/0/arguments/name"},"Evidence":<evidence>}
+""";
+}
