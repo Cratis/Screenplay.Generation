@@ -96,7 +96,7 @@ public class when_an_exact_type_use_shape_cannot_be_lowered : given.a_generator
     [Fact] void should_not_emit_the_unsupported_member() => _result.Source.ShouldNotContain("codes String");
     [Fact] void should_omit_the_type_use_with_its_diagnostic() => TypeUseRecord().Disposition.ShouldEqual(GenerationFactDisposition.OmittedWithDiagnostic);
     [Fact] void should_associate_the_shape_diagnostic_with_the_type_use() => TypeUseRecord().Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain(GenerationDiagnosticCodes.UnsupportedTypeUseShape);
-    [Fact] void should_omit_the_complete_legacy_fact_as_diagnosed_provenance() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "critter-stack:legacy-artifact").Disposition.ShouldEqual(GenerationFactDisposition.OmittedWithDiagnostic);
+    [Fact] void should_omit_the_complete_legacy_fact_as_diagnosed_provenance() => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == "critter-stack:legacy-artifact").Disposition.ShouldEqual(GenerationFactDisposition.OmittedWithDiagnostic);
 
-    GenerationFactRecord TypeUseRecord() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "critter-stack:type-use");
+    GenerationFactRecord TypeUseRecord() => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == "critter-stack:type-use");
 }

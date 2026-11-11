@@ -54,7 +54,7 @@ public class when_calculating_specification_fact_dispositions : given.a_generato
     [Fact] void should_associate_the_incomplete_scenario_diagnostic_with_rejected_steps_and_values() => DiagnosticCodes(_rejected, "spec:scenario", "spec:step:when", "spec:step:then", "spec:value:when").All(code => code == GenerationDiagnosticCodes.IncompleteSpecificationScenario).ShouldBeTrue();
     [Fact] void should_classify_both_scenario_conflict_variants_independently() => Dispositions(_conflicted, "spec:scenario", "spec:scenario:conflict").ShouldContainOnly(GenerationFactDisposition.Conflicted, GenerationFactDisposition.Conflicted);
     [Fact] void should_classify_both_value_conflict_variants_independently() => Dispositions(_conflicted, "spec:value:then", "spec:value:then:conflict").ShouldContainOnly(GenerationFactDisposition.Conflicted, GenerationFactDisposition.Conflicted);
-    [Fact] void should_not_leave_accepted_rejected_or_conflicted_specification_facts_unknown() => _accepted.AdapterRun!.Facts.Concat(_rejected.AdapterRun!.Facts).Concat(_conflicted.AdapterRun!.Facts).Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();
+    [Fact] void should_not_leave_accepted_rejected_or_conflicted_specification_facts_unknown() => _accepted.AdapterRun.Facts.Concat(_rejected.AdapterRun.Facts).Concat(_conflicted.AdapterRun.Facts).Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();
 
     GenerationFact[] CommonFacts()
     {
@@ -163,11 +163,11 @@ public class when_calculating_specification_fact_dispositions : given.a_generato
     Evidence Exact() => new() { Adapter = Adapter, Strength = EvidenceStrength.Exact };
 
     static GenerationFactDisposition Disposition(GeneratedScreenplayDefinition result, string id) =>
-        result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == id).Disposition;
+        result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == id).Disposition;
 
     static GenerationFactDisposition[] Dispositions(GeneratedScreenplayDefinition result, params string[] ids) =>
         [.. ids.Select(id => Disposition(result, id))];
 
     static string[] DiagnosticCodes(GeneratedScreenplayDefinition result, params string[] ids) =>
-        [.. ids.Select(id => result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == id).Diagnostics[0].Code)];
+        [.. ids.Select(id => result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == id).Diagnostics[0].Code)];
 }

@@ -61,7 +61,7 @@ public class when_lowering_an_unknown_slice_kind : for_GenerationResolver.given.
     [Fact] void should_report_the_unknown_slice_kind() => _result.Diagnostics.Single().Code.ShouldEqual(GenerationDiagnosticCodes.UnsupportedSliceKind);
     [Fact] void should_type_the_unknown_outcome() => _result.Diagnostics.Single().Outcome.ShouldEqual(GenerationDiagnosticOutcome.Unknown);
     [Fact] void should_report_the_artifact_subject() => _result.Diagnostics.Single().Subject.ShouldEqual(EventSubject);
-    [Fact] void should_preserve_the_placement_source() => _result.Diagnostics.Single().Source!.Path.ShouldEqual("Accounts/Open/AccountOpened.cs");
+    [Fact] void should_preserve_the_placement_source() => _result.Diagnostics.Single().Source.Path.ShouldEqual("Accounts/Open/AccountOpened.cs");
     [Fact] void should_not_fabricate_state_change_semantics() => _source.ShouldNotContain("state change");
     [Fact] void should_not_emit_the_event_in_another_semantic_role() => _source.ShouldNotContain("event AccountOpened");
 }

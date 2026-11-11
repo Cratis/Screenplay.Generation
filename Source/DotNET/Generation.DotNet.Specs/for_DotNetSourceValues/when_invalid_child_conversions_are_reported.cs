@@ -40,5 +40,5 @@ public class when_invalid_child_conversions_are_reported : given.a_compilation
     [Fact] void should_report_one_exact_collection_conversion_failure() => _collection.Failures.Select(_ => _.Kind).ShouldEqual([DotNetValueFailureKind.Unsupported]);
     [Fact] void should_locate_the_collection_failure_at_the_authored_element() => SourceText(_collection.Failures.Single().Source).ShouldEqual("\"not an int\"");
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

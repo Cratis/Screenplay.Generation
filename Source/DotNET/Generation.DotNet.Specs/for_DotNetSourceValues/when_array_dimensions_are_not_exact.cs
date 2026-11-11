@@ -79,5 +79,5 @@ public class when_array_dimensions_are_not_exact : given.a_compilation
 
     static IReadOnlyList<DotNetValueFailure> Failures(DotNetBounded<DotNetCollectionValue> result) => ((DotNetUnknown<DotNetCollectionValue>)result).Failures;
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

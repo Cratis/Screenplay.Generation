@@ -21,7 +21,7 @@ public class when_parameter_signatures_are_snapshotted : given.a_compilation
                 public static string Convert(int value) => value.ToString();
             }
             """));
-        var method = compilation.GetTypeByMetadataName("Values.Operations")!.GetMembers("Convert").OfType<IMethodSymbol>().Single();
+        var method = compilation.GetTypeByMetadataName("Values.Operations").GetMembers("Convert").OfType<IMethodSymbol>().Single();
         var described = DotNetMethodSignatures.From(method);
         _mutable = [.. described.Parameters];
         _signature = described with { Parameters = _mutable };

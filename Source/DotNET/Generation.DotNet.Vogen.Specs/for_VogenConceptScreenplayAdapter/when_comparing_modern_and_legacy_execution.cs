@@ -62,7 +62,7 @@ public class when_comparing_modern_and_legacy_execution : given.a_vogen_compilat
 
     static string Facts(AdapterRunSnapshot snapshot) => string.Join(
         '|',
-        snapshot.Facts.Select(record => $"{record.Fact.GetType().Name}:{record.Fact.Id.Value}:{record.Fact.Subject.Value}:{record.Fact.Evidence.Source!.FileIdentity}"));
+        snapshot.Facts.Select(record => $"{record.Fact.GetType().Name}:{record.Fact.Id.Value}:{record.Fact.Subject.Value}:{record.Fact.Evidence.Source.FileIdentity}"));
 
     static string Diagnostics(AdapterRunSnapshot snapshot) => string.Join(
         '|',

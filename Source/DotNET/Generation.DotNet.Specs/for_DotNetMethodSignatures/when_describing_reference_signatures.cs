@@ -19,7 +19,7 @@ public class when_describing_reference_signatures : given.a_compilation
                 public static ref readonly int Read(in int value) => ref value;
             }
             """));
-        var method = compilation.GetTypeByMetadataName("Framework.ReferenceMethods")!.GetMembers("Read").OfType<IMethodSymbol>().Single();
+        var method = compilation.GetTypeByMetadataName("Framework.ReferenceMethods").GetMembers("Read").OfType<IMethodSymbol>().Single();
         _signature = DotNetMethodSignatures.From(method);
     }
 

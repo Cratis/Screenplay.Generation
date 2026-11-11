@@ -45,13 +45,13 @@ public class when_resolving_conditional_receivers : given.a_compilation
         var conditional = invocations[0];
         var conditionalChain = invocations[1];
         var unqualified = invocations[2];
-        var conditionalMethod = DotNetInvocations.MethodFor(conditional, semanticModel)!;
-        var conditionalChainMethod = DotNetInvocations.MethodFor(conditionalChain, semanticModel)!;
-        var unqualifiedMethod = DotNetInvocations.MethodFor(unqualified, semanticModel)!;
+        var conditionalMethod = DotNetInvocations.MethodFor(conditional, semanticModel);
+        var conditionalChainMethod = DotNetInvocations.MethodFor(conditionalChain, semanticModel);
+        var unqualifiedMethod = DotNetInvocations.MethodFor(unqualified, semanticModel);
 
-        _conditionalReceiver = DotNetInvocations.ReceiverFor(conditional, conditionalMethod, semanticModel)!;
-        _conditionalRoot = DotNetInvocations.ReceiverRootParameter(conditional, conditionalMethod, semanticModel)!;
-        _conditionalChainRoot = DotNetInvocations.ReceiverRootParameter(conditionalChain, conditionalChainMethod, semanticModel)!;
+        _conditionalReceiver = DotNetInvocations.ReceiverFor(conditional, conditionalMethod, semanticModel);
+        _conditionalRoot = DotNetInvocations.ReceiverRootParameter(conditional, conditionalMethod, semanticModel);
+        _conditionalChainRoot = DotNetInvocations.ReceiverRootParameter(conditionalChain, conditionalChainMethod, semanticModel);
         _unqualifiedReceiver = DotNetInvocations.ReceiverFor(unqualified, unqualifiedMethod, semanticModel);
     }
 

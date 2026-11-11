@@ -41,7 +41,7 @@ public class when_enforcing_generation_contract_version_compatibility : given.a_
         _atMaximumRecord = Run(_atMaximum, new Version(2, 0, 0));
         _unboundedRecord = Run(_unbounded, new Version(99, 0, 0));
 
-        var currentVersion = typeof(AdapterDescriptor).Assembly.GetName().Version!;
+        var currentVersion = typeof(AdapterDescriptor).Assembly.GetName().Version;
         var defaultVersion = Adapter(
             "default-version",
             new GenerationVersionRange { MinimumInclusive = currentVersion });

@@ -53,5 +53,5 @@ public class when_payload_constructor_binding_fails : given.a_compilation
 
     string[] FailureSources(int index) => [.. _results[index].Failures.Select(_ => SourceText(_.Source))];
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

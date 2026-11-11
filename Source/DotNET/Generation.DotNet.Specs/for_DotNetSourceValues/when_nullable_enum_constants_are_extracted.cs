@@ -45,7 +45,7 @@ public class when_nullable_enum_constants_are_extracted : given.a_compilation
         ];
     }
 
-    [Fact] void should_preserve_the_unique_nullable_enum_member_symbol() => ((IFieldSymbol)((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_results[0]).Value).Value!).Name.ShouldEqual("None");
+    [Fact] void should_preserve_the_unique_nullable_enum_member_symbol() => ((IFieldSymbol)((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_results[0]).Value).Value).Name.ShouldEqual("None");
     [Fact] void should_reject_an_aliased_nullable_enum_value() => ((DotNetUnknown<DotNetSourceValue>)_results[1]).Failures.Single().Kind.ShouldEqual(DotNetValueFailureKind.Ambiguous);
     [Fact] void should_reject_a_nullable_enum_value_without_a_declared_member() => ((DotNetUnknown<DotNetSourceValue>)_results[2]).Failures.Single().Kind.ShouldEqual(DotNetValueFailureKind.Unsupported);
     [Fact] void should_preserve_null_as_an_exact_nullable_enum_constant() => ((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_results[3]).Value).Value.ShouldBeNull();

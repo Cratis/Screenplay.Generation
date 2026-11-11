@@ -92,20 +92,20 @@ public class when_canonicalizing_complete_adapter_run_snapshots : given.a_genera
     }
 
     [Fact] void should_return_recursively_identical_canonical_adapter_runs() => AdapterRunProjection(_reverse.AdapterRun).ShouldEqual(AdapterRunProjection(_forward.AdapterRun));
-    [Fact] void should_return_a_new_adapter_record() => ReferenceEquals(_forward.AdapterRun!.Adapters[0], _completedInput).ShouldBeFalse();
-    [Fact] void should_deep_clone_the_descriptor() => ReferenceEquals(_forward.AdapterRun!.Adapters[0].Descriptor, _completedInput.Descriptor).ShouldBeFalse();
-    [Fact] void should_canonicalize_host_capabilities() => _forward.AdapterRun!.Adapters[0].Descriptor.RequiredHostCapabilities.ShouldContainOnly(AdapterHostCapability.AuthoredSource, AdapterHostCapability.SemanticAnalysis);
-    [Fact] void should_canonicalize_api_capabilities() => _forward.AdapterRun!.Adapters[0].Descriptor.RequiredApiCapabilities.Select(_ => _.Id).ShouldEqual(["api.alpha", "api.zeta"]);
-    [Fact] void should_canonicalize_fact_capabilities() => _forward.AdapterRun!.Adapters[0].Descriptor.EmittedFactCapabilities.ShouldContainOnly(GenerationFactCapability.Artifact, GenerationFactCapability.ArtifactPlacement);
-    [Fact] void should_canonicalize_probe_evidence() => _forward.AdapterRun!.Adapters[0].Probe.Evidence.Select(_ => _.Description).ShouldEqual(["Subject", "API"]);
-    [Fact] void should_preserve_the_complete_probe_source_range() => _forward.AdapterRun!.Adapters[0].Probe.Evidence[0].Source!.EndColumn.ShouldEqual(9);
+    [Fact] void should_return_a_new_adapter_record() => ReferenceEquals(_forward.AdapterRun.Adapters[0], _completedInput).ShouldBeFalse();
+    [Fact] void should_deep_clone_the_descriptor() => ReferenceEquals(_forward.AdapterRun.Adapters[0].Descriptor, _completedInput.Descriptor).ShouldBeFalse();
+    [Fact] void should_canonicalize_host_capabilities() => _forward.AdapterRun.Adapters[0].Descriptor.RequiredHostCapabilities.ShouldContainOnly(AdapterHostCapability.AuthoredSource, AdapterHostCapability.SemanticAnalysis);
+    [Fact] void should_canonicalize_api_capabilities() => _forward.AdapterRun.Adapters[0].Descriptor.RequiredApiCapabilities.Select(_ => _.Id).ShouldEqual(["api.alpha", "api.zeta"]);
+    [Fact] void should_canonicalize_fact_capabilities() => _forward.AdapterRun.Adapters[0].Descriptor.EmittedFactCapabilities.ShouldContainOnly(GenerationFactCapability.Artifact, GenerationFactCapability.ArtifactPlacement);
+    [Fact] void should_canonicalize_probe_evidence() => _forward.AdapterRun.Adapters[0].Probe.Evidence.Select(_ => _.Description).ShouldEqual(["Subject", "API"]);
+    [Fact] void should_preserve_the_complete_probe_source_range() => _forward.AdapterRun.Adapters[0].Probe.Evidence[0].Source.EndColumn.ShouldEqual(9);
     [Fact] void should_canonicalize_completed_contribution_facts() => CompletedContribution().Facts.Select(_ => _.Id.Value).ShouldEqual(["adapter-completed:artifact", "adapter-completed:placement"]);
     [Fact] void should_preserve_authored_property_order_by_deep_clone() => ((ArtifactFact)CompletedContribution().Facts[0]).Definition.Properties.Select(_ => _.Name).ShouldEqual(["accountId"]);
     [Fact] void should_preserve_authored_feature_order_by_deep_clone() => ((ArtifactPlacementFact)CompletedContribution().Facts[1]).Placement.Features.ShouldEqual("Registration", "Opening");
     [Fact] void should_preserve_completed_contribution_diagnostics() => CompletedContribution().Diagnostics.Select(_ => _.Message).ShouldContainOnly("alpha", "zeta");
     [Fact] void should_canonicalize_rejected_admission_diagnostics() => RejectedExecution().AdmissionDiagnostics[0].Path.ShouldEqual("z.path");
-    [Fact] void should_deep_clone_fact_records() => ReferenceEquals(_forward.AdapterRun!.Facts[0].Fact, CompletedContribution().Facts[0]).ShouldBeFalse();
-    [Fact] void should_deep_clone_run_diagnostics() => ReferenceEquals(_forward.AdapterRun!.Diagnostics[0], _completedInput.Execution.Diagnostics[0]).ShouldBeFalse();
+    [Fact] void should_deep_clone_fact_records() => ReferenceEquals(_forward.AdapterRun.Facts[0].Fact, CompletedContribution().Facts[0]).ShouldBeFalse();
+    [Fact] void should_deep_clone_run_diagnostics() => ReferenceEquals(_forward.AdapterRun.Diagnostics[0], _completedInput.Execution.Diagnostics[0]).ShouldBeFalse();
 
     AdapterRunRecord CompletedRecord(
         IReadOnlyList<GenerationFact> facts,
@@ -171,7 +171,7 @@ public class when_canonicalizing_complete_adapter_run_snapshots : given.a_genera
             Probe = new AdapterProbeApplicable { Evidence = ProbeEvidence(reverse) },
             Execution = new AdapterExecutionRejected
             {
-                Diagnostics = [.. GenerationDiagnostics("REJECTED", diagnostics[0].Subject!)],
+                Diagnostics = [.. GenerationDiagnostics("REJECTED", diagnostics[0].Subject)],
                 AdmissionDiagnostics = reverse
                     ? [.. Reversed(diagnostics)]
                     : [.. diagnostics]
@@ -270,8 +270,8 @@ public class when_canonicalizing_complete_adapter_run_snapshots : given.a_genera
     }
 
     AdapterContributionSnapshot CompletedContribution() =>
-        ((AdapterExecutionCompleted)_forward.AdapterRun!.Adapters.Single(_ => _.Descriptor.Identity == _completedAdapter).Execution).Contribution;
+        ((AdapterExecutionCompleted)_forward.AdapterRun.Adapters.Single(_ => _.Descriptor.Identity == _completedAdapter).Execution).Contribution;
 
     AdapterExecutionRejected RejectedExecution() =>
-        (AdapterExecutionRejected)_forward.AdapterRun!.Adapters.Single(_ => _.Descriptor.Identity == _rejectedAdapter).Execution;
+        (AdapterExecutionRejected)_forward.AdapterRun.Adapters.Single(_ => _.Descriptor.Identity == _rejectedAdapter).Execution;
 }

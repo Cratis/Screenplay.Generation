@@ -53,8 +53,8 @@ public class when_discovering_authored_vogen_declarations : given.a_vogen_compil
     [Fact] void should_map_the_generic_record_class() => RepresentationFor(_contribution, ConceptNamed(_contribution, "ReferenceCode")).Definition.Primitive.ShouldEqual(GenerationPrimitiveKind.WholeNumber);
     [Fact] void should_apply_the_assembly_default_to_the_struct() => RepresentationFor(_contribution, ConceptNamed(_contribution, "CustomerCode")).Definition.Primitive.ShouldEqual(GenerationPrimitiveKind.Text);
     [Fact] void should_apply_vogens_builtin_int_default() => RepresentationFor(_contribution, ConceptNamed(_contribution, "StockLevel")).Definition.Primitive.ShouldEqual(GenerationPrimitiveKind.WholeNumber);
-    [Fact] void should_anchor_the_concept_at_the_authored_value_object_attribute() => ConceptNamed(_contribution, "CustomerCode").Evidence.Source!.StartLine.ShouldEqual(7);
-    [Fact] void should_anchor_the_configured_representation_at_the_assembly_default() => RepresentationFor(_contribution, ConceptNamed(_contribution, "CustomerCode")).Evidence.Source!.StartLine.ShouldEqual(1);
+    [Fact] void should_anchor_the_concept_at_the_authored_value_object_attribute() => ConceptNamed(_contribution, "CustomerCode").Evidence.Source.StartLine.ShouldEqual(7);
+    [Fact] void should_anchor_the_configured_representation_at_the_assembly_default() => RepresentationFor(_contribution, ConceptNamed(_contribution, "CustomerCode")).Evidence.Source.StartLine.ShouldEqual(1);
     [Fact] void should_use_exact_evidence() => _contribution.Facts.All(_ => _.Evidence.Strength == EvidenceStrength.Exact && _.Evidence.Source is not null).ShouldBeTrue();
     [Fact] void should_use_the_exact_project_qualified_subject() => ConceptNamed(_contribution, "OrderId").Subject.Value.ShouldEqual("dotnet://Banking.Project/Banking/Banking.OrderId");
     [Fact] void should_preserve_the_authored_file() => ConceptNamed(_contribution, "OrderId").Definition.File.ShouldEqual("Banking/Concepts.cs");

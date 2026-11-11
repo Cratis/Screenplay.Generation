@@ -39,6 +39,6 @@ public class when_diagnostic_prose_names_an_unrelated_fact : given.a_generator
 
     static GenerationFactDisposition Disposition(GeneratedScreenplayDefinition result) => Record(result).Disposition;
 
-    static GenerationFactRecord Record(GeneratedScreenplayDefinition result) => result.AdapterRun!.Facts
+    static GenerationFactRecord Record(GeneratedScreenplayDefinition result) => result.AdapterRun.Facts
         .Single(record => record.Fact.Id.Value == "event:AccountOpened");
 }

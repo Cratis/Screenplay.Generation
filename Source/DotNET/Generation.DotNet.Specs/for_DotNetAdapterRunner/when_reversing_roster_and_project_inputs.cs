@@ -61,7 +61,7 @@ public class when_reversing_roster_and_project_inputs : given.a_runner_context
     }
 
     static string Projects(DotNetAnalysisContext context) =>
-        string.Join(',', context.Projects.Select(project => project.SourceContext!.ProjectIdentity));
+        string.Join(',', context.Projects.Select(project => project.SourceContext.ProjectIdentity));
 
     static string SnapshotProjection(AdapterRunSnapshot snapshot) => string.Join(
         '|',

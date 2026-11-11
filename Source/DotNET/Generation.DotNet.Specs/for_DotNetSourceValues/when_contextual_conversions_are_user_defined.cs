@@ -95,7 +95,7 @@ public class when_contextual_conversions_are_user_defined : given.a_compilation
 
         var properties = root.DescendantNodes().OfType<PropertyDeclarationSyntax>()
             .Where(property => property.ExpressionBody is not null)
-            .ToDictionary(property => property.Identifier.ValueText, property => property.ExpressionBody!.Expression, StringComparer.Ordinal);
+            .ToDictionary(property => property.Identifier.ValueText, property => property.ExpressionBody.Expression, StringComparer.Ordinal);
         _payloads =
         [
             DotNetSourceValues.Payload(properties["RootPayload"], semanticModel),
@@ -124,5 +124,5 @@ public class when_contextual_conversions_are_user_defined : given.a_compilation
 
     static IReadOnlyList<DotNetValueFailure> CollectionFailures(DotNetBounded<DotNetCollectionValue> result) => ((DotNetUnknown<DotNetCollectionValue>)result).Failures;
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

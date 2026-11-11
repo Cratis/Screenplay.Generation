@@ -114,7 +114,7 @@ public class when_granular_type_use_overlays_a_legacy_non_concept_binding : give
 
     [Fact] void should_generate_successfully() => _result.IsSuccess.ShouldBeTrue();
     [Fact] void should_preserve_the_legacy_exact_target_role() => Owner().Definition.Properties.Single().Type.TargetArtifactKind.ShouldEqual(ArtifactKind.Event);
-    [Fact] void should_derive_the_existing_exact_event_target() => ((TypeUseBindingFact)_result.AdapterRun!.Derivation!.Facts.Single().Fact).Definition.Target.ShouldEqual(new ArtifactKey { Subject = _targetSubject, Kind = ArtifactKind.Event });
+    [Fact] void should_derive_the_existing_exact_event_target() => ((TypeUseBindingFact)_result.AdapterRun.Derivation.Facts.Single().Fact).Definition.Target.ShouldEqual(new ArtifactKey { Subject = _targetSubject, Kind = ArtifactKind.Event });
     [Fact] void should_not_substitute_the_same_subject_concept() => _result.Source.ShouldContain("customerCode CustomerCodeEvent");
 
     ResolvedArtifactVariant Owner() => _result.Graph.Artifacts

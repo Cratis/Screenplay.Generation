@@ -51,5 +51,5 @@ public class when_collection_types_or_conversions_are_not_exact : given.a_compil
 
     static IReadOnlyList<DotNetValueFailure> Failures(DotNetBounded<DotNetCollectionValue> result) => ((DotNetUnknown<DotNetCollectionValue>)result).Failures;
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

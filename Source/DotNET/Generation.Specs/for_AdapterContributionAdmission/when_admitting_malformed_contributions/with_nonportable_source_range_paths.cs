@@ -33,7 +33,7 @@ public class with_nonportable_source_range_paths : given.a_contribution
     static AdapterContributionAdmissionResult AdmitWithPath(string path)
     {
         var fact = EveryFact().OfType<ArtifactFact>().Single();
-        var source = fact.Evidence.Source! with { Path = path };
+        var source = fact.Evidence.Source with { Path = path };
         var contribution = Contribution(
             facts:
             [

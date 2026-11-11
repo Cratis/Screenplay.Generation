@@ -43,5 +43,5 @@ public class when_extracting_an_exact_typeof_value : given.a_compilation
     [Fact] void should_reject_a_typeof_value_contextually_converted_to_dynamic() => ((DotNetUnknown<DotNetSourceValue>)_dynamic).Failures.Single().Kind.ShouldEqual(DotNetValueFailureKind.Dynamic);
     [Fact] void should_locate_the_dynamic_failure_at_the_authored_typeof_expression() => SourceText(((DotNetUnknown<DotNetSourceValue>)_dynamic).Failures.Single().Source).ShouldEqual("typeof(Model)");
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

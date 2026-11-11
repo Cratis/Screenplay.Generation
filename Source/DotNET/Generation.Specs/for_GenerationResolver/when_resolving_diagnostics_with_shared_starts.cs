@@ -32,7 +32,7 @@ public class when_resolving_diagnostics_with_shared_starts : given.facts
 
     [Fact]
     void should_use_the_complete_source_range_as_a_tie_breaker() =>
-        _forward.Diagnostics.Select(_ => _.Source!.EndLine).ShouldContainOnly(8, 12);
+        _forward.Diagnostics.Select(_ => _.Source.EndLine).ShouldContainOnly(8, 12);
 
     static AdapterContribution ContributionWithDiagnostic(
         AdapterIdentity adapter,

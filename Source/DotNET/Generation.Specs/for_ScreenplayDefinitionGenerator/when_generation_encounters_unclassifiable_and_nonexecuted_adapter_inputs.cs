@@ -43,14 +43,14 @@ public class when_generation_encounters_unclassifiable_and_nonexecuted_adapter_i
             new ScreenplayGenerationOptions { Domain = "Empty" });
     }
 
-    [Fact] void should_fail_closed_for_the_unclassifiable_fact() => _unclassifiable.AdapterRun!.Facts.Single().Disposition.ShouldEqual(GenerationFactDisposition.Unknown);
-    [Fact] void should_report_a_stable_error_for_the_unclassifiable_fact() => _unclassifiable.AdapterRun!.Facts.Single().Diagnostics.Single().Code.ShouldEqual(GenerationDiagnosticCodes.UnclassifiedGenerationFact);
+    [Fact] void should_fail_closed_for_the_unclassifiable_fact() => _unclassifiable.AdapterRun.Facts.Single().Disposition.ShouldEqual(GenerationFactDisposition.Unknown);
+    [Fact] void should_report_a_stable_error_for_the_unclassifiable_fact() => _unclassifiable.AdapterRun.Facts.Single().Diagnostics.Single().Code.ShouldEqual(GenerationDiagnosticCodes.UnclassifiedGenerationFact);
     [Fact] void should_not_report_success_for_the_unclassifiable_fact() => _unclassifiable.IsSuccess.ShouldBeFalse();
-    [Fact] void should_not_resolve_facts_from_the_top_level_input_fact_records() => _nonExecuted.AdapterRun!.Facts.ShouldBeEmpty();
-    [Fact] void should_preserve_blocked_and_rejected_adapter_records() => _nonExecuted.AdapterRun!.Adapters.Select(record => record.Disposition).ShouldContainOnly(AdapterRunDisposition.Blocked, AdapterRunDisposition.ContributionRejected);
+    [Fact] void should_not_resolve_facts_from_the_top_level_input_fact_records() => _nonExecuted.AdapterRun.Facts.ShouldBeEmpty();
+    [Fact] void should_preserve_blocked_and_rejected_adapter_records() => _nonExecuted.AdapterRun.Adapters.Select(record => record.Disposition).ShouldContainOnly(AdapterRunDisposition.Blocked, AdapterRunDisposition.ContributionRejected);
     [Fact] void should_preserve_the_blocked_diagnostic() => _nonExecuted.Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain("RUN-BLOCKED");
     [Fact] void should_preserve_the_rejected_diagnostic() => _nonExecuted.Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain("RUN-REJECTED");
-    [Fact] void should_keep_runner_diagnostics_canonical_without_duplicates() => _nonExecuted.AdapterRun!.Diagnostics.Length.ShouldEqual(2);
+    [Fact] void should_keep_runner_diagnostics_canonical_without_duplicates() => _nonExecuted.AdapterRun.Diagnostics.Length.ShouldEqual(2);
 
     static AdapterRunRecord Record(
         string id,

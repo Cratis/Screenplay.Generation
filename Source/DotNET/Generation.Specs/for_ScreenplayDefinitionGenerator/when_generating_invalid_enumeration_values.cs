@@ -46,6 +46,6 @@ public class when_generating_invalid_enumeration_values : given.a_generator
     }
 
     [Fact] void should_report_the_unsupported_representation() => _result.Diagnostics.Select(_ => _.Code).ShouldContain(GenerationDiagnosticCodes.UnsupportedConceptRepresentation);
-    [Fact] void should_preserve_the_representation_source() => _result.Diagnostics.Single().Source!.Path.ShouldEqual("Concepts/Status.cs");
+    [Fact] void should_preserve_the_representation_source() => _result.Diagnostics.Single().Source.Path.ShouldEqual("Concepts/Status.cs");
     [Fact] void should_not_emit_the_invalid_enumeration() => _result.Source.ShouldNotContain("concept Status");
 }

@@ -37,7 +37,7 @@ public class when_source_members_normalize_to_the_same_name : given.a_generator
 
     [Fact] void should_report_the_normalized_member_conflict() => _result.Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain(GenerationDiagnosticCodes.ConflictingArtifactMember);
     [Fact] void should_omit_the_conflicted_granular_artifact() => _result.Graph.Artifacts.Any(artifact => artifact.Key.Kind == ArtifactKind.CompositeType).ShouldBeFalse();
-    [Fact] void should_conflict_both_exact_source_member_assertions() => _result.AdapterRun!.Facts.Where(record => record.Fact is ArtifactMemberDeclarationFact).All(record => record.Disposition == GenerationFactDisposition.Conflicted).ShouldBeTrue();
+    [Fact] void should_conflict_both_exact_source_member_assertions() => _result.AdapterRun.Facts.Where(record => record.Fact is ArtifactMemberDeclarationFact).All(record => record.Disposition == GenerationFactDisposition.Conflicted).ShouldBeTrue();
 
     static ArtifactMemberDeclarationFact Member(
         string id,

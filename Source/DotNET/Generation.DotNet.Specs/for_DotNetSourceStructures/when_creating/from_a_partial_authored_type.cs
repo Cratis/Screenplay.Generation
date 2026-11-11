@@ -49,7 +49,7 @@ public class from_a_partial_authored_type : given.a_compilation
     [Fact]
     void should_order_every_authored_declaration_path() => string.Join('|', _structure.ProjectRelativePaths).ShouldEqual(
         "Source/Accounts/Register/Register.Validation.cs|Source/Accounts/Register/Register.cs");
-    [Fact] void should_preserve_stable_source_identity() => _structure.Source!.FileIdentity!.Project.ShouldEqual("apps/Banking");
+    [Fact] void should_preserve_stable_source_identity() => _structure.Source.FileIdentity.Project.ShouldEqual("apps/Banking");
 
     static DotNetSourceDocument Document(SyntaxTree tree, string path) => new()
     {

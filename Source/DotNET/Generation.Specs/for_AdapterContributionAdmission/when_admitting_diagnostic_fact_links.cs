@@ -21,6 +21,6 @@ public class when_admitting_diagnostic_fact_links : given.a_contribution
     void Because() => _result = Admit(contribution: Contribution(diagnostics: [_diagnostic]));
 
     [Fact] void should_admit_the_contribution() => _result.IsAdmitted.ShouldBeTrue();
-    [Fact] void should_retain_the_exact_fact_link() => _result.Snapshot!.Diagnostics.Single().Facts.Single().ShouldEqual(Id("artifact"));
-    [Fact] void should_deep_copy_the_fact_link() => ReferenceEquals(_result.Snapshot!.Diagnostics.Single().Facts.Single(), _diagnostic.Facts.Single()).ShouldBeFalse();
+    [Fact] void should_retain_the_exact_fact_link() => _result.Snapshot.Diagnostics.Single().Facts.Single().ShouldEqual(Id("artifact"));
+    [Fact] void should_deep_copy_the_fact_link() => ReferenceEquals(_result.Snapshot.Diagnostics.Single().Facts.Single(), _diagnostic.Facts.Single()).ShouldBeFalse();
 }

@@ -85,13 +85,13 @@ public class when_calculating_concept_fact_dispositions : given.a_generator
     [Fact] void should_classify_the_first_conflicting_representation() => Disposition("representation:first").ShouldEqual(GenerationFactDisposition.Conflicted);
     [Fact] void should_classify_the_second_conflicting_representation() => Disposition("representation:second").ShouldEqual(GenerationFactDisposition.Conflicted);
     [Fact] void should_omit_the_concept_whose_representation_conflicted() => Disposition("concept:conflicted").ShouldEqual(GenerationFactDisposition.OmittedWithDiagnostic);
-    [Fact] void should_not_leave_any_fact_unknown() => _result.AdapterRun!.Facts.Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();
+    [Fact] void should_not_leave_any_fact_unknown() => _result.AdapterRun.Facts.Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();
 
     GenerationFactDisposition Disposition(string id) => Record(id).Disposition;
 
     string DiagnosticCode(string id) => Record(id).Diagnostics[0].Code;
 
-    GenerationFactRecord Record(string id) => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == id);
+    GenerationFactRecord Record(string id) => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == id);
 
     Evidence Exact() => new() { Adapter = Adapter, Strength = EvidenceStrength.Exact };
 }

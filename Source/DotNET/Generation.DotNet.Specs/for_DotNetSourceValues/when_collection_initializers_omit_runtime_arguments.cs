@@ -56,5 +56,5 @@ public class when_collection_initializers_omit_runtime_arguments : given.a_compi
 
     object? ScalarValue(int index) => ((DotNetConstantValue)_collections[index].Values.Single().Value).Value;
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

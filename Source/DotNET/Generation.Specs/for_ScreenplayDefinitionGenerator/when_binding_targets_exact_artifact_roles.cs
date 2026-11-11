@@ -125,6 +125,6 @@ public class when_binding_targets_exact_artifact_roles : given.a_generator
         .Single(artifact => artifact.Key.Subject.Value == "dotnet://Ordering/Events.RegistrationAttempted")
         .Variants.Single();
 
-    static GenerationFactRecord Binding(GeneratedScreenplayDefinition result) => result.AdapterRun!.Facts
+    static GenerationFactRecord Binding(GeneratedScreenplayDefinition result) => result.AdapterRun.Facts
         .Single(record => record.Fact.Id.Value == "owner:binding");
 }

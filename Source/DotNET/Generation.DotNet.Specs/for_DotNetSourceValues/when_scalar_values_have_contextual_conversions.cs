@@ -47,11 +47,11 @@ public class when_scalar_values_have_contextual_conversions : given.a_compilatio
     [Fact] void should_reject_every_invalid_contextual_conversion_once() => _invalid.SelectMany(Failures).Select(_ => _.Kind).ShouldEqual([DotNetValueFailureKind.Unsupported, DotNetValueFailureKind.Unsupported, DotNetValueFailureKind.Unsupported]);
     [Fact] void should_locate_each_invalid_conversion_at_the_authored_expression() => _invalid.SelectMany(Failures).Select(_ => SourceText(_.Source)).ShouldEqual(["256", "\"not an int\"", "typeof(string)"]);
     [Fact] void should_preserve_a_valid_contextual_numeric_constant() => ((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_valid[0]).Value).Value.ShouldEqual(1);
-    [Fact] void should_preserve_the_contextual_numeric_type() => ((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_valid[0]).Value).Type!.SpecialType.ShouldEqual(SpecialType.System_Byte);
+    [Fact] void should_preserve_the_contextual_numeric_type() => ((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_valid[0]).Value).Type.SpecialType.ShouldEqual(SpecialType.System_Byte);
     [Fact] void should_preserve_a_valid_boxed_constant() => ((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_valid[1]).Value).Value.ShouldEqual(42);
     [Fact] void should_preserve_a_typeof_value_converted_to_object() => ((DotNetKnown<DotNetSourceValue>)_valid[2]).Value.ShouldBeOfExactType<DotNetTypeValue>();
 
     static IReadOnlyList<DotNetValueFailure> Failures(DotNetBounded<DotNetSourceValue> result) => ((DotNetUnknown<DotNetSourceValue>)result).Failures;
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

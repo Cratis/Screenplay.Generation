@@ -93,15 +93,15 @@ public class when_attaching_fixed_snapshot_derivation : given.a_generator
     [Fact] void should_attach_the_closed_derivation_rule() => Derivation().Rules.Single().Rule.ShouldEqual(new GenerationDerivationRuleIdentity { Id = "cratis.screenplay.type-use-binding", Version = "1.0.0" });
     [Fact] void should_attach_the_exact_derived_binding() => Binding().Definition.ShouldEqual(new TypeUseBindingDefinition { Member = new ArtifactMemberKey { Artifact = new ArtifactKey { Subject = _commandSubject, Kind = ArtifactKind.Command }, Name = "customerCode" }, Target = new ArtifactKey { Subject = _conceptSubject, Kind = ArtifactKind.Concept } });
     [Fact] void should_attach_the_exact_stable_binding_identity() => Binding().Id.Value.ShouldEqual(ExpectedBindingId);
-    [Fact] void should_attach_the_exact_lineage_producer() => Record().Lineage!.Producer.ShouldEqual(new GenerationDerivationRuleIdentity { Id = "cratis.screenplay.type-use-binding", Version = "1.0.0" });
-    [Fact] void should_attach_the_exact_canonical_lineage_inputs() => Record().Lineage!.Inputs.Select(input => input.Value).ShouldEqual("application:command", "application:member:customerCode", "application:type-use:customer-code", "concepts:customer-code");
-    [Fact] void should_attach_evidence_corresponding_to_every_lineage_input() => Record().Lineage!.Evidence.ShouldEqual(Evidence(_application), Evidence(_application), Evidence(_application), Evidence(_concepts));
+    [Fact] void should_attach_the_exact_lineage_producer() => Record().Lineage.Producer.ShouldEqual(new GenerationDerivationRuleIdentity { Id = "cratis.screenplay.type-use-binding", Version = "1.0.0" });
+    [Fact] void should_attach_the_exact_canonical_lineage_inputs() => Record().Lineage.Inputs.Select(input => input.Value).ShouldEqual("application:command", "application:member:customerCode", "application:type-use:customer-code", "concepts:customer-code");
+    [Fact] void should_attach_evidence_corresponding_to_every_lineage_input() => Record().Lineage.Evidence.ShouldEqual(Evidence(_application), Evidence(_application), Evidence(_application), Evidence(_concepts));
     [Fact] void should_propagate_derivation_diagnostics_to_the_generated_result() => _forward.Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain(GenerationDiagnosticCodes.MissingTypeUseTarget);
     [Fact] void should_retain_derivation_diagnostics_on_the_adapter_run() => Derivation().Diagnostics.Select(diagnostic => diagnostic.Code).ShouldContain(GenerationDiagnosticCodes.MissingTypeUseTarget);
     [Fact] void should_canonicalize_adapter_and_fact_permutations() => AdapterRunProjection(_reverse.AdapterRun).ShouldEqual(AdapterRunProjection(_forward.AdapterRun));
     [Fact] void should_generate_identical_source_for_adapter_and_fact_permutations() => _reverse.Source.ShouldEqual(_forward.Source);
     [Fact] void should_remain_deeply_immutable_after_input_mutation() => AdapterRunProjection(_forward.AdapterRun).ShouldEqual(_beforeMutation);
-    [Fact] void should_deep_copy_admitted_input_evidence_into_lineage() => ReferenceEquals(Record().Lineage!.Evidence[2], _admittedTypeUseEvidence).ShouldBeFalse();
+    [Fact] void should_deep_copy_admitted_input_evidence_into_lineage() => ReferenceEquals(Record().Lineage.Evidence[2], _admittedTypeUseEvidence).ShouldBeFalse();
 
     GenerationDerivationSnapshot Derivation() => _forward.AdapterRun!.Derivation!;
 

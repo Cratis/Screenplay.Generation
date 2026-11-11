@@ -45,13 +45,13 @@ public class when_resolving_formal_arguments : given.a_compilation
         var reordered = invocations[0];
         var explicitParams = invocations[1];
         var expandedParams = invocations[2];
-        var reorderedMethod = DotNetInvocations.MethodFor(reordered, semanticModel)!;
-        var explicitParamsMethod = DotNetInvocations.MethodFor(explicitParams, semanticModel)!;
-        var expandedParamsMethod = DotNetInvocations.MethodFor(expandedParams, semanticModel)!;
+        var reorderedMethod = DotNetInvocations.MethodFor(reordered, semanticModel);
+        var explicitParamsMethod = DotNetInvocations.MethodFor(explicitParams, semanticModel);
+        var expandedParamsMethod = DotNetInvocations.MethodFor(expandedParams, semanticModel);
 
         _omittedOptional = DotNetInvocations.ArgumentForParameter(reordered, reorderedMethod, "second", semanticModel);
-        _reorderedNamed = DotNetInvocations.ArgumentForParameter(reordered, reorderedMethod, "third", semanticModel)!;
-        _explicitParams = DotNetInvocations.ArgumentForParameter(explicitParams, explicitParamsMethod, "values", semanticModel)!;
+        _reorderedNamed = DotNetInvocations.ArgumentForParameter(reordered, reorderedMethod, "third", semanticModel);
+        _explicitParams = DotNetInvocations.ArgumentForParameter(explicitParams, explicitParamsMethod, "values", semanticModel);
         _expandedParams = DotNetInvocations.ArgumentForParameter(expandedParams, expandedParamsMethod, "values", semanticModel);
     }
 

@@ -42,5 +42,5 @@ public class when_nested_payload_index_keys_are_not_exact : given.a_compilation
     [Fact] void should_preserve_every_nested_index_failure_location() => _result.Failures.Select(_ => SourceText(_.Source)).ShouldEqual(["Values", "MissingKey", "Helper()"]);
     [Fact] void should_publish_no_partial_payload() => _result.ShouldBeOfExactType<DotNetUnknown<DotNetPayloadValue>>();
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

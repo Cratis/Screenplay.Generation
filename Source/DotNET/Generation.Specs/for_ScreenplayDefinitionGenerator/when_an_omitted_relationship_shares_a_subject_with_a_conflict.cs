@@ -46,5 +46,5 @@ public class when_an_omitted_relationship_shares_a_subject_with_a_conflict : giv
         };
 
     GenerationFactRecord Record(string id) =>
-        _result.AdapterRun!.Facts.Single(_ => _.Fact.Id.Value == id);
+        _result.AdapterRun.Facts.Single(_ => _.Fact.Id.Value == id);
 }

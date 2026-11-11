@@ -25,7 +25,7 @@ public class with_an_explicit_module : Specification
         });
 
     [Fact] void should_succeed() => _result.IsSuccess.ShouldBeTrue();
-    [Fact] void should_collapse_the_source_root_into_the_configured_module() => _result.Placement!.Module.ShouldEqual("Application");
-    [Fact] void should_keep_the_source_root_as_a_feature() => _result.Placement!.Features.ShouldContainOnly("Projects");
-    [Fact] void should_keep_the_final_segment_as_the_slice() => _result.Placement!.Slice.ShouldEqual("Register");
+    [Fact] void should_collapse_the_source_root_into_the_configured_module() => _result.Placement.Module.ShouldEqual("Application");
+    [Fact] void should_keep_the_source_root_as_a_feature() => _result.Placement.Features.ShouldContainOnly("Projects");
+    [Fact] void should_keep_the_final_segment_as_the_slice() => _result.Placement.Slice.ShouldEqual("Register");
 }

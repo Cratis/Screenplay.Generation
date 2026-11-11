@@ -88,5 +88,5 @@ public class when_construction_roots_are_not_semantically_valid : given.a_compil
 
     string[] FailureSources(int index) => [.. ((DotNetUnknown<DotNetSourceValue>)_results[index]).Failures.Select(_ => SourceText(_.Source))];
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

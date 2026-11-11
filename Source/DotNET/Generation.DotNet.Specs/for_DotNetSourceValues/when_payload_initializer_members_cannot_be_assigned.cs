@@ -59,5 +59,5 @@ public class when_payload_initializer_members_cannot_be_assigned : given.a_compi
 
     DotNetValueFailureKind[] FailureKinds(int index) => [.. _results[index].Failures.Select(_ => _.Kind)];
 
-    string[] FailureSources(int index) => [.. _results[index].Failures.Select(_ => _.Source.SourceTree!.GetText().ToString(_.Source.SourceSpan))];
+    string[] FailureSources(int index) => [.. _results[index].Failures.Select(_ => _.Source.SourceTree.GetText().ToString(_.Source.SourceSpan))];
 }
