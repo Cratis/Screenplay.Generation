@@ -1,9 +1,11 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace Cratis.Screenplay.Generation.DotNet;
 
@@ -13,8 +15,51 @@ internal static class DotNetCollectionValues
         ExpressionSyntax expression,
         SemanticModel semanticModel)
     {
-        var failures = new List<DotNetValueFailure>();
-        var hasUnsupportedRank = false;
+        var elements = ElementsOf(expression, semanticModel);
+        if (elements is null)
+        {
+            return null;
+        }
+
+        var state = new CollectionState(expression, semanticModel);
+        state.HasUnsupportedRank = ValidateRank(expression, semanticModel, state.Failures);
+        var typeInfo = semanticModel.GetTypeInfo(expression);
+        var type = typeInfo.Type ?? typeInfo.ConvertedType;
+        ValidateType(expression, typeInfo, state.Failures);
+        AddRootFailures(expression, semanticModel, state.Failures);
+
+        foreach (var element in elements)
+        {
+            CollectElement(element, state);
+        }
+
+        if (state.Failures.Count == 0 &&
+            DotNetSourceValues.CompilerErrorFailure(expression, semanticModel, "collection") is { } compilerFailure)
+        {
+            DotNetSourceValues.AddFailure(state.Failures, compilerFailure);
+        }
+
+        return state.Failures.Count == 0
+            ? new DotNetKnown<DotNetSourceValue>(new DotNetCollectionValue(type, [.. state.Values]))
+            : new DotNetUnknown<DotNetSourceValue>([.. state.Failures]);
+    }
+
+    static IReadOnlyList<SyntaxNode>? ElementsOf(ExpressionSyntax expression, SemanticModel semanticModel) => expression switch
+    {
+        ArrayCreationExpressionSyntax collectionArray => collectionArray.Initializer?.Expressions ?? [],
+        ImplicitArrayCreationExpressionSyntax { Initializer: { } initializer } => initializer.Expressions,
+        InitializerExpressionSyntax initializer => initializer.Expressions,
+        CollectionExpressionSyntax collection => collection.Elements,
+        BaseObjectCreationExpressionSyntax { Initializer: { } initializer } collectionCreation
+            when IsDirectCollectionInitializer(collectionCreation, semanticModel) => initializer.Expressions,
+        _ => null
+    };
+
+    static bool ValidateRank(
+        ExpressionSyntax expression,
+        SemanticModel semanticModel,
+        List<DotNetValueFailure> failures)
+    {
         if (expression is ArrayCreationExpressionSyntax array)
         {
             if (array.Initializer is null)
@@ -25,43 +70,27 @@ internal static class DotNetCollectionValues
                     "An array without an initializer has no individually authored elements"));
             }
 
-            hasUnsupportedRank = ValidateDimensions(array, semanticModel, failures);
+            return ValidateDimensions(array, semanticModel, failures);
         }
 
         if (expression is ImplicitArrayCreationExpressionSyntax { Commas.Count: > 0 } implicitMultidimensional)
         {
-            hasUnsupportedRank = true;
             DotNetSourceValues.AddFailure(failures, new(
                 DotNetValueFailureKind.Unsupported,
                 implicitMultidimensional.GetLocation(),
                 "Only one-dimensional arrays are supported by bounded collection extraction"));
+            return true;
         }
 
-        IReadOnlyList<SyntaxNode>? elements = expression switch
-        {
-            ArrayCreationExpressionSyntax collectionArray => collectionArray.Initializer?.Expressions ?? [],
-            ImplicitArrayCreationExpressionSyntax { Initializer: { } initializer } => initializer.Expressions,
-            InitializerExpressionSyntax initializer => initializer.Expressions,
-            CollectionExpressionSyntax collection => collection.Elements,
-            BaseObjectCreationExpressionSyntax { Initializer: { } initializer } collectionCreation
-                when IsDirectCollectionInitializer(collectionCreation, semanticModel) => initializer.Expressions,
-            _ => null
-        };
-        if (elements is null)
-        {
-            return null;
-        }
+        return false;
+    }
 
-        var typeInfo = semanticModel.GetTypeInfo(expression);
-        var type = typeInfo.Type ?? typeInfo.ConvertedType;
-        ValidateType(expression, typeInfo, failures);
-        if (expression is not InitializerExpressionSyntax &&
-            DotNetSourceValues.ContextualConversionFailure(
-                expression,
-                semanticModel,
-                "collection value",
-                false) is { } conversionFailure &&
-            ShouldReportRootConversionFailure(expression, semanticModel))
+    static void AddRootFailures(
+        ExpressionSyntax expression,
+        SemanticModel semanticModel,
+        List<DotNetValueFailure> failures)
+    {
+        if (RootConversionFailure(expression, semanticModel) is { } conversionFailure)
         {
             DotNetSourceValues.AddFailure(failures, conversionFailure);
         }
@@ -71,91 +100,97 @@ internal static class DotNetCollectionValues
         {
             DotNetSourceValues.AddFailure(failures, rootFailure);
         }
+    }
 
-        var values = new List<DotNetCollectionElement>();
-        foreach (var element in elements)
+    static DotNetValueFailure? RootConversionFailure(ExpressionSyntax expression, SemanticModel semanticModel) =>
+        expression is not InitializerExpressionSyntax &&
+        DotNetSourceValues.ContextualConversionFailure(expression, semanticModel, "collection value", false) is { } failure &&
+        ShouldReportRootConversionFailure(expression, semanticModel)
+            ? failure
+            : null;
+
+    static ExpressionSyntax? ElementExpressionOf(SyntaxNode element) => element switch
+    {
+        ExpressionElementSyntax expressionElement => expressionElement.Expression,
+        ExpressionSyntax direct => direct,
+        _ => null
+    };
+
+    static void CollectElement(SyntaxNode element, CollectionState state)
+    {
+        if (element is SpreadElementSyntax spread)
         {
-            if (element is SpreadElementSyntax spread)
-            {
-                DotNetSourceValues.AddFailure(failures, new(
-                    DotNetValueFailureKind.OpaqueSpread,
-                    spread.GetLocation(),
-                    "A collection spread hides elements that are not authored individually"));
-                CollectSpreadFailures(spread.Expression, semanticModel, failures);
-                continue;
-            }
-
-            var elementExpression = element switch
-            {
-                ExpressionElementSyntax expressionElement => expressionElement.Expression,
-                ExpressionSyntax direct => direct,
-                _ => null
-            };
-            if (elementExpression is null)
-            {
-                DotNetSourceValues.AddFailure(failures, new(
-                    DotNetValueFailureKind.Unsupported,
-                    element.GetLocation(),
-                    "The collection element shape is outside bounded extraction"));
-                continue;
-            }
-
-            if (elementExpression is InitializerExpressionSyntax nestedInitializer)
-            {
-                if (expression is BaseObjectCreationExpressionSyntax && nestedInitializer.Expressions.Count == 1)
-                {
-                    elementExpression = nestedInitializer.Expressions[0];
-                }
-                else
-                {
-                    if (!hasUnsupportedRank)
-                    {
-                        DotNetSourceValues.AddFailure(failures, new(
-                            DotNetValueFailureKind.Unsupported,
-                            nestedInitializer.GetLocation(),
-                            expression is BaseObjectCreationExpressionSyntax
-                                ? "A direct collection initializer entry must contain one authored value"
-                                : "A nested collection initializer is outside bounded extraction"));
-                    }
-
-                    CollectInitializerFailures(
-                        nestedInitializer,
-                        semanticModel,
-                        failures,
-                        !hasUnsupportedRank);
-                    continue;
-                }
-            }
-
-            var extracted = DotNetSourceValues.Extract(elementExpression, semanticModel);
-            if (extracted is DotNetUnknown<DotNetSourceValue> unknown)
-            {
-                DotNetSourceValues.AddFailures(failures, unknown.Failures);
-                continue;
-            }
-
-            if (DotNetSourceValues.ContextualConversionFailure(
-                    elementExpression,
-                    semanticModel,
-                    "collection element") is { } elementConversionFailure)
-            {
-                DotNetSourceValues.AddFailure(failures, elementConversionFailure);
-            }
-            else if (extracted is DotNetKnown<DotNetSourceValue> known)
-            {
-                values.Add(new(known.Value, elementExpression.GetLocation()));
-            }
+            DotNetSourceValues.AddFailure(state.Failures, new(
+                DotNetValueFailureKind.OpaqueSpread,
+                spread.GetLocation(),
+                "A collection spread hides elements that are not authored individually"));
+            CollectSpreadFailures(spread.Expression, state.SemanticModel, state.Failures);
+            return;
         }
 
-        if (failures.Count == 0 &&
-            DotNetSourceValues.CompilerErrorFailure(expression, semanticModel, "collection") is { } compilerFailure)
+        var elementExpression = ElementExpressionOf(element);
+        if (elementExpression is null)
         {
-            DotNetSourceValues.AddFailure(failures, compilerFailure);
+            DotNetSourceValues.AddFailure(state.Failures, new(
+                DotNetValueFailureKind.Unsupported,
+                element.GetLocation(),
+                "The collection element shape is outside bounded extraction"));
+            return;
         }
 
-        return failures.Count == 0
-            ? new DotNetKnown<DotNetSourceValue>(new DotNetCollectionValue(type, [.. values]))
-            : new DotNetUnknown<DotNetSourceValue>([.. failures]);
+        if (elementExpression is InitializerExpressionSyntax nestedInitializer)
+        {
+            if (!state.IsDirectEntry(nestedInitializer))
+            {
+                ReportNestedInitializer(nestedInitializer, state);
+                return;
+            }
+
+            elementExpression = nestedInitializer.Expressions[0];
+        }
+
+        AddExtractedElement(elementExpression, state);
+    }
+
+    static void ReportNestedInitializer(InitializerExpressionSyntax nestedInitializer, CollectionState state)
+    {
+        if (!state.HasUnsupportedRank)
+        {
+            DotNetSourceValues.AddFailure(state.Failures, new(
+                DotNetValueFailureKind.Unsupported,
+                nestedInitializer.GetLocation(),
+                state.Expression is BaseObjectCreationExpressionSyntax
+                    ? "A direct collection initializer entry must contain one authored value"
+                    : "A nested collection initializer is outside bounded extraction"));
+        }
+
+        CollectInitializerFailures(
+            nestedInitializer,
+            state.SemanticModel,
+            state.Failures,
+            !state.HasUnsupportedRank);
+    }
+
+    static void AddExtractedElement(ExpressionSyntax elementExpression, CollectionState state)
+    {
+        var extracted = DotNetSourceValues.Extract(elementExpression, state.SemanticModel);
+        if (extracted is DotNetUnknown<DotNetSourceValue> unknown)
+        {
+            DotNetSourceValues.AddFailures(state.Failures, unknown.Failures);
+            return;
+        }
+
+        if (DotNetSourceValues.ContextualConversionFailure(
+                elementExpression,
+                state.SemanticModel,
+                "collection element") is { } elementConversionFailure)
+        {
+            DotNetSourceValues.AddFailure(state.Failures, elementConversionFailure);
+        }
+        else if (extracted is DotNetKnown<DotNetSourceValue> known)
+        {
+            state.Values.Add(new(known.Value, elementExpression.GetLocation()));
+        }
     }
 
     static bool ShouldReportRootConversionFailure(
@@ -206,31 +241,39 @@ internal static class DotNetCollectionValues
 
         if (outerRank.Sizes[0] is not OmittedArraySizeExpressionSyntax)
         {
-            var size = outerRank.Sizes[0];
-            if (DotNetSourceValues.ConditionalExpressionWithin(size) is { } conditionalDimension)
-            {
-                DotNetSourceValues.AddFailure(failures, new(
-                    DotNetValueFailureKind.Conditional,
-                    conditionalDimension.GetLocation(),
-                    "The array dimension depends on a condition"));
-            }
-            else if (!TryGetExactArrayLength(size, semanticModel, out var length))
-            {
-                DotNetSourceValues.AddFailure(failures, new(
-                    DotNetValueFailureKind.Computed,
-                    size.GetLocation(),
-                    "The array dimension is not one exact non-negative constant"));
-            }
-            else if ((array.Initializer?.Expressions.Count ?? 0) != length)
-            {
-                DotNetSourceValues.AddFailure(failures, new(
-                    DotNetValueFailureKind.Unsupported,
-                    size.GetLocation(),
-                    "The explicit array dimension does not match its authored initializer elements"));
-            }
+            ValidateDimension(array, outerRank.Sizes[0], semanticModel, failures);
         }
 
         return false;
+    }
+
+    static void ValidateDimension(
+        ArrayCreationExpressionSyntax array,
+        ExpressionSyntax size,
+        SemanticModel semanticModel,
+        List<DotNetValueFailure> failures)
+    {
+        if (DotNetSourceValues.ConditionalExpressionWithin(size) is { } conditionalDimension)
+        {
+            DotNetSourceValues.AddFailure(failures, new(
+                DotNetValueFailureKind.Conditional,
+                conditionalDimension.GetLocation(),
+                "The array dimension depends on a condition"));
+        }
+        else if (!TryGetExactArrayLength(size, semanticModel, out var length))
+        {
+            DotNetSourceValues.AddFailure(failures, new(
+                DotNetValueFailureKind.Computed,
+                size.GetLocation(),
+                "The array dimension is not one exact non-negative constant"));
+        }
+        else if ((array.Initializer?.Expressions.Count ?? 0) != length)
+        {
+            DotNetSourceValues.AddFailure(failures, new(
+                DotNetValueFailureKind.Unsupported,
+                size.GetLocation(),
+                "The explicit array dimension does not match its authored initializer elements"));
+        }
     }
 
     static bool TryGetExactArrayLength(
@@ -242,9 +285,7 @@ internal static class DotNetCollectionValues
         var operation = semanticModel.GetOperation(size);
         var typeInfo = semanticModel.GetTypeInfo(size);
         var dimensionType = typeInfo.ConvertedType ?? operation?.Type ?? typeInfo.Type;
-        if (!IsIntegralDimensionType(dimensionType) ||
-            DotNetSourceValues.HasInvalidOperation(operation) ||
-            !DotNetSourceValues.IsSupportedContextualConversion(semanticModel.GetConversion(size)))
+        if (!IsExactDimension(size, semanticModel, operation, dimensionType))
         {
             return false;
         }
@@ -252,13 +293,17 @@ internal static class DotNetCollectionValues
         var constant = operation is { ConstantValue.HasValue: true }
             ? operation.ConstantValue
             : semanticModel.GetConstantValue(size);
-        if (!constant.HasValue)
-        {
-            return false;
-        }
-
-        return TryGetNonNegativeInt32(constant.Value, out length);
+        return constant.HasValue && TryGetNonNegativeInt32(constant.Value, out length);
     }
+
+    static bool IsExactDimension(
+        ExpressionSyntax size,
+        SemanticModel semanticModel,
+        IOperation? operation,
+        ITypeSymbol? dimensionType) =>
+        IsIntegralDimensionType(dimensionType) &&
+        !DotNetSourceValues.HasInvalidOperation(operation) &&
+        DotNetSourceValues.IsSupportedContextualConversion(semanticModel.GetConversion(size));
 
     static bool IsIntegralDimensionType(ITypeSymbol? type) => type?.SpecialType is
         SpecialType.System_SByte or
@@ -275,45 +320,18 @@ internal static class DotNetCollectionValues
 
     static bool TryGetNonNegativeInt32(object? value, out int length)
     {
-        switch (value)
+        var exact = value switch
         {
-            case sbyte exact when exact >= 0:
-                length = exact;
-                return true;
-            case byte exact:
-                length = exact;
-                return true;
-            case short exact when exact >= 0:
-                length = exact;
-                return true;
-            case ushort exact:
-                length = exact;
-                return true;
-            case int exact when exact >= 0:
-                length = exact;
-                return true;
-            case uint exact when exact <= int.MaxValue:
-                length = (int)exact;
-                return true;
-            case long exact when exact is >= 0 and <= int.MaxValue:
-                length = (int)exact;
-                return true;
-            case ulong exact when exact <= int.MaxValue:
-                length = (int)exact;
-                return true;
-            case char exact:
-                length = exact;
-                return true;
-            case IntPtr exact when exact >= 0 && exact <= int.MaxValue:
-                length = (int)exact;
-                return true;
-            case UIntPtr exact when exact <= int.MaxValue:
-                length = (int)exact;
-                return true;
-            default:
-                length = default;
-                return false;
-        }
+            sbyte or byte or short or ushort or int or uint or long or ulong =>
+                Convert.ToDecimal(value, CultureInfo.InvariantCulture),
+            char typed => typed,
+            IntPtr typed => typed,
+            UIntPtr typed => typed,
+            _ => (decimal?)null
+        };
+        var isLength = exact is >= 0 and <= int.MaxValue;
+        length = isLength ? (int)exact!.Value : default;
+        return isLength;
     }
 
     static void ValidateType(
@@ -370,5 +388,21 @@ internal static class DotNetCollectionValues
         }
 
         DotNetSourceValues.AddFailures(failures, unknown.Failures);
+    }
+
+    sealed class CollectionState(ExpressionSyntax expression, SemanticModel semanticModel)
+    {
+        public ExpressionSyntax Expression { get; } = expression;
+
+        public SemanticModel SemanticModel { get; } = semanticModel;
+
+        public bool HasUnsupportedRank { get; set; }
+
+        public List<DotNetValueFailure> Failures { get; } = [];
+
+        public List<DotNetCollectionElement> Values { get; } = [];
+
+        public bool IsDirectEntry(InitializerExpressionSyntax nestedInitializer) =>
+            Expression is BaseObjectCreationExpressionSyntax && nestedInitializer.Expressions.Count == 1;
     }
 }

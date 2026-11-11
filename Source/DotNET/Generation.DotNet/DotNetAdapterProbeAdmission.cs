@@ -82,42 +82,55 @@ static class DotNetAdapterProbeAdmission
         var frozen = ImmutableArray.CreateBuilder<AdapterProbeEvidence>();
         foreach (var item in source)
         {
-            if (item is null ||
-                !IsNormalized(item.Description, true) ||
-                (item.ApiCapability is not null && !IsNormalized(item.ApiCapability.Id, false)) ||
-                (item.Subject is not null && !IsSubject(item.Subject.Value)) ||
-                (item.Source is not null && !validator.IsAuthoritative(item.Source)))
+            if (!IsAdmissible(item, validator))
             {
                 return false;
             }
 
-            frozen.Add(new AdapterProbeEvidence
-            {
-                Description = item.Description,
-                ApiCapability = item.ApiCapability is null
-                    ? null
-                    : new AdapterApiCapability { Id = item.ApiCapability.Id },
-                Source = item.Source is null ? null : Freeze(item.Source),
-                Subject = item.Subject is null ? null : new SubjectId { Value = item.Subject.Value }
-            });
+            frozen.Add(Freeze(item));
         }
 
-        evidence =
-        [
-            .. frozen
-                .OrderBy(item => item.ApiCapability?.Id, StringComparer.Ordinal)
-                .ThenBy(item => item.Source?.FileIdentity?.Project, StringComparer.Ordinal)
-                .ThenBy(item => item.Source?.FileIdentity?.Path, StringComparer.Ordinal)
-                .ThenBy(item => item.Source?.Path, StringComparer.Ordinal)
-                .ThenBy(item => item.Source?.StartLine)
-                .ThenBy(item => item.Source?.StartColumn)
-                .ThenBy(item => item.Source?.EndLine)
-                .ThenBy(item => item.Source?.EndColumn)
-                .ThenBy(item => item.Subject?.Value, StringComparer.Ordinal)
-                .ThenBy(item => item.Description, StringComparer.Ordinal)
-        ];
+        evidence = [.. InCanonicalOrder(frozen)];
         return true;
     }
+
+    static bool IsAdmissible(AdapterProbeEvidence? item, ISourceAuthorityValidator validator) =>
+        item is not null &&
+        IsNormalized(item.Description, true) &&
+        HasAdmissibleCapability(item.ApiCapability) &&
+        HasAdmissibleSubject(item.Subject) &&
+        HasAuthoritativeSource(item.Source, validator);
+
+    static bool HasAdmissibleCapability(AdapterApiCapability? capability) =>
+        capability is null || IsNormalized(capability.Id, false);
+
+    static bool HasAdmissibleSubject(SubjectId? subject) =>
+        subject is null || IsSubject(subject.Value);
+
+    static bool HasAuthoritativeSource(SourceRange? source, ISourceAuthorityValidator validator) =>
+        source is null || validator.IsAuthoritative(source);
+
+    static AdapterProbeEvidence Freeze(AdapterProbeEvidence item) => new()
+    {
+        Description = item.Description,
+        ApiCapability = item.ApiCapability is null
+            ? null
+            : new AdapterApiCapability { Id = item.ApiCapability.Id },
+        Source = item.Source is null ? null : Freeze(item.Source),
+        Subject = item.Subject is null ? null : new SubjectId { Value = item.Subject.Value }
+    };
+
+    static IOrderedEnumerable<AdapterProbeEvidence> InCanonicalOrder(IEnumerable<AdapterProbeEvidence> evidence) => evidence
+        .OrderBy(item => item.ApiCapability?.Id, StringComparer.Ordinal)
+        .ThenBy(item => item.Source?.FileIdentity?.Project, StringComparer.Ordinal)
+        .ThenBy(item => item.Source?.FileIdentity?.Path, StringComparer.Ordinal)
+        .ThenBy(item => item.Source?.Path, StringComparer.Ordinal)
+        .ThenBy(item => item.Source?.StartLine)
+        .ThenBy(item => item.Source?.StartColumn)
+        .ThenBy(item => item.Source?.EndLine)
+        .ThenBy(item => item.Source?.EndColumn)
+        .ThenBy(item => item.Subject?.Value, StringComparer.Ordinal)
+        .ThenBy(item => item.Description, StringComparer.Ordinal);
 
     static bool TryFreezeDiagnostics(
         AdapterDescriptor descriptor,
@@ -137,15 +150,19 @@ static class DotNetAdapterProbeAdmission
         return admission.IsAdmitted;
     }
 
-    static bool IsNormalized(string? value, bool allowWhitespace)
-    {
-        if (string.IsNullOrEmpty(value) ||
-            !string.Equals(value, value.Trim(), StringComparison.Ordinal) ||
-            value.Any(character => char.IsControl(character) || (!allowWhitespace && char.IsWhiteSpace(character))))
-        {
-            return false;
-        }
+    static bool IsNormalized(string? value, bool allowWhitespace) =>
+        HasNormalizedShape(value, allowWhitespace) && IsFormC(value!);
 
+    static bool HasNormalizedShape(string? value, bool allowWhitespace) =>
+        !string.IsNullOrEmpty(value) &&
+        string.Equals(value, value.Trim(), StringComparison.Ordinal) &&
+        !value.Any(character => IsDisallowed(character, allowWhitespace));
+
+    static bool IsDisallowed(char character, bool allowWhitespace) =>
+        char.IsControl(character) || (!allowWhitespace && char.IsWhiteSpace(character));
+
+    static bool IsFormC(string value)
+    {
         try
         {
             return string.Equals(value, value.Normalize(NormalizationForm.FormC), StringComparison.Ordinal);
@@ -156,16 +173,17 @@ static class DotNetAdapterProbeAdmission
         }
     }
 
-    static bool IsSubject(string? value)
-    {
-        if (!IsNormalized(value, false) ||
-            value!.Contains('\\') ||
-            !Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
-            string.IsNullOrWhiteSpace(uri.Scheme))
-        {
-            return false;
-        }
+    static bool IsSubject(string? value) =>
+        IsAbsoluteSubject(value) && !HasDotSegment(value!);
 
+    static bool IsAbsoluteSubject(string? value) =>
+        IsNormalized(value, false) &&
+        !value!.Contains('\\') &&
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        !string.IsNullOrWhiteSpace(uri.Scheme);
+
+    static bool HasDotSegment(string value)
+    {
         var schemeSeparator = value.IndexOf(':', StringComparison.Ordinal);
         var pathStart = schemeSeparator + 1;
         if (value.AsSpan(pathStart).StartsWith("//", StringComparison.Ordinal))
@@ -173,13 +191,13 @@ static class DotNetAdapterProbeAdmission
             pathStart = value.IndexOf('/', pathStart + 2);
             if (pathStart < 0)
             {
-                return true;
+                return false;
             }
         }
 
         var pathEnd = value.IndexOfAny(['?', '#'], pathStart);
         var path = pathEnd < 0 ? value[pathStart..] : value[pathStart..pathEnd];
-        return !path.Split('/').Any(IsDotSegment);
+        return path.Split('/').Any(IsDotSegment);
     }
 
     static bool IsDotSegment(string segment)

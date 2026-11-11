@@ -10,11 +10,12 @@ namespace Cratis.Screenplay.Generation.DotNet;
 
 internal static class DotNetPayloadValues
 {
+    const string ConversionFailureMessage = "The payload value conversion is not semantically valid";
+
     public static DotNetBounded<DotNetSourceValue> Extract(
         BaseObjectCreationExpressionSyntax creation,
         SemanticModel semanticModel)
     {
-        var failures = new List<DotNetValueFailure>();
         var operation = ObjectCreationOperationFor(semanticModel.GetOperation(creation));
         var typeInfo = semanticModel.GetTypeInfo(creation);
         var typeFailure = DotNetSourceValues.SemanticTypeFailure(
@@ -24,24 +25,83 @@ internal static class DotNetPayloadValues
             typeInfo.Type,
             typeInfo.ConvertedType,
             operation?.Type);
-        if (operation?.Constructor is not { } constructor || operation.Type is null || typeFailure is not null)
-        {
-            var payloadType = typeFailure is null
-                ? typeInfo.Type ?? typeInfo.ConvertedType ?? operation?.Type
-                : null;
-            var bindingFailure = payloadType is INamedTypeSymbol { IsAbstract: true } &&
-                DotNetSourceValues.ConstructionRootFailure(creation, semanticModel) is { } abstractRootFailure
-                    ? abstractRootFailure
-                    : new DotNetValueFailure(
-                        DotNetValueFailureKind.Unbound,
-                        creation.GetLocation(),
-                        "The payload construction has no exact bound constructor and type");
-            DotNetSourceValues.AddFailure(failures, typeFailure ?? bindingFailure);
-            CollectAuthoredValues(creation, payloadType, semanticModel, failures);
+        return operation?.Constructor is { } constructor && operation.Type is not null && typeFailure is null
+            ? ExtractBound(creation, operation, constructor, semanticModel)
+            : ExtractUnbound(
+                creation,
+                typeFailure is null ? typeInfo.Type ?? typeInfo.ConvertedType ?? operation?.Type : null,
+                typeFailure,
+                semanticModel);
+    }
 
-            return new DotNetUnknown<DotNetSourceValue>([.. failures]);
+    static DotNetUnknown<DotNetSourceValue> ExtractUnbound(
+        BaseObjectCreationExpressionSyntax creation,
+        ITypeSymbol? payloadType,
+        DotNetValueFailure? typeFailure,
+        SemanticModel semanticModel)
+    {
+        var state = new PayloadState(semanticModel);
+        DotNetSourceValues.AddFailure(state.Failures, typeFailure ?? BindingFailure(creation, payloadType, semanticModel));
+        foreach (var argument in creation.ArgumentList?.Arguments ?? [])
+        {
+            CollectFailures(argument.Expression, semanticModel, state.Failures);
         }
 
+        CollectInitializers(creation, payloadType, state);
+        return new DotNetUnknown<DotNetSourceValue>([.. state.Failures]);
+    }
+
+    static DotNetValueFailure BindingFailure(
+        BaseObjectCreationExpressionSyntax creation,
+        ITypeSymbol? payloadType,
+        SemanticModel semanticModel) =>
+        payloadType is INamedTypeSymbol { IsAbstract: true } &&
+        DotNetSourceValues.ConstructionRootFailure(creation, semanticModel) is { } abstractRootFailure
+            ? abstractRootFailure
+            : new DotNetValueFailure(
+                DotNetValueFailureKind.Unbound,
+                creation.GetLocation(),
+                "The payload construction has no exact bound constructor and type");
+
+    static DotNetBounded<DotNetSourceValue> ExtractBound(
+        BaseObjectCreationExpressionSyntax creation,
+        IObjectCreationOperation operation,
+        IMethodSymbol constructor,
+        SemanticModel semanticModel)
+    {
+        var state = new PayloadState(semanticModel);
+        AddCreationFailures(creation, semanticModel, state.Failures);
+
+        var authoredArguments = creation.ArgumentList?.Arguments ?? [];
+        var explicitArguments = operation.Arguments
+            .Where(argument => authoredArguments.Any(authored => authored.Span.Contains(argument.Syntax.Span)))
+            .ToArray();
+        if (HasExactConstructorShape(explicitArguments, constructor))
+        {
+            CollectConstructorArguments(authoredArguments, explicitArguments, state);
+        }
+        else
+        {
+            CollectInexactArguments(creation, state);
+        }
+
+        CollectInitializers(creation, operation.Type, state);
+        if (state.Failures.Count == 0 &&
+            DotNetSourceValues.CompilerErrorFailure(creation, semanticModel, "payload") is { } compilerFailure)
+        {
+            DotNetSourceValues.AddFailure(state.Failures, compilerFailure);
+        }
+
+        return state.Failures.Count == 0
+            ? new DotNetKnown<DotNetSourceValue>(new DotNetPayloadValue(operation.Type!, [.. state.Values]))
+            : new DotNetUnknown<DotNetSourceValue>([.. state.Failures]);
+    }
+
+    static void AddCreationFailures(
+        BaseObjectCreationExpressionSyntax creation,
+        SemanticModel semanticModel,
+        List<DotNetValueFailure> failures)
+    {
         if (DotNetSourceValues.ConstructionRootFailure(creation, semanticModel) is { } rootFailure)
         {
             DotNetSourceValues.AddFailure(failures, rootFailure);
@@ -55,61 +115,42 @@ internal static class DotNetPayloadValues
         {
             DotNetSourceValues.AddFailure(failures, conversionFailure);
         }
+    }
 
-        var authoredArguments = creation.ArgumentList?.Arguments ?? [];
-        var explicitArguments = operation.Arguments
-            .Where(argument => authoredArguments.Any(authored => authored.Span.Contains(argument.Syntax.Span)))
-            .ToArray();
-        var hasExactConstructorShape =
-            explicitArguments.Length == constructor.Parameters.Length &&
-            constructor.Parameters.All(parameter =>
-                explicitArguments.Count(argument => SymbolEqualityComparer.Default.Equals(argument.Parameter, parameter)) == 1) &&
-            explicitArguments.All(argument => argument.Parameter is not null && argument.ArgumentKind != ArgumentKind.ParamArray);
+    static bool HasExactConstructorShape(IArgumentOperation[] explicitArguments, IMethodSymbol constructor) =>
+        explicitArguments.Length == constructor.Parameters.Length &&
+        constructor.Parameters.All(parameter =>
+            explicitArguments.Count(argument => SymbolEqualityComparer.Default.Equals(argument.Parameter, parameter)) == 1) &&
+        explicitArguments.All(argument => argument.Parameter is not null && argument.ArgumentKind != ArgumentKind.ParamArray);
 
-        var values = new List<DotNetNamedValue>();
-        var symbols = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
-        if (!hasExactConstructorShape)
+    static void CollectInexactArguments(BaseObjectCreationExpressionSyntax creation, PayloadState state)
+    {
+        DotNetSourceValues.AddFailure(state.Failures, new(
+            DotNetValueFailureKind.Unsupported,
+            creation.ArgumentList?.GetLocation() ?? creation.GetLocation(),
+            "Every payload constructor parameter must be stated by one exact authored argument"));
+
+        foreach (var argument in creation.ArgumentList?.Arguments ?? [])
         {
-            DotNetSourceValues.AddFailure(failures, new(
-                DotNetValueFailureKind.Unsupported,
-                creation.ArgumentList?.GetLocation() ?? creation.GetLocation(),
-                "Every payload constructor parameter must be stated by one exact authored argument"));
-
-            foreach (var argument in creation.ArgumentList?.Arguments ?? [])
-            {
-                CollectValueFailures(argument.Expression, semanticModel, failures, true);
-            }
+            CollectValueFailures(argument.Expression, state.SemanticModel, state.Failures, true);
         }
-        else
-        {
-            var constructorValues = new List<DotNetNamedValue>();
-            foreach (var authoredArgument in authoredArguments)
-            {
-                var argument = explicitArguments.Single(argument => authoredArgument.Span.Contains(argument.Syntax.Span));
-                var parameter = argument.Parameter!;
-                Add(
-                    parameter.Name,
-                    parameter,
-                    authoredArgument.Expression,
-                    semanticModel,
-                    symbols,
-                    constructorValues,
-                    failures);
-            }
+    }
 
-            values.AddRange(constructorValues.OrderBy(value => ((IParameterSymbol)value.Symbol).Ordinal));
+    static void CollectConstructorArguments(
+        SeparatedSyntaxList<ArgumentSyntax> authoredArguments,
+        IArgumentOperation[] explicitArguments,
+        PayloadState state)
+    {
+        foreach (var authoredArgument in authoredArguments)
+        {
+            var argument = explicitArguments.Single(argument => authoredArgument.Span.Contains(argument.Syntax.Span));
+            var parameter = argument.Parameter!;
+            Add(parameter.Name, parameter, authoredArgument.Expression, state);
         }
 
-        CollectInitializers(creation, operation.Type, semanticModel, symbols, values, failures);
-        if (failures.Count == 0 &&
-            DotNetSourceValues.CompilerErrorFailure(creation, semanticModel, "payload") is { } compilerFailure)
-        {
-            DotNetSourceValues.AddFailure(failures, compilerFailure);
-        }
-
-        return failures.Count == 0
-            ? new DotNetKnown<DotNetSourceValue>(new DotNetPayloadValue(operation.Type, [.. values]))
-            : new DotNetUnknown<DotNetSourceValue>([.. failures]);
+        var ordered = state.Values.OrderBy(value => ((IParameterSymbol)value.Symbol).Ordinal).ToArray();
+        state.Values.Clear();
+        state.Values.AddRange(ordered);
     }
 
     static ISymbol? DirectAssignableMemberFor(
@@ -130,19 +171,18 @@ internal static class DotNetPayloadValues
             return null;
         }
 
-        ISymbol? member = target switch
-        {
-            IPropertyReferenceOperation property => property.Property,
-            IFieldReferenceOperation field => field.Field,
-            _ => null
-        };
-        if (!IsDirectMember(member, payloadType) || !IsAssignable(member!, assignment.SpanStart, semanticModel))
-        {
-            return null;
-        }
-
-        return member;
+        var member = ReferencedMember(target);
+        return IsDirectMember(member, payloadType) && IsAssignable(member!, assignment.SpanStart, semanticModel)
+            ? member
+            : null;
     }
+
+    static ISymbol? ReferencedMember(IOperation? target) => target switch
+    {
+        IPropertyReferenceOperation property => property.Property,
+        IFieldReferenceOperation field => field.Field,
+        _ => null
+    };
 
     static bool IsDirectMember(ISymbol? member, ITypeSymbol payloadType) => member switch
     {
@@ -171,93 +211,74 @@ internal static class DotNetPayloadValues
         _ => false
     };
 
-    static void CollectAuthoredValues(
-        BaseObjectCreationExpressionSyntax creation,
-        ITypeSymbol? payloadType,
-        SemanticModel semanticModel,
-        List<DotNetValueFailure> failures)
-    {
-        foreach (var argument in creation.ArgumentList?.Arguments ?? [])
-        {
-            CollectFailures(argument.Expression, semanticModel, failures);
-        }
-
-        CollectInitializers(creation, payloadType, semanticModel, [], [], failures);
-    }
-
     static void CollectInitializers(
         BaseObjectCreationExpressionSyntax creation,
         ITypeSymbol? payloadType,
-        SemanticModel semanticModel,
-        HashSet<ISymbol> symbols,
-        List<DotNetNamedValue> values,
-        List<DotNetValueFailure> failures)
+        PayloadState state)
     {
         foreach (var initializer in creation.Initializer?.Expressions ?? [])
         {
-            if (initializer is not AssignmentExpressionSyntax assignment)
-            {
-                DotNetSourceValues.AddFailure(failures, new(
-                    DotNetValueFailureKind.Unsupported,
-                    initializer.GetLocation(),
-                    "A payload initializer contains a non-assignment element"));
-                CollectFailures(initializer, semanticModel, failures);
-                continue;
-            }
-
-            if (assignment.Left is ImplicitElementAccessSyntax index)
-            {
-                DotNetSourceValues.AddFailure(failures, new(
-                    DotNetValueFailureKind.Unsupported,
-                    index.GetLocation(),
-                    "The payload initializer is not a direct member assignment"));
-                foreach (var argument in index.ArgumentList.Arguments)
-                {
-                    CollectFailures(argument.Expression, semanticModel, failures);
-                }
-
-                CollectValueFailures(
-                    assignment.Right,
-                    semanticModel,
-                    failures,
-                    assignment.Right is not InitializerExpressionSyntax);
-                continue;
-            }
-
-            var member = payloadType is null
-                ? null
-                : DirectAssignableMemberFor(assignment, payloadType, semanticModel);
-            if (assignment.Right is InitializerExpressionSyntax || member is null)
-            {
-                DotNetSourceValues.AddFailure(failures, new(
-                    DotNetValueFailureKind.Unsupported,
-                    assignment.Left.GetLocation(),
-                    "The payload initializer is not a direct member assignment"));
-                CollectValueFailures(
-                    assignment.Right,
-                    semanticModel,
-                    failures,
-                    assignment.Right is not InitializerExpressionSyntax);
-                continue;
-            }
-
-            Add(member.Name, member, assignment.Right, semanticModel, symbols, values, failures);
+            CollectInitializer(initializer, payloadType, state);
         }
     }
+
+    static void CollectInitializer(ExpressionSyntax initializer, ITypeSymbol? payloadType, PayloadState state)
+    {
+        var semanticModel = state.SemanticModel;
+        if (initializer is not AssignmentExpressionSyntax assignment)
+        {
+            AddNotDirectFailure(state, initializer, "A payload initializer contains a non-assignment element");
+            CollectFailures(initializer, semanticModel, state.Failures);
+            return;
+        }
+
+        if (assignment.Left is ImplicitElementAccessSyntax index)
+        {
+            AddNotDirectFailure(state, index, "The payload initializer is not a direct member assignment");
+            foreach (var argument in index.ArgumentList.Arguments)
+            {
+                CollectFailures(argument.Expression, semanticModel, state.Failures);
+            }
+
+            CollectAssignedValueFailures(assignment, state);
+            return;
+        }
+
+        var member = payloadType is null
+            ? null
+            : DirectAssignableMemberFor(assignment, payloadType, semanticModel);
+        if (assignment.Right is InitializerExpressionSyntax || member is null)
+        {
+            AddNotDirectFailure(state, assignment.Left, "The payload initializer is not a direct member assignment");
+            CollectAssignedValueFailures(assignment, state);
+            return;
+        }
+
+        Add(member.Name, member, assignment.Right, state);
+    }
+
+    static void AddNotDirectFailure(PayloadState state, SyntaxNode source, string message) =>
+        DotNetSourceValues.AddFailure(state.Failures, new(
+            DotNetValueFailureKind.Unsupported,
+            source.GetLocation(),
+            message));
+
+    static void CollectAssignedValueFailures(AssignmentExpressionSyntax assignment, PayloadState state) =>
+        CollectValueFailures(
+            assignment.Right,
+            state.SemanticModel,
+            state.Failures,
+            assignment.Right is not InitializerExpressionSyntax);
 
     static void CollectValueFailures(
         ExpressionSyntax expression,
         SemanticModel semanticModel,
         List<DotNetValueFailure> failures,
-        bool validateSemanticConversion,
-        ITypeSymbol? expectedType = null)
+        bool validateSemanticConversion)
     {
-        if (validateSemanticConversion && HasInvalidValueOperation(expression, semanticModel, expectedType))
+        if (validateSemanticConversion && HasInvalidValueOperation(expression, semanticModel))
         {
-            DotNetSourceValues.AddFailure(failures, new(
-                DotNetValueFailureKind.Unsupported,
-                expression.GetLocation(),
-                "The payload value conversion is not semantically valid"));
+            AddConversionFailure(failures, expression);
         }
 
         CollectFailures(expression, semanticModel, failures);
@@ -272,15 +293,7 @@ internal static class DotNetPayloadValues
         {
             foreach (var child in initializer.Expressions)
             {
-                if (child is AssignmentExpressionSyntax assignment)
-                {
-                    CollectIndexKeyFailures(assignment.Left, semanticModel, failures);
-                    CollectFailures(assignment.Right, semanticModel, failures);
-                }
-                else
-                {
-                    CollectFailures(child, semanticModel, failures);
-                }
+                CollectChildFailures(child, semanticModel, failures);
             }
 
             return;
@@ -289,6 +302,22 @@ internal static class DotNetPayloadValues
         if (DotNetSourceValues.Extract(expression, semanticModel) is DotNetUnknown<DotNetSourceValue> unknown)
         {
             DotNetSourceValues.AddFailures(failures, unknown.Failures);
+        }
+    }
+
+    static void CollectChildFailures(
+        ExpressionSyntax child,
+        SemanticModel semanticModel,
+        List<DotNetValueFailure> failures)
+    {
+        if (child is AssignmentExpressionSyntax assignment)
+        {
+            CollectIndexKeyFailures(assignment.Left, semanticModel, failures);
+            CollectFailures(assignment.Right, semanticModel, failures);
+        }
+        else
+        {
+            CollectFailures(child, semanticModel, failures);
         }
     }
 
@@ -309,60 +338,59 @@ internal static class DotNetPayloadValues
         }
     }
 
-    static void Add(
-        string name,
-        ISymbol symbol,
-        ExpressionSyntax expression,
-        SemanticModel semanticModel,
-        HashSet<ISymbol> symbols,
-        List<DotNetNamedValue> values,
-        List<DotNetValueFailure> failures)
+    static void AddConversionFailure(List<DotNetValueFailure> failures, ExpressionSyntax expression) =>
+        DotNetSourceValues.AddFailure(failures, new(
+            DotNetValueFailureKind.Unsupported,
+            expression.GetLocation(),
+            ConversionFailureMessage));
+
+    static void Add(string name, ISymbol symbol, ExpressionSyntax expression, PayloadState state)
     {
-        var isDuplicate = !symbols.Add(symbol);
+        var semanticModel = state.SemanticModel;
+        var isDuplicate = state.Symbols.Exists(existing => SymbolEqualityComparer.Default.Equals(existing, symbol));
+        if (!isDuplicate)
+        {
+            state.Symbols.Add(symbol);
+        }
+
         if (isDuplicate)
         {
-            DotNetSourceValues.AddFailure(failures, new(
+            DotNetSourceValues.AddFailure(state.Failures, new(
                 DotNetValueFailureKind.DuplicateMember,
                 expression.GetLocation(),
                 $"Payload member '{name}' is assigned more than once"));
         }
 
-        var expectedType = symbol switch
-        {
-            IParameterSymbol parameter => parameter.Type,
-            IPropertySymbol property => property.Type,
-            IFieldSymbol field => field.Type,
-            _ => null
-        };
-        var hasInvalidValueConversion = HasInvalidValueConversion(expression, semanticModel, expectedType);
+        var hasInvalidValueConversion = HasInvalidValueConversion(expression, semanticModel, ExpectedTypeOf(symbol));
         if (hasInvalidValueConversion)
         {
-            DotNetSourceValues.AddFailure(failures, new(
-                DotNetValueFailureKind.Unsupported,
-                expression.GetLocation(),
-                "The payload value conversion is not semantically valid"));
+            AddConversionFailure(state.Failures, expression);
         }
 
         var extracted = DotNetSourceValues.Extract(expression, semanticModel);
         if (extracted is DotNetUnknown<DotNetSourceValue> unknown)
         {
-            DotNetSourceValues.AddFailures(failures, unknown.Failures);
+            DotNetSourceValues.AddFailures(state.Failures, unknown.Failures);
             return;
         }
 
-        var hasInvalidValueOperation = DotNetSourceValues.HasInvalidOperation(semanticModel.GetOperation(expression));
-        if (hasInvalidValueOperation)
+        if (DotNetSourceValues.HasInvalidOperation(semanticModel.GetOperation(expression)))
         {
-            DotNetSourceValues.AddFailure(failures, new(
-                DotNetValueFailureKind.Unsupported,
-                expression.GetLocation(),
-                "The payload value conversion is not semantically valid"));
+            AddConversionFailure(state.Failures, expression);
         }
-        else if (!isDuplicate && !hasInvalidValueConversion && extracted is DotNetKnown<DotNetSourceValue> known)
+        else if (!isDuplicate && !hasInvalidValueConversion)
         {
-            values.Add(new(name, symbol, known.Value, expression.GetLocation()));
+            state.Values.Add(new(name, symbol, ((DotNetKnown<DotNetSourceValue>)extracted).Value, expression.GetLocation()));
         }
     }
+
+    static ITypeSymbol? ExpectedTypeOf(ISymbol symbol) => symbol switch
+    {
+        IParameterSymbol parameter => parameter.Type,
+        IPropertySymbol property => property.Type,
+        IFieldSymbol field => field.Type,
+        _ => null
+    };
 
     static bool HasInvalidValueConversion(
         ExpressionSyntax expression,
@@ -370,24 +398,17 @@ internal static class DotNetPayloadValues
         ITypeSymbol? expectedType = null)
     {
         var convertedType = semanticModel.GetTypeInfo(expression).ConvertedType;
-        return (expectedType is not null &&
-                !DotNetSourceValues.IsSupportedContextualConversion(semanticModel.ClassifyConversion(expression, expectedType))) ||
-            (convertedType is not null &&
-                !DotNetSourceValues.IsSupportedContextualConversion(semanticModel.ClassifyConversion(expression, convertedType)));
+        return IsUnsupportedConversionTo(expression, semanticModel, expectedType) ||
+            IsUnsupportedConversionTo(expression, semanticModel, convertedType);
     }
 
-    static bool HasInvalidValueOperation(
-        ExpressionSyntax expression,
-        SemanticModel semanticModel,
-        ITypeSymbol? expectedType = null)
-    {
-        var convertedType = semanticModel.GetTypeInfo(expression).ConvertedType;
-        return (expectedType is not null &&
-                !DotNetSourceValues.IsSupportedContextualConversion(semanticModel.ClassifyConversion(expression, expectedType))) ||
-            (convertedType is not null &&
-                !DotNetSourceValues.IsSupportedContextualConversion(semanticModel.ClassifyConversion(expression, convertedType))) ||
-            DotNetSourceValues.HasInvalidOperation(semanticModel.GetOperation(expression));
-    }
+    static bool IsUnsupportedConversionTo(ExpressionSyntax expression, SemanticModel semanticModel, ITypeSymbol? type) =>
+        type is not null &&
+        !DotNetSourceValues.IsSupportedContextualConversion(semanticModel.ClassifyConversion(expression, type));
+
+    static bool HasInvalidValueOperation(ExpressionSyntax expression, SemanticModel semanticModel) =>
+        HasInvalidValueConversion(expression, semanticModel) ||
+        DotNetSourceValues.HasInvalidOperation(semanticModel.GetOperation(expression));
 
     static IObjectCreationOperation? ObjectCreationOperationFor(IOperation? operation)
     {
@@ -397,5 +418,16 @@ internal static class DotNetPayloadValues
         }
 
         return operation as IObjectCreationOperation;
+    }
+
+    sealed class PayloadState(SemanticModel semanticModel)
+    {
+        public SemanticModel SemanticModel { get; } = semanticModel;
+
+        public List<ISymbol> Symbols { get; } = [];
+
+        public List<DotNetNamedValue> Values { get; } = [];
+
+        public List<DotNetValueFailure> Failures { get; } = [];
     }
 }
