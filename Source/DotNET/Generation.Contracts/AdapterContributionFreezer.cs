@@ -178,6 +178,7 @@ static class AdapterContributionFreezer
         var subject = FreezeSubject(fact.Subject, $"{path}.Subject", context);
         var evidence = FreezeEvidence(fact.Evidence, $"{path}.Evidence", context);
 
+        var envelope = new FactEnvelope(id, subject, evidence, path);
         return fact switch
         {
             ArtifactFact artifact => new ArtifactFact
@@ -195,41 +196,6 @@ static class AdapterContributionFreezer
                 Artifact = FreezeArtifactKey(placement.Artifact, $"{path}.Artifact", context),
                 Placement = FreezePlacement(placement.Placement, $"{path}.Placement", context)
             },
-            ArtifactDeclarationFact declaration => GranularFactFreezer.Freeze(
-                declaration,
-                id,
-                subject,
-                evidence,
-                path,
-                context),
-            ArtifactMemberDeclarationFact member => GranularFactFreezer.Freeze(
-                member,
-                id,
-                subject,
-                evidence,
-                path,
-                context),
-            ArtifactMemberTypeUseFact typeUse => GranularFactFreezer.Freeze(
-                typeUse,
-                id,
-                subject,
-                evidence,
-                path,
-                context),
-            TypeUseBindingFact binding => GranularFactFreezer.Freeze(
-                binding,
-                id,
-                subject,
-                evidence,
-                path,
-                context),
-            ArtifactMemberRoleFact role => GranularFactFreezer.Freeze(
-                role,
-                id,
-                subject,
-                evidence,
-                path,
-                context),
             RelationshipFact relationship => new RelationshipFact
             {
                 Id = id,
@@ -237,51 +203,80 @@ static class AdapterContributionFreezer
                 Evidence = evidence,
                 Definition = FreezeRelationship(relationship.Definition, $"{path}.Definition", context)
             },
-            ConceptRepresentationFact representation => new ConceptRepresentationFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = FreezeConceptRepresentation(representation.Definition, $"{path}.Definition", context)
-            },
-            ConceptAttributeFact attribute => new ConceptAttributeFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = FreezeConceptAttribute(attribute.Definition, $"{path}.Definition", context)
-            },
-            ConceptValidationRuleFact validation => new ConceptValidationRuleFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = FreezeConceptValidation(validation.Definition, $"{path}.Definition", context)
-            },
-            SpecificationScenarioFact scenario => new SpecificationScenarioFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = FreezeScenario(scenario.Definition, $"{path}.Definition", context)
-            },
-            SpecificationStepFact step => new SpecificationStepFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = FreezeStep(step.Definition, $"{path}.Definition", context)
-            },
-            SpecificationValueFact value => new SpecificationValueFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = FreezeValue(value.Definition, $"{path}.Definition", context)
-            },
-            _ => UnsupportedFact(fact, path, context)
+            _ => FreezeConceptFact(fact, envelope, context)
         };
     }
+
+    static GenerationFact? FreezeConceptFact(
+        GenerationFact fact,
+        FactEnvelope envelope,
+        AdapterContributionAdmissionContext context) => fact switch
+    {
+        ConceptRepresentationFact representation => new ConceptRepresentationFact
+        {
+            Id = envelope.Id,
+            Subject = envelope.Subject,
+            Evidence = envelope.Evidence,
+            Definition = FreezeConceptRepresentation(representation.Definition, $"{envelope.Path}.Definition", context)
+        },
+        ConceptAttributeFact attribute => new ConceptAttributeFact
+        {
+            Id = envelope.Id,
+            Subject = envelope.Subject,
+            Evidence = envelope.Evidence,
+            Definition = FreezeConceptAttribute(attribute.Definition, $"{envelope.Path}.Definition", context)
+        },
+        ConceptValidationRuleFact validation => new ConceptValidationRuleFact
+        {
+            Id = envelope.Id,
+            Subject = envelope.Subject,
+            Evidence = envelope.Evidence,
+            Definition = FreezeConceptValidation(validation.Definition, $"{envelope.Path}.Definition", context)
+        },
+        _ => FreezeSpecificationFact(fact, envelope, context)
+    };
+
+    static GenerationFact? FreezeSpecificationFact(
+        GenerationFact fact,
+        FactEnvelope envelope,
+        AdapterContributionAdmissionContext context) => fact switch
+    {
+        SpecificationScenarioFact scenario => new SpecificationScenarioFact
+        {
+            Id = envelope.Id,
+            Subject = envelope.Subject,
+            Evidence = envelope.Evidence,
+            Definition = FreezeScenario(scenario.Definition, $"{envelope.Path}.Definition", context)
+        },
+        SpecificationStepFact step => new SpecificationStepFact
+        {
+            Id = envelope.Id,
+            Subject = envelope.Subject,
+            Evidence = envelope.Evidence,
+            Definition = FreezeStep(step.Definition, $"{envelope.Path}.Definition", context)
+        },
+        SpecificationValueFact value => new SpecificationValueFact
+        {
+            Id = envelope.Id,
+            Subject = envelope.Subject,
+            Evidence = envelope.Evidence,
+            Definition = FreezeValue(value.Definition, $"{envelope.Path}.Definition", context)
+        },
+        _ => FreezeGranularFact(fact, envelope, context)
+    };
+
+    static GenerationFact? FreezeGranularFact(
+        GenerationFact fact,
+        FactEnvelope envelope,
+        AdapterContributionAdmissionContext context) => fact switch
+    {
+        ArtifactDeclarationFact declaration => GranularFactFreezer.Freeze(declaration, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
+        ArtifactMemberDeclarationFact member => GranularFactFreezer.Freeze(member, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
+        ArtifactMemberTypeUseFact typeUse => GranularFactFreezer.Freeze(typeUse, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
+        TypeUseBindingFact binding => GranularFactFreezer.Freeze(binding, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
+        ArtifactMemberRoleFact role => GranularFactFreezer.Freeze(role, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
+        _ => UnsupportedFact(fact, envelope.Path, context)
+    };
 
     static FactId MissingFactId(string path, AdapterContributionAdmissionContext context)
     {
@@ -698,27 +693,21 @@ static class AdapterContributionFreezer
     static ImmutableArray<SpecificationStepKey> FreezeStepKeys(
         IReadOnlyList<SpecificationStepKey>? keys,
         string path,
-        AdapterContributionAdmissionContext context)
-    {
-        if (keys is null)
-        {
-            context.NullCollection(path);
-            return [];
-        }
-
-        var frozen = ImmutableArray.CreateBuilder<SpecificationStepKey>();
-        for (var index = 0; index < keys.Count; index++)
-        {
-            frozen.Add(FreezeStepKey(keys[index], $"{path}[{index}]", context));
-        }
-
-        return frozen.ToImmutable();
-    }
+        AdapterContributionAdmissionContext context) =>
+        FreezeKeys(keys, path, FreezeStepKey, context);
 
     static ImmutableArray<SpecificationValueKey> FreezeValueKeys(
         IReadOnlyList<SpecificationValueKey>? keys,
         string path,
+        AdapterContributionAdmissionContext context) =>
+        FreezeKeys(keys, path, FreezeValueKey, context);
+
+    static ImmutableArray<TKey> FreezeKeys<TKey>(
+        IReadOnlyList<TKey>? keys,
+        string path,
+        Func<TKey?, string, AdapterContributionAdmissionContext, TKey> freezeKey,
         AdapterContributionAdmissionContext context)
+        where TKey : class
     {
         if (keys is null)
         {
@@ -726,10 +715,10 @@ static class AdapterContributionFreezer
             return [];
         }
 
-        var frozen = ImmutableArray.CreateBuilder<SpecificationValueKey>();
+        var frozen = ImmutableArray.CreateBuilder<TKey>();
         for (var index = 0; index < keys.Count; index++)
         {
-            frozen.Add(FreezeValueKey(keys[index], $"{path}[{index}]", context));
+            frozen.Add(freezeKey(keys[index], $"{path}[{index}]", context));
         }
 
         return frozen.ToImmutable();
@@ -808,16 +797,7 @@ static class AdapterContributionFreezer
                 continue;
             }
 
-            frozen.Add(new GenerationDiagnostic
-            {
-                Code = diagnostic.Code ?? string.Empty,
-                Severity = diagnostic.Severity,
-                Message = diagnostic.Message ?? string.Empty,
-                Outcome = diagnostic.Outcome,
-                Facts = FreezeDiagnosticFacts(diagnostic.Facts, $"{path}.Facts", context),
-                Source = diagnostic.Source is null ? null : FreezeSource(diagnostic.Source),
-                Subject = diagnostic.Subject is null ? null : FreezeSubject(diagnostic.Subject, $"{path}.Subject", context)
-            });
+            frozen.Add(FreezeDiagnostic(diagnostic, path, context));
         }
 
         return
@@ -838,6 +818,20 @@ static class AdapterContributionFreezer
                 .ThenBy(diagnostic => diagnostic.Message, StringComparer.Ordinal)
         ];
     }
+
+    static GenerationDiagnostic FreezeDiagnostic(
+        GenerationDiagnostic diagnostic,
+        string path,
+        AdapterContributionAdmissionContext context) => new()
+    {
+        Code = diagnostic.Code ?? string.Empty,
+        Severity = diagnostic.Severity,
+        Message = diagnostic.Message ?? string.Empty,
+        Outcome = diagnostic.Outcome,
+        Facts = FreezeDiagnosticFacts(diagnostic.Facts, $"{path}.Facts", context),
+        Source = diagnostic.Source is null ? null : FreezeSource(diagnostic.Source),
+        Subject = diagnostic.Subject is null ? null : FreezeSubject(diagnostic.Subject, $"{path}.Subject", context)
+    };
 
     static ImmutableArray<FactId> FreezeDiagnosticFacts(
         ImmutableArray<FactId> facts,
@@ -928,6 +922,8 @@ static class AdapterContributionFreezer
         _ => int.MaxValue
     };
 }
+
+readonly record struct FactEnvelope(FactId Id, SubjectId Subject, Evidence Evidence, string Path);
 
 sealed record FrozenAdapterContributionInput(
     AdapterDescriptor Descriptor,
