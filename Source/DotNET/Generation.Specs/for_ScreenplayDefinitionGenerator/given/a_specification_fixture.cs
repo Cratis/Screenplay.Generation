@@ -12,12 +12,14 @@ public class a_specification_fixture : a_lowering_fixture
 
     protected GenerationFact[] BankingArtifacts() =>
     [
-        .. Artifact(ArtifactKind.Command, "RegisterAccount", "Register", GenerationSliceKind.StateChange, 1),
-        .. Artifact(ArtifactKind.Event, "AccountRegistered", "Register", GenerationSliceKind.StateChange, 2),
-        .. Artifact(ArtifactKind.ReadModel, "AccountView", "View", GenerationSliceKind.StateView, 3),
+        .. Artifact(ArtifactKind.Command, "RegisterAccount", "Register", GenerationSliceKind.StateChange, 1, properties: [Field("name", "String"), Field("count", "Int"), Field("flag", "Bool")]),
+        .. Artifact(ArtifactKind.Event, "AccountRegistered", "Register", GenerationSliceKind.StateChange, 2, properties: [Field("name", "String")]),
+        .. Artifact(ArtifactKind.ReadModel, "AccountView", "View", GenerationSliceKind.StateView, 3, properties: [Field("name", "String")]),
         .. Artifact(ArtifactKind.Query, "GetAccount", "View", GenerationSliceKind.StateView, 4),
         Relation(RelationshipKind.Returns, "GetAccount", "AccountView")
     ];
+
+    static PropertyDefinition Field(string name, string type) => new() { Name = name, Type = new TypeReferenceDefinition { Name = type } };
 
     protected static IEnumerable<GenerationFact> Tweak<T>(IEnumerable<GenerationFact> facts, Func<T, T> change)
         where T : GenerationFact

@@ -56,14 +56,19 @@ public class when_admitting_invalid_specification_scenarios : given.a_specificat
             slice StateChange Register
 
               command RegisterAccount
+                name String
+                count Int
+                flag Bool
 
               event AccountRegistered
+                name String
 
             slice StateView View
 
               query GetAccount => AccountView
 
               readmodel AccountView
+                name String
 
         """.ReplaceLineEndings("\n"));
 

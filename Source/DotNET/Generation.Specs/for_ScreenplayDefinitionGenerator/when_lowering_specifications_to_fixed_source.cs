@@ -29,6 +29,24 @@ public class when_lowering_specifications_to_fixed_source : given.a_specificatio
                     new(SpecificationStepPhase.Then, SpecificationStepKind.Read, _query, Values: [text]),
                     new(SpecificationStepPhase.Then, SpecificationStepKind.Error, null, ErrorMessage: "Rejected")
                 ]),
+            .. Scenario(
+                "V03",
+                _command,
+                [
+                    given,
+                    new(SpecificationStepPhase.Given, SpecificationStepKind.ReadModel, _readModel, Values: [text]),
+                    new(SpecificationStepPhase.When, SpecificationStepKind.Command, _command, Values: [new("count", SpecificationValueKind.Number, "3"), new("flag", SpecificationValueKind.Boolean, "true")]),
+                    then,
+                    new(SpecificationStepPhase.Then, SpecificationStepKind.ReadModel, _readModel, Values: [text]),
+                    new(SpecificationStepPhase.Then, SpecificationStepKind.Error, null, ErrorMessage: "Rejected")
+                ]),
+            .. Scenario(
+                "V04",
+                _command,
+                [
+                    when,
+                    new(SpecificationStepPhase.Then, SpecificationStepKind.Read, _query, Values: [text])
+                ]),
             .. Scenario("V02", _command, [when, new(SpecificationStepPhase.Then, SpecificationStepKind.Error, null)]),
             .. Scenario("U01", _command, [new(SpecificationStepPhase.When, SpecificationStepKind.Command, _command, Values: [new("tags", SpecificationValueKind.Collection, null, [new("first", SpecificationValueKind.Text, "a")])]), then]),
             .. Scenario("U02", _command, [when, new(SpecificationStepPhase.Then, SpecificationStepKind.Error, null, ErrorCode: "E1", ErrorMessage: "Nope")]),
@@ -53,8 +71,12 @@ public class when_lowering_specifications_to_fixed_source : given.a_specificatio
             slice StateChange Register
 
               command RegisterAccount
+                name String
+                count Int
+                flag Bool
 
               event AccountRegistered
+                name String
 
               specification ScenarioV02
                 file Specs/V02.cs
@@ -62,11 +84,27 @@ public class when_lowering_specifications_to_fixed_source : given.a_specificatio
                   name = "Alice"
                 then error
 
+              specification ScenarioV03
+                file Specs/V03.cs
+                given AccountRegistered
+                  name = "Alice"
+                given readmodel AccountView
+                  name = "Alice"
+                when RegisterAccount
+                  count = 3
+                  flag = true
+                then AccountRegistered
+                  name = "Alice"
+                then readmodel AccountView
+                  name = "Alice"
+                then error "Rejected"
+
             slice StateView View
 
               query GetAccount => AccountView
 
               readmodel AccountView
+                name String
 
         """.ReplaceLineEndings("\n"));
 
@@ -127,5 +165,11 @@ public class when_lowering_specifications_to_fixed_source : given.a_specificatio
         GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V01 | Specs/V01.cs:7:1-7:20 | Specification scenario 'ScenarioV01' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
         GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V01 | Specs/V01.cs:7:1-7:20 | Specification scenario 'ScenarioV01' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
         GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V01 | Specs/V01.cs:7:1-7:20 | Specification scenario 'ScenarioV01' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
+        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V04 | Specs/V04.cs:7:1-7:20 | Specification scenario 'ScenarioV04' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
+        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V04 | Specs/V04.cs:7:1-7:20 | Specification scenario 'ScenarioV04' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
+        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V04 | Specs/V04.cs:7:1-7:20 | Specification scenario 'ScenarioV04' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
+        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V04 | Specs/V04.cs:7:1-7:20 | Specification scenario 'ScenarioV04' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
+        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V04 | Specs/V04.cs:7:1-7:20 | Specification scenario 'ScenarioV04' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
+        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.V04 | Specs/V04.cs:7:1-7:20 | Specification scenario 'ScenarioV04' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
         """);
 }
