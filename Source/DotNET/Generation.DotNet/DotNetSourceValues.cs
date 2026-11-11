@@ -15,7 +15,7 @@ namespace Cratis.Screenplay.Generation.DotNet;
 public static class DotNetSourceValues
 {
     /// <summary>
-    /// Extracts an exact semantic constant, <c>typeof</c> value, payload, or collection.
+    /// Extracts an exact semantic constant, <see langword="typeof"/> value, payload, or collection.
     /// </summary>
     /// <param name="expression">The authored expression.</param>
     /// <param name="semanticModel">The owning semantic model.</param>
@@ -197,7 +197,7 @@ public static class DotNetSourceValues
         };
 
     /// <summary>
-    /// Extracts one exact type named by <c>typeof</c>.
+    /// Extracts one exact type named by <see langword="typeof"/>.
     /// </summary>
     /// <param name="expression">The authored expression.</param>
     /// <param name="semanticModel">The owning semantic model.</param>

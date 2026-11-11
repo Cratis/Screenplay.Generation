@@ -22,7 +22,7 @@ public sealed record DotNetParameterSignature
     public required RefKind RefKind { get; init; }
 
     /// <summary>
-    /// Gets whether the parameter is a <c>params</c> collection.
+    /// Gets whether the parameter is a <see langword="params"/> collection.
     /// </summary>
     public required bool IsParams { get; init; }
 

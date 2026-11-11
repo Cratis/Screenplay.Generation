@@ -19,7 +19,7 @@ public abstract record DotNetSourceValue;
 public sealed record DotNetConstantValue(object? Value, ITypeSymbol? Type) : DotNetSourceValue;
 
 /// <summary>
-/// Represents one exact type named by <c>typeof</c>.
+/// Represents one exact type named by <see langword="typeof"/>.
 /// </summary>
 /// <param name="Type">The exact named type.</param>
 public sealed record DotNetTypeValue(ITypeSymbol Type) : DotNetSourceValue;

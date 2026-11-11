@@ -97,7 +97,7 @@ public sealed record DotNetSourcePlacement
     public required ArtifactPlacement Placement { get; init; }
 
     /// <summary>
-    /// Gets whether strict derivation failed solely with <c>DOTNETSP0004</c> and the explicit compatibility placement was used.
+    /// Gets whether strict derivation failed solely with DOTNETSP0004 and the explicit compatibility placement was used.
     /// </summary>
     public bool UsedCompatibilityPlacement { get; init; }
 
