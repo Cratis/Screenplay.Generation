@@ -223,6 +223,7 @@ internal static class GenerationFactDispositionCalculator
         var appliedVariants = context.Graph.Artifacts
             .Where(resolved => resolved.Key == artifact)
             .SelectMany(resolved => resolved.Variants)
+            .ToArray()
             .Where(variant => variant.SupportingFacts.Any(id => id == fact.Id))
             .ToArray();
         if (appliedVariants.Length == 0)
