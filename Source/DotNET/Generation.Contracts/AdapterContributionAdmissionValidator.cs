@@ -41,11 +41,7 @@ static class AdapterContributionAdmissionValidator
         AdapterContributionAdmissionContext context)
     {
         var value = subject.Value;
-        if (!AdapterContributionText.IsNormalized(value, false) ||
-            value.Contains('\\') ||
-            !Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
-            string.IsNullOrWhiteSpace(uri.Scheme) ||
-            HasAuthoredDotPathSegment(value))
+        if (!IsStableAbsoluteUri(value))
         {
             context.Add(
                 AdapterContributionAdmissionDiagnosticCode.InvalidSubject,
@@ -55,6 +51,13 @@ static class AdapterContributionAdmissionValidator
                 subject);
         }
     }
+
+    static bool IsStableAbsoluteUri(string value) =>
+        AdapterContributionText.IsNormalized(value, false) &&
+        !value.Contains('\\') &&
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        !string.IsNullOrWhiteSpace(uri.Scheme) &&
+        !HasAuthoredDotPathSegment(value);
 
     public static void ValidateRequiredText(
         string? value,
@@ -116,6 +119,35 @@ static class AdapterContributionAdmissionValidator
         AdapterDescriptor descriptor,
         AdapterContributionAdmissionContext context)
     {
+        ValidateDescriptorIdentity(descriptor, context);
+
+        context.Enum(descriptor.SourceLanguage, AdapterSourceLanguage.Unknown, "Descriptor.SourceLanguage");
+        context.Enum(descriptor.Category, AdapterCategory.Unknown, "Descriptor.Category");
+        for (var index = 0; index < descriptor.RequiredHostCapabilities.Length; index++)
+        {
+            context.Enum(
+                descriptor.RequiredHostCapabilities[index],
+                AdapterHostCapability.Unknown,
+                $"Descriptor.RequiredHostCapabilities[{index}]");
+        }
+
+        ValidateRequiredApiCapabilities(descriptor, context);
+
+        for (var index = 0; index < descriptor.EmittedFactCapabilities.Length; index++)
+        {
+            context.Enum(
+                descriptor.EmittedFactCapabilities[index],
+                GenerationFactCapability.Unknown,
+                $"Descriptor.EmittedFactCapabilities[{index}]");
+        }
+
+        ValidateGenerationVersionRange(descriptor, context);
+    }
+
+    static void ValidateDescriptorIdentity(
+        AdapterDescriptor descriptor,
+        AdapterContributionAdmissionContext context)
+    {
         if (!IsIdentityPart(descriptor.Identity.Id) || descriptor.Identity.Id.Contains(':', StringComparison.Ordinal))
         {
             context.Add(
@@ -131,17 +163,12 @@ static class AdapterContributionAdmissionValidator
                 "Descriptor.Identity.Version",
                 "Descriptor.Identity.Version must be normalized and contain no whitespace or control characters");
         }
+    }
 
-        context.Enum(descriptor.SourceLanguage, AdapterSourceLanguage.Unknown, "Descriptor.SourceLanguage");
-        context.Enum(descriptor.Category, AdapterCategory.Unknown, "Descriptor.Category");
-        for (var index = 0; index < descriptor.RequiredHostCapabilities.Length; index++)
-        {
-            context.Enum(
-                descriptor.RequiredHostCapabilities[index],
-                AdapterHostCapability.Unknown,
-                $"Descriptor.RequiredHostCapabilities[{index}]");
-        }
-
+    static void ValidateRequiredApiCapabilities(
+        AdapterDescriptor descriptor,
+        AdapterContributionAdmissionContext context)
+    {
         for (var index = 0; index < descriptor.RequiredApiCapabilities.Length; index++)
         {
             var capability = descriptor.RequiredApiCapabilities[index];
@@ -164,15 +191,12 @@ static class AdapterContributionAdmissionValidator
                 "Descriptor.RequiredApiCapabilities",
                 $"Required API capability '{duplicate.Key}' occurs {duplicate.Count()} times");
         }
+    }
 
-        for (var index = 0; index < descriptor.EmittedFactCapabilities.Length; index++)
-        {
-            context.Enum(
-                descriptor.EmittedFactCapabilities[index],
-                GenerationFactCapability.Unknown,
-                $"Descriptor.EmittedFactCapabilities[{index}]");
-        }
-
+    static void ValidateGenerationVersionRange(
+        AdapterDescriptor descriptor,
+        AdapterContributionAdmissionContext context)
+    {
         var range = descriptor.CompatibleGenerationVersions;
         if (range.MinimumInclusive is null ||
             (range.MaximumExclusive is not null && range.MaximumExclusive <= range.MinimumInclusive))
@@ -331,15 +355,33 @@ static class AdapterContributionAdmissionValidator
                 $"{path}.Outcome contains undefined {nameof(GenerationDiagnosticOutcome)} value '{(int)outcome}'");
         }
 
+        ValidateLinkedFacts(adapterId, admittedFactIds, diagnostic, path, context);
+
+        if (diagnostic.Subject is not null)
+        {
+            ValidateSubject(diagnostic.Subject, $"{path}.Subject", null, context);
+        }
+
+        if (diagnostic.Source is not null)
+        {
+            ValidateSource(diagnostic.Source, $"{path}.Source", null, diagnostic.Subject, sourceAuthorityValidator, context);
+        }
+    }
+
+    static void ValidateLinkedFacts(
+        string adapterId,
+        HashSet<string> admittedFactIds,
+        GenerationDiagnostic diagnostic,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
         var linkedFactIds = new HashSet<string>(StringComparer.Ordinal);
         var factPrefix = $"{adapterId}:";
         for (var factIndex = 0; factIndex < diagnostic.Facts.Length; factIndex++)
         {
             var linkedFact = diagnostic.Facts[factIndex];
             var factPath = $"{path}.Facts[{factIndex}]";
-            if (!AdapterContributionText.IsNormalized(linkedFact.Value, false) ||
-                linkedFact.Value.Length == factPrefix.Length ||
-                !linkedFact.Value.StartsWith(factPrefix, StringComparison.Ordinal))
+            if (!IsScopedFactIdentity(linkedFact.Value, factPrefix))
             {
                 context.Add(
                     AdapterContributionAdmissionDiagnosticCode.InvalidContributionDiagnostic,
@@ -362,17 +404,28 @@ static class AdapterContributionAdmissionValidator
                     $"Contribution diagnostic references fact '{linkedFact.Value}' more than once");
             }
         }
-
-        if (diagnostic.Subject is not null)
-        {
-            ValidateSubject(diagnostic.Subject, $"{path}.Subject", null, context);
-        }
-
-        if (diagnostic.Source is not null)
-        {
-            ValidateSource(diagnostic.Source, $"{path}.Source", null, diagnostic.Subject, sourceAuthorityValidator, context);
-        }
     }
+
+    static bool IsScopedFactIdentity(string value, string factPrefix) =>
+        AdapterContributionText.IsNormalized(value, false) &&
+        value.Length != factPrefix.Length &&
+        value.StartsWith(factPrefix, StringComparison.Ordinal);
+
+    static bool IsValidSourceRange(SourceRange source) =>
+        IsPortableRelativePath(source.Path) &&
+        HasPositiveCoordinates(source) &&
+        IsOrdered(source) &&
+        (source.FileIdentity is null || IsFileIdentity(source.FileIdentity));
+
+    static bool HasPositiveCoordinates(SourceRange source) =>
+        source.StartLine >= 1 &&
+        source.StartColumn >= 1 &&
+        source.EndLine >= 1 &&
+        source.EndColumn >= 1;
+
+    static bool IsOrdered(SourceRange source) =>
+        source.EndLine > source.StartLine ||
+        (source.EndLine == source.StartLine && source.EndColumn >= source.StartColumn);
 
     static void ValidateSource(
         SourceRange source,
@@ -382,15 +435,7 @@ static class AdapterContributionAdmissionValidator
         ISourceAuthorityValidator? sourceAuthorityValidator,
         AdapterContributionAdmissionContext context)
     {
-        var isOrdered = source.EndLine > source.StartLine ||
-                        (source.EndLine == source.StartLine && source.EndColumn >= source.StartColumn);
-        if (!IsPortableRelativePath(source.Path) ||
-            source.StartLine < 1 ||
-            source.StartColumn < 1 ||
-            source.EndLine < 1 ||
-            source.EndColumn < 1 ||
-            !isOrdered ||
-            (source.FileIdentity is not null && !IsFileIdentity(source.FileIdentity)))
+        if (!IsValidSourceRange(source))
         {
             context.Add(
                 AdapterContributionAdmissionDiagnosticCode.InvalidSourceRange,
@@ -467,13 +512,7 @@ static class AdapterContributionAdmissionValidator
         var segments = path.Split('/');
         for (var index = 0; index < segments.Length; index++)
         {
-            if (string.IsNullOrEmpty(segments[index]) ||
-                !TryDecodeSegment(segments[index], out var decoded) ||
-                string.Equals(decoded, ".", StringComparison.Ordinal) ||
-                string.Equals(decoded, "..", StringComparison.Ordinal) ||
-                decoded.Contains('/') ||
-                decoded.Contains('\\') ||
-                (index == 0 && IsDriveRooted(decoded)))
+            if (!IsPortableSegment(segments[index], index == 0))
             {
                 return false;
             }
@@ -481,6 +520,22 @@ static class AdapterContributionAdmissionValidator
 
         return true;
     }
+
+    static bool IsPortableSegment(string segment, bool isFirst)
+    {
+        if (string.IsNullOrEmpty(segment) || !TryDecodeSegment(segment, out var decoded))
+        {
+            return false;
+        }
+
+        return !IsDotSegmentText(decoded) &&
+               !decoded.Contains('/') &&
+               !decoded.Contains('\\') &&
+               !(isFirst && IsDriveRooted(decoded));
+    }
+
+    static bool IsDotSegmentText(string decoded) =>
+        string.Equals(decoded, ".", StringComparison.Ordinal) || string.Equals(decoded, "..", StringComparison.Ordinal);
 
     static bool TryDecodeSegment(string segment, out string decoded)
     {
