@@ -50,15 +50,14 @@ public static class DotNetAdapterRunner
             .ToHashSet(StringComparer.Ordinal);
         var projectDiagnostics = ProjectDiagnostics(context);
         var hostCapabilities = DotNetHostCapabilities.Determine(context);
+        var rosterFacts = new RosterFacts(projectDiagnostics, hostCapabilities, generationContractsVersion);
+        var inputs = new AnalysisInputs(context, options);
         var records = prepared
             .Select(item => Run(
                 item,
                 duplicateIds.Contains(item.Descriptor.Identity.Id),
-                projectDiagnostics,
-                hostCapabilities,
-                generationContractsVersion,
-                context,
-                options))
+                rosterFacts,
+                inputs))
             .ToImmutableArray();
         var facts = records
             .SelectMany(record => record.Execution is AdapterExecutionCompleted completed
@@ -99,15 +98,12 @@ public static class DotNetAdapterRunner
     static AdapterRunRecord Run(
         PreparedRegistration item,
         bool isDuplicate,
-        ImmutableArray<GenerationDiagnostic> projectDiagnostics,
-        ImmutableArray<AdapterHostCapability> hostCapabilities,
-        Version generationContractsVersion,
-        DotNetAnalysisContext context,
-        DotNetAdapterOptions options)
+        RosterFacts facts,
+        AnalysisInputs inputs)
     {
         if (item.Failure is not null)
         {
-            return RejectedRosterRecord(item.Descriptor, [item.Failure]);
+            return BeforeProbe(item.Descriptor, null, [item.Failure], AdapterRunDisposition.RosterRejected);
         }
 
         if (isDuplicate)
@@ -116,41 +112,41 @@ public static class DotNetAdapterRunner
                 DotNetAdapterGenerationDiagnosticCodes.DuplicateAdapterId,
                 item.Descriptor.Identity.Id,
                 "was rejected because its identity occurs more than once in the roster");
-            return RejectedRosterRecord(item.Descriptor, [diagnostic]);
+            return BeforeProbe(item.Descriptor, null, [diagnostic], AdapterRunDisposition.RosterRejected);
         }
 
         if (!item.DescriptorDiagnostics.IsEmpty)
         {
-            return RejectedRosterRecord(
+            return BeforeProbe(
                 item.Descriptor,
-                [.. item.DescriptorDiagnostics.Select(diagnostic => DescriptorDiagnostic(item.Descriptor, diagnostic))]);
+                null,
+                [.. item.DescriptorDiagnostics.Select(diagnostic => DescriptorDiagnostic(item.Descriptor, diagnostic))],
+                AdapterRunDisposition.RosterRejected);
         }
 
-        if (!projectDiagnostics.IsEmpty && RequiresProjectRoster(item.Descriptor))
+        if (!facts.ProjectDiagnostics.IsEmpty && RequiresProjectRoster(item.Descriptor))
         {
-            return BlockedBeforeProbe(item.Descriptor, projectDiagnostics);
+            return BlockedBeforeProbe(item.Descriptor, facts.ProjectDiagnostics);
         }
 
-        var compatibilityDiagnostics = GenerationCompatibilityDiagnostics(item.Descriptor, generationContractsVersion);
+        var compatibilityDiagnostics = GenerationCompatibilityDiagnostics(item.Descriptor, facts.GenerationContractsVersion);
         if (!compatibilityDiagnostics.IsEmpty)
         {
             return BlockedBeforeProbe(item.Descriptor, compatibilityDiagnostics);
         }
 
-        var hostDiagnostics = HostDiagnostics(item.Descriptor, hostCapabilities);
+        var hostDiagnostics = HostDiagnostics(item.Descriptor, facts.HostCapabilities);
         if (!hostDiagnostics.IsEmpty)
         {
             return BlockedBeforeProbe(item.Descriptor, hostDiagnostics);
         }
 
-        return ProbeAndRun(item, context, options);
+        return ProbeAndRun(item, inputs);
     }
 
-    static AdapterRunRecord ProbeAndRun(
-        PreparedRegistration item,
-        DotNetAnalysisContext context,
-        DotNetAdapterOptions options)
+    static AdapterRunRecord ProbeAndRun(PreparedRegistration item, AnalysisInputs inputs)
     {
+        var context = inputs.Context;
         var requiresStableIdentity = item.Descriptor.RequiredHostCapabilities.Contains(AdapterHostCapability.StableSourceLocations);
         var sourceValidator = new DotNetSourceAuthorityValidator(context, requiresStableIdentity);
         AdapterProbeResult rawProbe;
@@ -178,7 +174,7 @@ public static class DotNetAdapterRunner
         {
             AdapterProbeNotApplicable => NotApplicable(item.Descriptor, probe),
             AdapterProbeBlocked blocked => BlockedAfterProbe(item.Descriptor, blocked),
-            AdapterProbeApplicable => Analyze(item, probe, sourceValidator, context, options),
+            AdapterProbeApplicable => Analyze(item, probe, sourceValidator, inputs),
             _ => BlockedAfterProbe(
                 item.Descriptor,
                 DotNetAdapterProbeAdmission.Malformed(item.Descriptor.Identity.Id))
@@ -189,27 +185,16 @@ public static class DotNetAdapterRunner
         PreparedRegistration item,
         AdapterProbeResult probe,
         ISourceAuthorityValidator sourceValidator,
-        DotNetAnalysisContext context,
-        DotNetAdapterOptions options)
+        AnalysisInputs inputs)
     {
         AdapterContribution contribution;
         try
         {
-            contribution = item.Registration.Analyze(context, options);
+            contribution = item.Registration.Analyze(inputs.Context, inputs.Options);
         }
         catch (Exception exception)
         {
-            var diagnostic = DotNetAdapterDiagnostics.OperationFailed(item.Descriptor.Identity.Id, "Analyze", exception);
-            return new AdapterRunRecord
-            {
-                Considered = true,
-                Probed = true,
-                Executed = true,
-                Descriptor = item.Descriptor,
-                Probe = probe,
-                Execution = new AdapterExecutionFailed { Diagnostics = [diagnostic] },
-                Disposition = AdapterRunDisposition.ExecutionFailed
-            };
+            return ExecutionFailed(item, probe, "Analyze", exception);
         }
 
         AdapterContributionAdmissionResult admission;
@@ -219,17 +204,7 @@ public static class DotNetAdapterRunner
         }
         catch (Exception exception)
         {
-            var diagnostic = DotNetAdapterDiagnostics.OperationFailed(item.Descriptor.Identity.Id, "ContributionAdmission", exception);
-            return new AdapterRunRecord
-            {
-                Considered = true,
-                Probed = true,
-                Executed = true,
-                Descriptor = item.Descriptor,
-                Probe = probe,
-                Execution = new AdapterExecutionFailed { Diagnostics = [diagnostic] },
-                Disposition = AdapterRunDisposition.ExecutionFailed
-            };
+            return ExecutionFailed(item, probe, "ContributionAdmission", exception);
         }
 
         if (!admission.IsAdmitted)
@@ -238,59 +213,70 @@ public static class DotNetAdapterRunner
                 DotNetAdapterGenerationDiagnosticCodes.ContributionRejected,
                 item.Descriptor.Identity.Id,
                 "contribution was rejected atomically");
-            return new AdapterRunRecord
-            {
-                Considered = true,
-                Probed = true,
-                Executed = true,
-                Descriptor = item.Descriptor,
-                Probe = probe,
-                Execution = new AdapterExecutionRejected
+            return Executed(
+                item,
+                probe,
+                new AdapterExecutionRejected
                 {
                     Diagnostics = [diagnostic],
                     AdmissionDiagnostics = admission.Diagnostics
                 },
-                Disposition = AdapterRunDisposition.ContributionRejected
-            };
+                AdapterRunDisposition.ContributionRejected);
         }
 
         var snapshot = admission.Snapshot!;
-        return new AdapterRunRecord
+        return Executed(
+            item,
+            probe,
+            new AdapterExecutionCompleted
+            {
+                Diagnostics = snapshot.Diagnostics,
+                Contribution = snapshot
+            },
+            AdapterRunDisposition.Admitted);
+    }
+
+    static AdapterRunRecord ExecutionFailed(
+        PreparedRegistration item,
+        AdapterProbeResult probe,
+        string operation,
+        Exception exception)
+    {
+        var diagnostic = DotNetAdapterDiagnostics.OperationFailed(item.Descriptor.Identity.Id, operation, exception);
+        return Executed(item, probe, new AdapterExecutionFailed { Diagnostics = [diagnostic] }, AdapterRunDisposition.ExecutionFailed);
+    }
+
+    static AdapterRunRecord Executed(
+        PreparedRegistration item,
+        AdapterProbeResult probe,
+        AdapterExecutionResult execution,
+        AdapterRunDisposition disposition) => new()
         {
             Considered = true,
             Probed = true,
             Executed = true,
             Descriptor = item.Descriptor,
             Probe = probe,
-            Execution = new AdapterExecutionCompleted
-            {
-                Diagnostics = snapshot.Diagnostics,
-                Contribution = snapshot
-            },
-            Disposition = AdapterRunDisposition.Admitted
-        };
-    }
-
-    static AdapterRunRecord RejectedRosterRecord(
-        AdapterDescriptor descriptor,
-        ImmutableArray<GenerationDiagnostic> diagnostics) => new()
-        {
-            Considered = true,
-            Descriptor = descriptor,
-            Probe = new AdapterProbeNotRun(),
-            Execution = new AdapterExecutionNotRun { Diagnostics = diagnostics },
-            Disposition = AdapterRunDisposition.RosterRejected
+            Execution = execution,
+            Disposition = disposition
         };
 
     static AdapterRunRecord BlockedBeforeProbe(
         AdapterDescriptor descriptor,
-        ImmutableArray<GenerationDiagnostic> diagnostics) => new()
+        ImmutableArray<GenerationDiagnostic> diagnostics) =>
+        BeforeProbe(descriptor, new AdapterProbeBlocked { Diagnostics = diagnostics }, diagnostics, AdapterRunDisposition.Blocked);
+
+    static AdapterRunRecord BeforeProbe(
+        AdapterDescriptor descriptor,
+        AdapterProbeResult? probe,
+        ImmutableArray<GenerationDiagnostic> diagnostics,
+        AdapterRunDisposition disposition) => new()
         {
             Considered = true,
             Descriptor = descriptor,
-            Probe = new AdapterProbeBlocked { Diagnostics = diagnostics },
+            Probe = probe ?? new AdapterProbeNotRun(),
             Execution = new AdapterExecutionNotRun { Diagnostics = diagnostics },
-            Disposition = AdapterRunDisposition.Blocked
+            Disposition = disposition
         };
 
     static AdapterRunRecord BlockedAfterProbe(AdapterDescriptor descriptor, AdapterProbeBlocked probe) => new()
@@ -357,8 +343,7 @@ public static class DotNetAdapterRunner
         Version generationContractsVersion)
     {
         var range = descriptor.CompatibleGenerationVersions;
-        if (generationContractsVersion.CompareTo(range.MinimumInclusive) >= 0 &&
-            (range.MaximumExclusive is null || generationContractsVersion.CompareTo(range.MaximumExclusive) < 0))
+        if (IsCompatible(range, generationContractsVersion))
         {
             return [];
         }
@@ -373,46 +358,50 @@ public static class DotNetAdapterRunner
         ];
     }
 
-    static bool IsPortableRelativeProjectPath(string? path)
-    {
-        if (string.IsNullOrEmpty(path) ||
-            !string.Equals(path, path.Trim(), StringComparison.Ordinal) ||
-            path.Any(char.IsControl) ||
-            path[0] == '/' ||
-            path.Contains('\\') ||
-            (path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':'))
-        {
-            return false;
-        }
+    static bool IsCompatible(GenerationVersionRange range, Version version) =>
+        version.CompareTo(range.MinimumInclusive) >= 0 &&
+        (range.MaximumExclusive is null || version.CompareTo(range.MaximumExclusive) < 0);
 
+    static bool IsPortableRelativeProjectPath(string? path) =>
+        !string.IsNullOrEmpty(path) &&
+        HasPortableShape(path) &&
+        IsNormalized(path) &&
+        path.Split('/').Select((segment, index) => IsPortableSegment(segment, index == 0)).All(portable => portable);
+
+    static bool HasPortableShape(string path) =>
+        string.Equals(path, path.Trim(), StringComparison.Ordinal) &&
+        !path.Any(char.IsControl) &&
+        path[0] != '/' &&
+        !path.Contains('\\') &&
+        !IsDriveRooted(path);
+
+    static bool IsDriveRooted(string value) =>
+        value.Length >= 2 && char.IsAsciiLetter(value[0]) && value[1] == ':';
+
+    static bool IsNormalized(string path)
+    {
         try
         {
-            if (!string.Equals(path, path.Normalize(), StringComparison.Ordinal))
-            {
-                return false;
-            }
+            return string.Equals(path, path.Normalize(), StringComparison.Ordinal);
         }
         catch (ArgumentException)
         {
             return false;
         }
+    }
 
-        var segments = path.Split('/');
-        for (var index = 0; index < segments.Length; index++)
+    static bool IsPortableSegment(string segment, bool isFirst)
+    {
+        if (string.IsNullOrEmpty(segment) || !TryDecodeProjectPathSegment(segment, out var decoded))
         {
-            if (string.IsNullOrEmpty(segments[index]) ||
-                !TryDecodeProjectPathSegment(segments[index], out var decoded) ||
-                string.Equals(decoded, ".", StringComparison.Ordinal) ||
-                string.Equals(decoded, "..", StringComparison.Ordinal) ||
-                decoded.Contains('/') ||
-                decoded.Contains('\\') ||
-                (index == 0 && decoded.Length >= 2 && char.IsAsciiLetter(decoded[0]) && decoded[1] == ':'))
-            {
-                return false;
-            }
+            return false;
         }
 
-        return true;
+        return !string.Equals(decoded, ".", StringComparison.Ordinal) &&
+            !string.Equals(decoded, "..", StringComparison.Ordinal) &&
+            !decoded.Contains('/') &&
+            !decoded.Contains('\\') &&
+            !(isFirst && IsDriveRooted(decoded));
     }
 
     static bool TryDecodeProjectPathSegment(string segment, out string decoded)
@@ -493,6 +482,13 @@ public static class DotNetAdapterRunner
     static Version CurrentGenerationContractsVersion() =>
         typeof(AdapterDescriptor).Assembly.GetName().Version ?? new Version(0, 0);
 
+    sealed record RosterFacts(
+        ImmutableArray<GenerationDiagnostic> ProjectDiagnostics,
+        ImmutableArray<AdapterHostCapability> HostCapabilities,
+        Version GenerationContractsVersion);
+
+    sealed record AnalysisInputs(DotNetAnalysisContext Context, DotNetAdapterOptions Options);
+
     sealed record PreparedRegistration(
         DotNetAdapterRegistration Registration,
         AdapterDescriptor Descriptor,
@@ -531,6 +527,12 @@ public static class DotNetAdapterRunner
 
         static int Compare(AdapterDescriptor left, AdapterDescriptor right)
         {
+            var comparison = CompareIdentity(left, right);
+            return comparison != 0 ? comparison : CompareRequirements(left, right);
+        }
+
+        static int CompareIdentity(AdapterDescriptor left, AdapterDescriptor right)
+        {
             var comparison = StringComparer.Ordinal.Compare(left.Identity.Id, right.Identity.Id);
             if (comparison != 0)
             {
@@ -563,24 +565,26 @@ public static class DotNetAdapterRunner
                 return comparison;
             }
 
-            comparison = CompareMaximumVersion(
+            return CompareMaximumVersion(
                 left.CompatibleGenerationVersions.MaximumExclusive,
                 right.CompatibleGenerationVersions.MaximumExclusive);
+        }
+
+        static int CompareRequirements(AdapterDescriptor left, AdapterDescriptor right)
+        {
+            var comparison = CompareSequences(left.RequiredHostCapabilities, right.RequiredHostCapabilities, Comparer<AdapterHostCapability>.Default.Compare);
             if (comparison != 0)
             {
                 return comparison;
             }
 
-            comparison = CompareEnums(left.RequiredHostCapabilities, right.RequiredHostCapabilities);
-            if (comparison != 0)
-            {
-                return comparison;
-            }
-
-            comparison = CompareApiCapabilities(left.RequiredApiCapabilities, right.RequiredApiCapabilities);
+            comparison = CompareSequences(
+                left.RequiredApiCapabilities,
+                right.RequiredApiCapabilities,
+                (a, b) => StringComparer.Ordinal.Compare(a.Id, b.Id));
             return comparison != 0
                 ? comparison
-                : CompareEnums(left.EmittedFactCapabilities, right.EmittedFactCapabilities);
+                : CompareSequences(left.EmittedFactCapabilities, right.EmittedFactCapabilities, Comparer<GenerationFactCapability>.Default.Compare);
         }
 
         static int CompareMinimumVersion(Version? left, Version? right)
@@ -603,30 +607,12 @@ public static class DotNetAdapterRunner
             return right is null ? -1 : left.CompareTo(right);
         }
 
-        static int CompareEnums<T>(ImmutableArray<T> left, ImmutableArray<T> right)
-            where T : struct, Enum
+        static int CompareSequences<T>(ImmutableArray<T> left, ImmutableArray<T> right, Comparison<T> compareItems)
         {
             var count = Math.Min(left.Length, right.Length);
             for (var index = 0; index < count; index++)
             {
-                var comparison = Comparer<T>.Default.Compare(left[index], right[index]);
-                if (comparison != 0)
-                {
-                    return comparison;
-                }
-            }
-
-            return left.Length.CompareTo(right.Length);
-        }
-
-        static int CompareApiCapabilities(
-            ImmutableArray<AdapterApiCapability> left,
-            ImmutableArray<AdapterApiCapability> right)
-        {
-            var count = Math.Min(left.Length, right.Length);
-            for (var index = 0; index < count; index++)
-            {
-                var comparison = StringComparer.Ordinal.Compare(left[index].Id, right[index].Id);
+                var comparison = compareItems(left[index], right[index]);
                 if (comparison != 0)
                 {
                     return comparison;

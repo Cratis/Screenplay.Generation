@@ -44,8 +44,8 @@ public class when_calculating_relationship_conflict_dispositions : given.a_gener
 
     [Fact] void should_classify_the_first_relationship_variant_as_conflicted() => Disposition("relationship:first").ShouldEqual(GenerationFactDisposition.Conflicted);
     [Fact] void should_classify_the_second_relationship_variant_as_conflicted() => Disposition("relationship:second").ShouldEqual(GenerationFactDisposition.Conflicted);
-    [Fact] void should_associate_the_relationship_conflict_diagnostic_with_both_variants() => _result.AdapterRun!.Facts.Where(record => record.Fact is RelationshipFact).All(record => record.Diagnostics.Any(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.ConflictingRelationship)).ShouldBeTrue();
-    [Fact] void should_not_leave_any_fact_unknown() => _result.AdapterRun!.Facts.Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();
+    [Fact] void should_associate_the_relationship_conflict_diagnostic_with_both_variants() => _result.AdapterRun.Facts.Where(record => record.Fact is RelationshipFact).All(record => record.Diagnostics.Any(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.ConflictingRelationship)).ShouldBeTrue();
+    [Fact] void should_not_leave_any_fact_unknown() => _result.AdapterRun.Facts.Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();
 
     RelationshipFact Relationship(string id, SubjectId source, SubjectId target, string sourceMember) => new()
     {
@@ -66,5 +66,5 @@ public class when_calculating_relationship_conflict_dispositions : given.a_gener
 
     Evidence Exact() => new() { Adapter = Adapter, Strength = EvidenceStrength.Exact };
 
-    GenerationFactDisposition Disposition(string id) => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == id).Disposition;
+    GenerationFactDisposition Disposition(string id) => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == id).Disposition;
 }

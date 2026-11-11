@@ -52,27 +52,27 @@ public class when_calculating_collision_safe_fact_dispositions : given.a_generat
         SubjectId target,
         string? sourceMember,
         string? discriminator) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = source,
-        Evidence = Exact(),
-        Definition = new RelationshipDefinition
         {
-            Key = new RelationshipKey
+            Id = new FactId { Value = id },
+            Subject = source,
+            Evidence = Exact(),
+            Definition = new RelationshipDefinition
             {
-                Kind = RelationshipKind.Reads,
-                Source = source,
-                Target = target,
-                Discriminator = discriminator
-            },
-            SourceMember = sourceMember
-        }
-    };
+                Key = new RelationshipKey
+                {
+                    Kind = RelationshipKind.Reads,
+                    Source = source,
+                    Target = target,
+                    Discriminator = discriminator
+                },
+                SourceMember = sourceMember
+            }
+        };
 
     Evidence Exact() => new() { Adapter = Adapter, Strength = EvidenceStrength.Exact };
 
     GenerationFactRecord[] Records(params string[] ids) =>
-        [.. ids.Select(id => _result.AdapterRun!.Facts.Single(_ => _.Fact.Id.Value == id))];
+        [.. ids.Select(id => _result.AdapterRun.Facts.Single(_ => _.Fact.Id.Value == id))];
 
     GenerationFactDisposition[] Dispositions(params string[] ids) =>
         [.. Records(ids).Select(_ => _.Disposition)];

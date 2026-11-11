@@ -119,20 +119,20 @@ public class a_generator : Specification
         string? predicate,
         string? message = null,
         string? implementationFile = null) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Definition = new ConceptValidationRuleDefinition
         {
-            Concept = subject,
-            RuleIdentity = ruleIdentity,
-            Kind = ConceptValidationRuleKind.NamedPredicate,
-            Predicate = predicate,
-            Message = message,
-            ImplementationFile = implementationFile
-        },
-        Evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact }
-    };
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Definition = new ConceptValidationRuleDefinition
+            {
+                Concept = subject,
+                RuleIdentity = ruleIdentity,
+                Kind = ConceptValidationRuleKind.NamedPredicate,
+                Predicate = predicate,
+                Message = message,
+                ImplementationFile = implementationFile
+            },
+            Evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact }
+        };
 
     protected static PropertyDefinition Property(string name, string type, SubjectId? subject = null) => new()
     {

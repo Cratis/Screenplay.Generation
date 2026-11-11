@@ -44,5 +44,5 @@ public class when_initializing_inherited_payload_members : given.a_compilation
     [Fact] void should_preserve_each_authored_value_location() => _payload.Values.Select(_ => SourceText(_.Source)).ShouldEqual(["\"payload\"", "1", "2", "3"]);
     [Fact] void should_preserve_property_and_field_symbol_provenance() => _payload.Values.Skip(1).Select(_ => _.Symbol.Kind).ShouldEqual([SymbolKind.Property, SymbolKind.Field, SymbolKind.Property]);
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

@@ -54,5 +54,5 @@ public class when_conditionals_are_inside_checked_expressions : given.a_compilat
     [Fact] void should_locate_every_failure_at_the_inner_conditional_expression() => _results.SelectMany(_ => _.Failures).Select(_ => SourceText(_.Source)).ToArray().ShouldEqual([.. Enumerable.Repeat("condition ? 1 : 2", 5)]);
     [Fact] void should_publish_no_partial_values() => _results.Length.ShouldEqual(5);
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

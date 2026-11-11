@@ -150,20 +150,7 @@ static class SpecificationFactAdmissionValidator
 
         if (definition.Kind == SpecificationStepKind.Error)
         {
-            if (definition.Phase != SpecificationStepPhase.Then)
-            {
-                InvalidOperand(fact, $"{path}.Definition.Phase", "Error steps must use the Then phase", context);
-            }
-
-            if (definition.Artifact is not null)
-            {
-                InvalidOperand(fact, $"{path}.Definition.Artifact", "Error steps cannot carry an artifact operand", context);
-            }
-
-            if (definition.Values.Count > 0)
-            {
-                InvalidOperand(fact, $"{path}.Definition.Values", "Error steps cannot carry value operands", context);
-            }
+            ValidateErrorStepOperand(fact, path, context);
             return;
         }
 
@@ -172,6 +159,37 @@ static class SpecificationFactAdmissionValidator
             return;
         }
 
+        ValidateArtifactStepOperand(fact, path, context);
+    }
+
+    static void ValidateErrorStepOperand(
+        SpecificationStepFact fact,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
+        var definition = fact.Definition;
+        if (definition.Phase != SpecificationStepPhase.Then)
+        {
+            InvalidOperand(fact, $"{path}.Definition.Phase", "Error steps must use the Then phase", context);
+        }
+
+        if (definition.Artifact is not null)
+        {
+            InvalidOperand(fact, $"{path}.Definition.Artifact", "Error steps cannot carry an artifact operand", context);
+        }
+
+        if (definition.Values.Count > 0)
+        {
+            InvalidOperand(fact, $"{path}.Definition.Values", "Error steps cannot carry value operands", context);
+        }
+    }
+
+    static void ValidateArtifactStepOperand(
+        SpecificationStepFact fact,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
+        var definition = fact.Definition;
         if (definition.Artifact is null)
         {
             InvalidOperand(
@@ -191,15 +209,7 @@ static class SpecificationFactAdmissionValidator
                 context);
         }
 
-        var validKind = definition.Kind switch
-        {
-            SpecificationStepKind.Event => definition.Artifact.Kind == ArtifactKind.Event,
-            SpecificationStepKind.ReadModel => definition.Artifact.Kind == ArtifactKind.ReadModel,
-            SpecificationStepKind.Command => definition.Artifact.Kind == ArtifactKind.Command,
-            SpecificationStepKind.Read => definition.Artifact.Kind == ArtifactKind.Query,
-            _ => false
-        };
-        if (!validKind)
+        if (!ArtifactKindMatchesStep(definition.Kind, definition.Artifact.Kind))
         {
             InvalidOperand(
                 fact,
@@ -208,6 +218,16 @@ static class SpecificationFactAdmissionValidator
                 context);
         }
     }
+
+    static bool ArtifactKindMatchesStep(SpecificationStepKind stepKind, ArtifactKind artifactKind) =>
+        stepKind switch
+        {
+            SpecificationStepKind.Event => artifactKind == ArtifactKind.Event,
+            SpecificationStepKind.ReadModel => artifactKind == ArtifactKind.ReadModel,
+            SpecificationStepKind.Command => artifactKind == ArtifactKind.Command,
+            SpecificationStepKind.Read => artifactKind == ArtifactKind.Query,
+            _ => false
+        };
 
     static void ValidateValueOperand(
         SpecificationValueFact fact,
@@ -224,28 +244,29 @@ static class SpecificationFactAdmissionValidator
                 }
                 break;
             case SpecificationValueKind.Text:
-                if (definition.Scalar is null)
-                {
-                    InvalidOperand(fact, $"{path}.Definition.Scalar", "Text values require a scalar operand", context);
-                }
-
-                RejectScalarChildren(fact, path, context);
+                ValidateScalarValue(
+                    fact,
+                    path,
+                    definition.Scalar is not null,
+                    "Text values require a scalar operand",
+                    context);
                 break;
             case SpecificationValueKind.Number:
-                if (!decimal.TryParse(definition.Scalar, NumberStyles.Number, CultureInfo.InvariantCulture, out _))
-                {
-                    InvalidOperand(fact, $"{path}.Definition.Scalar", "Number values require a valid invariant decimal scalar operand", context);
-                }
-
-                RejectScalarChildren(fact, path, context);
+                ValidateScalarValue(
+                    fact,
+                    path,
+                    decimal.TryParse(definition.Scalar, NumberStyles.Number, CultureInfo.InvariantCulture, out _),
+                    "Number values require a valid invariant decimal scalar operand",
+                    context);
                 break;
             case SpecificationValueKind.Boolean:
-                if (definition.Scalar is not ("true" or "false"))
-                {
-                    InvalidOperand(fact, $"{path}.Definition.Scalar", "Boolean values require the lowercase scalar 'true' or 'false'", context);
-                }
-
-                RejectScalarChildren(fact, path, context);
+                ValidateScalarValue(
+                    fact,
+                    path,
+                    string.Equals(definition.Scalar, "true", StringComparison.Ordinal) ||
+                        string.Equals(definition.Scalar, "false", StringComparison.Ordinal),
+                    "Boolean values require the lowercase scalar 'true' or 'false'",
+                    context);
                 break;
             case SpecificationValueKind.Collection:
             case SpecificationValueKind.Composite:
@@ -255,6 +276,21 @@ static class SpecificationFactAdmissionValidator
                 }
                 break;
         }
+    }
+
+    static void ValidateScalarValue(
+        SpecificationValueFact fact,
+        string path,
+        bool scalarIsValid,
+        string invalidScalarMessage,
+        AdapterContributionAdmissionContext context)
+    {
+        if (!scalarIsValid)
+        {
+            InvalidOperand(fact, $"{path}.Definition.Scalar", invalidScalarMessage, context);
+        }
+
+        RejectScalarChildren(fact, path, context);
     }
 
     static void RejectScalarChildren(

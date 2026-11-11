@@ -16,7 +16,7 @@ public class when_ordering_probe_evidence_with_shared_starts : given.a_runner_co
             "Project",
             "/checkout/Project/Code.cs",
             "public class Code;\n");
-        var file = project.SourceContext!.Files.Values.Single();
+        var file = project.SourceContext.Files.Values.Single();
         var shortRange = Range(file, 2);
         var longRange = Range(file, 7);
         _forward = Projection(Run(project, [Evidence(longRange), Evidence(shortRange)]));
@@ -60,5 +60,5 @@ public class when_ordering_probe_evidence_with_shared_starts : given.a_runner_co
     static string Projection(AdapterRunSnapshot snapshot) => string.Join(
         '|',
         snapshot.Adapters.Single().Probe.Evidence.Select(evidence =>
-            $"{evidence.Source!.StartLine}:{evidence.Source.StartColumn}-{evidence.Source.EndLine}:{evidence.Source.EndColumn}"));
+            $"{evidence.Source.StartLine}:{evidence.Source.StartColumn}-{evidence.Source.EndLine}:{evidence.Source.EndColumn}"));
 }

@@ -30,7 +30,7 @@ public class when_source_ranges_use_nonportable_display_paths : given.a_runner_c
             "Project",
             "/checkout/Project/Code.cs",
             "public class Code { }\n");
-        var mappedFile = mappedProject.SourceContext!.Files.Values.Single();
+        var mappedFile = mappedProject.SourceContext.Files.Values.Single();
         var legacyProject = LegacyProject();
 
         _modernProbeRecords =

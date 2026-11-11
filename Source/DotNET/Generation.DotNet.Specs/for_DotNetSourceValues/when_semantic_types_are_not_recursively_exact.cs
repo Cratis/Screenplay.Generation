@@ -78,5 +78,5 @@ public class when_semantic_types_are_not_recursively_exact : given.a_compilation
 
     static IReadOnlyList<DotNetValueFailure> Failures<T>(DotNetBounded<T> result) => ((DotNetUnknown<T>)result).Failures;
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

@@ -95,9 +95,9 @@ public class when_type_use_bindings_conflict : given.a_generator
     [Fact] void should_conflict_the_derived_binding() => DerivedBinding().Disposition.ShouldEqual(GenerationFactDisposition.Conflicted);
     [Fact] void should_associate_the_same_conflict_with_both_bindings() => DirectBinding().Diagnostics.Select(diagnostic => diagnostic.Code).Concat(DerivedBinding().Diagnostics.Select(diagnostic => diagnostic.Code)).ShouldContainOnly(GenerationDiagnosticCodes.ConflictingArtifactMember, GenerationDiagnosticCodes.ConflictingArtifactMember);
 
-    GenerationFactRecord DirectBinding() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "application:legacy-binding");
+    GenerationFactRecord DirectBinding() => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == "application:legacy-binding");
 
-    GenerationFactRecord DerivedBinding() => _result.AdapterRun!.Derivation!.Facts.Single();
+    GenerationFactRecord DerivedBinding() => _result.AdapterRun.Derivation.Facts.Single();
 
     static GenerationFact[] ConceptFacts(SubjectId subject, string name, string suffix, Evidence evidence) =>
     [

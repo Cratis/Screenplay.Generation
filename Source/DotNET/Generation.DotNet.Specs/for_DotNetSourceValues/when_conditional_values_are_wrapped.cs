@@ -71,5 +71,5 @@ public class when_conditional_values_are_wrapped : given.a_compilation
     [Fact] void should_keep_a_nonconstant_non_short_circuit_boolean_expression_computed() => ((DotNetUnknown<DotNetSourceValue>)_controls[1]).Failures.Single().Kind.ShouldEqual(DotNetValueFailureKind.Computed);
     [Fact] void should_locate_the_nonconstant_non_short_circuit_control_at_the_binary_expression() => SourceText(((DotNetUnknown<DotNetSourceValue>)_controls[1]).Failures.Single().Source).ShouldEqual("condition & true");
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

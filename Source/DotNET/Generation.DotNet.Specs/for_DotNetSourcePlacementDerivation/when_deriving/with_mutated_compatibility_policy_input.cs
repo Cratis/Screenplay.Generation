@@ -44,5 +44,5 @@ public class with_mutated_compatibility_policy_input : Specification
     }
 
     [Fact] void should_retain_an_immutable_compatibility_placement_snapshot() => _placement.Placement.Features.ShouldContainOnly("Orders");
-    [Fact] void should_retain_immutable_compatibility_policy_provenance() => _placement.CompatibilityPolicy!.Placement.Features.ShouldContainOnly("Orders");
+    [Fact] void should_retain_immutable_compatibility_policy_provenance() => _placement.CompatibilityPolicy.Placement.Features.ShouldContainOnly("Orders");
 }

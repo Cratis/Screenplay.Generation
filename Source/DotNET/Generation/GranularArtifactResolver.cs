@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace Cratis.Screenplay.Generation;
 
 static class GranularArtifactResolver
@@ -41,19 +43,7 @@ static class GranularArtifactResolver
             var overlaid = ApplyMembers(variant, granular, declaredArtifacts, diagnostics);
             if (overlaid is not null)
             {
-                foreach (var support in CanonicalFacts(overlaid.Supports))
-                {
-                    effective.Add(new ArtifactFact
-                    {
-                        Id = support.Id,
-                        Subject = overlaid.Definition.Key.Subject,
-                        Evidence = support.Evidence,
-                        Definition = overlaid.Definition with
-                        {
-                            File = RealizationFileFor(support) ?? overlaid.Definition.File
-                        }
-                    });
-                }
+                effective.AddRange(EffectiveFacts(overlaid));
             }
         }
 
@@ -71,6 +61,18 @@ static class GranularArtifactResolver
             .. ValidGranularFacts(input.Where(IsGranularArtifactFact), diagnostics)
         ];
     }
+
+    static IEnumerable<ArtifactFact> EffectiveFacts(ArtifactVariant overlaid) =>
+        CanonicalFacts(overlaid.Supports).Select(support => new ArtifactFact
+        {
+            Id = support.Id,
+            Subject = overlaid.Definition.Key.Subject,
+            Evidence = support.Evidence,
+            Definition = overlaid.Definition with
+            {
+                File = RealizationFileFor(support) ?? overlaid.Definition.File
+            }
+        });
 
     static List<ArtifactVariant> DeclarationVariants(
         IEnumerable<ArtifactFact> legacy,
@@ -142,211 +144,229 @@ static class GranularArtifactResolver
             .Order(StringComparer.Ordinal);
         foreach (var memberName in memberNames)
         {
-            var currentFacts = memberFacts
-                .Where(fact => MemberFor(fact)!.Name == memberName)
-                .ToArray();
             properties.TryGetValue(memberName, out var existing);
-            var declarationFacts = currentFacts.OfType<ArtifactMemberDeclarationFact>().ToArray();
-            var orders = declarationFacts.Select(fact => fact.Definition.DeclarationOrder)
-                .Concat(existing is null ? [] : [existing.Order])
-                .Distinct()
-                .ToArray();
-            if (orders.Length == 0)
+            var member = new MemberContext(
+                variant,
+                memberName,
+                [.. memberFacts.Where(fact => MemberFor(fact)!.Name == memberName)],
+                existing,
+                declaredArtifacts,
+                diagnostics);
+            var resolved = ResolveMember(member);
+            if (resolved is null)
             {
-                AddDiagnostic(
-                    diagnostics,
-                    GenerationDiagnosticCodes.IncompleteArtifactMember,
-                    GenerationDiagnosticOutcome.Unknown,
-                    key.Subject,
-                    currentFacts,
-                    $"Artifact member '{memberName}' has no declaration order");
                 failed = true;
                 continue;
             }
 
-            if (orders.Length > 1)
-            {
-                AddDiagnostic(
-                    diagnostics,
-                    GenerationDiagnosticCodes.ConflictingArtifactMember,
-                    GenerationDiagnosticOutcome.Conflict,
-                    key.Subject,
-                    currentFacts.Concat(variant.Supports),
-                    $"Artifact member '{memberName}' has incompatible declaration orders");
-                failed = true;
-                continue;
-            }
-
-            var typeUseFacts = currentFacts.OfType<ArtifactMemberTypeUseFact>().ToArray();
-            var typeUseVariants = typeUseFacts
-                .GroupBy(fact => Structural.TypeUse(fact.Definition.Type), StringComparer.Ordinal)
-                .OrderBy(group => group.Key, StringComparer.Ordinal)
-                .ToArray();
-            if (typeUseVariants.Length > 1)
-            {
-                AddDiagnostic(
-                    diagnostics,
-                    GenerationDiagnosticCodes.ConflictingArtifactMember,
-                    GenerationDiagnosticOutcome.Conflict,
-                    key.Subject,
-                    typeUseFacts,
-                    $"Artifact member '{memberName}' has incompatible exact type uses");
-                failed = true;
-                continue;
-            }
-
-            var type = existing?.Property.Type;
-            ArtifactMemberTypeUseFact? typeUse = null;
-            if (typeUseVariants.Length == 1)
-            {
-                typeUse = typeUseVariants[0].OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
-                if (!TryTypeReference(typeUse.Definition.Type, out var granularType))
-                {
-                    AddDiagnostic(
-                        diagnostics,
-                        GenerationDiagnosticCodes.UnsupportedTypeUseShape,
-                        GenerationDiagnosticOutcome.Unsupported,
-                        key.Subject,
-                        typeUseVariants[0],
-                        $"Artifact member '{memberName}' uses exact shape '{Shape(typeUse.Definition.Type)}' that Screenplay cannot represent");
-                    failed = true;
-                    continue;
-                }
-
-                if (type is not null && !SameUnboundType(type, granularType))
-                {
-                    AddDiagnostic(
-                        diagnostics,
-                        GenerationDiagnosticCodes.ConflictingArtifactMember,
-                        GenerationDiagnosticOutcome.Conflict,
-                        key.Subject,
-                        typeUseVariants[0].Cast<GenerationFact>().Concat(variant.Supports),
-                        $"Artifact member '{memberName}' has incompatible legacy and granular type uses");
-                    failed = true;
-                    continue;
-                }
-
-                type = granularType with
-                {
-                    Subject = type?.Subject,
-                    TargetArtifactKind = type?.TargetArtifactKind
-                };
-            }
-
-            if (type is null)
-            {
-                AddDiagnostic(
-                    diagnostics,
-                    GenerationDiagnosticCodes.IncompleteArtifactMember,
-                    GenerationDiagnosticOutcome.Unknown,
-                    key.Subject,
-                    currentFacts,
-                    $"Artifact member '{memberName}' has no exact type use");
-                failed = true;
-                continue;
-            }
-
-            var bindings = currentFacts.OfType<TypeUseBindingFact>().ToArray();
-            var bindingVariants = bindings
-                .GroupBy(fact => Structural.ArtifactKey(fact.Definition.Target), StringComparer.Ordinal)
-                .OrderBy(group => group.Key, StringComparer.Ordinal)
-                .ToArray();
-            if (bindingVariants.Length > 1)
-            {
-                AddDiagnostic(
-                    diagnostics,
-                    GenerationDiagnosticCodes.ConflictingArtifactMember,
-                    GenerationDiagnosticOutcome.Conflict,
-                    key.Subject,
-                    bindings,
-                    $"Artifact member '{memberName}' has incompatible exact type bindings");
-                failed = true;
-                continue;
-            }
-
-            if (bindingVariants.Length == 0 &&
-                typeUse?.Definition.Type.ObservedTypeSubject is not null &&
-                type.Subject is null)
-            {
-                AddDiagnostic(
-                    diagnostics,
-                    GenerationDiagnosticCodes.IncompleteArtifactMember,
-                    GenerationDiagnosticOutcome.Unknown,
-                    key.Subject,
-                    typeUseFacts.Concat(variant.Supports),
-                    $"Artifact member '{memberName}' has an observed exact type subject but no admitted binding");
-                failed = true;
-                continue;
-            }
-
-            if (bindingVariants.Length == 1)
-            {
-                var binding = bindingVariants[0].OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
-                if (!declaredArtifacts.Contains(binding.Definition.Target))
-                {
-                    AddDiagnostic(
-                        diagnostics,
-                        GenerationDiagnosticCodes.MissingTypeUseBindingTarget,
-                        GenerationDiagnosticOutcome.Unknown,
-                        key.Subject,
-                        bindingVariants[0],
-                        $"Artifact member '{memberName}' binds undeclared target role '{binding.Definition.Target.Kind}' for subject '{binding.Definition.Target.Subject.Value}'");
-                    failed = true;
-                    continue;
-                }
-
-                var target = binding.Definition.Target.Subject;
-                if ((type.Subject is not null && type.Subject != target) ||
-                    (type.TargetArtifactKind is not null && type.TargetArtifactKind != binding.Definition.Target.Kind) ||
-                    (typeUse?.Definition.Type.ObservedTypeSubject is not null && typeUse.Definition.Type.ObservedTypeSubject != target))
-                {
-                    AddDiagnostic(
-                        diagnostics,
-                        GenerationDiagnosticCodes.ConflictingArtifactMember,
-                        GenerationDiagnosticOutcome.Conflict,
-                        key.Subject,
-                        bindingVariants[0].Cast<GenerationFact>().Concat(typeUseFacts).Concat(variant.Supports),
-                        $"Artifact member '{memberName}' binds incompatible exact type subjects");
-                    failed = true;
-                    continue;
-                }
-
-                type = type with
-                {
-                    Subject = target,
-                    TargetArtifactKind = binding.Definition.Target.Kind
-                };
-            }
-
-            var roleFacts = currentFacts.OfType<ArtifactMemberRoleFact>().ToArray();
-            var roleVariants = roleFacts.Select(fact => fact.Definition.Role).Distinct().ToArray();
-            if (roleVariants.Length > 1)
-            {
-                AddDiagnostic(
-                    diagnostics,
-                    GenerationDiagnosticCodes.ConflictingArtifactMember,
-                    GenerationDiagnosticOutcome.Conflict,
-                    key.Subject,
-                    roleFacts,
-                    $"Artifact member '{memberName}' has incompatible identifier roles");
-                failed = true;
-                continue;
-            }
-
-            var isIdentifier = existing?.Property.IsIdentifier == true ||
-                               roleVariants.SingleOrDefault() == ArtifactMemberRoleKind.EventSourceIdentifier;
-            properties[memberName] = new OrderedProperty(
-                orders[0],
-                new PropertyDefinition
-                {
-                    Name = memberName,
-                    Type = type,
-                    IsIdentifier = isIdentifier
-                });
-            supports.AddRange(currentFacts);
+            properties[memberName] = resolved;
+            supports.AddRange(member.Facts);
         }
 
-        var duplicateOrders = properties.Values
+        failed |= ReportDuplicateOrders(variant, memberFacts, properties.Values, diagnostics);
+        return failed ? null : WithProperties(variant, properties.Values, supports);
+    }
+
+    static OrderedProperty? ResolveMember(MemberContext member)
+    {
+        if (!TryDeclarationOrder(member, out var order) ||
+            !TryResolveType(member, out var typeUses))
+        {
+            return null;
+        }
+
+        var bound = BindTarget(member, typeUses);
+        if (bound is null || !TryIdentifierRole(member, out var isIdentifier))
+        {
+            return null;
+        }
+
+        return new OrderedProperty(
+            order,
+            new PropertyDefinition
+            {
+                Name = member.Name,
+                Type = bound,
+                IsIdentifier = isIdentifier
+            });
+    }
+
+    static bool TryDeclarationOrder(MemberContext member, out int order)
+    {
+        var orders = member.Facts.OfType<ArtifactMemberDeclarationFact>()
+            .Select(fact => fact.Definition.DeclarationOrder)
+            .Concat(member.Existing is null ? [] : [member.Existing.Order])
+            .Distinct()
+            .ToArray();
+        order = orders.FirstOrDefault();
+        if (orders.Length == 0)
+        {
+            return member.Incomplete(member.Facts, "has no declaration order");
+        }
+
+        return orders.Length == 1 ||
+               member.Conflict(member.Facts.Concat(member.Variant.Supports), "has incompatible declaration orders");
+    }
+
+    static bool TryResolveType(MemberContext member, [NotNullWhen(true)] out MemberTypeUses? typeUses)
+    {
+        var typeUseFacts = member.Facts.OfType<ArtifactMemberTypeUseFact>().ToArray();
+        var typeUseVariants = typeUseFacts
+            .GroupBy(fact => Structural.TypeUse(fact.Definition.Type), StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .ToArray();
+        typeUses = null;
+        if (typeUseVariants.Length > 1)
+        {
+            return member.Conflict(typeUseFacts, "has incompatible exact type uses");
+        }
+
+        var selected = typeUseVariants.Length == 1 ? typeUseVariants[0] : null;
+        var selectedFact = selected?.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
+        var candidate = new MemberTypeUses(typeUseFacts, selected, selectedFact, member.Existing?.Property.Type);
+        if (selected is not null)
+        {
+            var overlaid = OverlayTypeUse(member, candidate);
+            if (overlaid is null)
+            {
+                return false;
+            }
+
+            candidate = candidate with { Type = overlaid };
+        }
+
+        if (candidate.Type is null)
+        {
+            return member.Incomplete(member.Facts, "has no exact type use");
+        }
+
+        typeUses = candidate;
+        return true;
+    }
+
+    static TypeReferenceDefinition? OverlayTypeUse(MemberContext member, MemberTypeUses typeUses)
+    {
+        var current = typeUses.Type;
+        var typeUse = typeUses.Selected!;
+        if (!TryTypeReference(typeUse.Definition.Type, out var granularType))
+        {
+            member.Fail(
+                GenerationDiagnosticCodes.UnsupportedTypeUseShape,
+                GenerationDiagnosticOutcome.Unsupported,
+                typeUses.Variant!,
+                $"uses exact shape '{Shape(typeUse.Definition.Type)}' that Screenplay cannot represent");
+            return null;
+        }
+
+        if (current is not null && !SameUnboundType(current, granularType))
+        {
+            member.Conflict(
+                typeUses.Variant!.Cast<GenerationFact>().Concat(member.Variant.Supports),
+                "has incompatible legacy and granular type uses");
+            return null;
+        }
+
+        return granularType with
+        {
+            Subject = current?.Subject,
+            TargetArtifactKind = current?.TargetArtifactKind
+        };
+    }
+
+    static TypeReferenceDefinition? BindTarget(MemberContext member, MemberTypeUses typeUses)
+    {
+        var type = typeUses.Type!;
+        var bindings = member.Facts.OfType<TypeUseBindingFact>().ToArray();
+        var bindingVariants = bindings
+            .GroupBy(fact => Structural.ArtifactKey(fact.Definition.Target), StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .ToArray();
+        if (bindingVariants.Length > 1)
+        {
+            member.Conflict(bindings, "has incompatible exact type bindings");
+            return null;
+        }
+
+        if (bindingVariants.Length == 1)
+        {
+            return ApplyBinding(member, bindingVariants[0], typeUses);
+        }
+
+        if (typeUses.Selected?.Definition.Type.ObservedTypeSubject is not null && type.Subject is null)
+        {
+            member.Incomplete(
+                typeUses.Facts.Concat(member.Variant.Supports),
+                "has an observed exact type subject but no admitted binding");
+            return null;
+        }
+
+        return type;
+    }
+
+    static TypeReferenceDefinition? ApplyBinding(
+        MemberContext member,
+        IGrouping<string, TypeUseBindingFact> bindingVariant,
+        MemberTypeUses typeUses)
+    {
+        var type = typeUses.Type!;
+        var binding = bindingVariant.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
+        var target = binding.Definition.Target;
+        if (!member.Declared.Contains(target))
+        {
+            member.Fail(
+                GenerationDiagnosticCodes.MissingTypeUseBindingTarget,
+                GenerationDiagnosticOutcome.Unknown,
+                bindingVariant,
+                $"binds undeclared target role '{target.Kind}' for subject '{target.Subject.Value}'");
+            return null;
+        }
+
+        if (ConflictsWithTarget(type, typeUses.Selected, target))
+        {
+            member.Conflict(
+                bindingVariant.Cast<GenerationFact>().Concat(typeUses.Facts).Concat(member.Variant.Supports),
+                "binds incompatible exact type subjects");
+            return null;
+        }
+
+        return type with
+        {
+            Subject = target.Subject,
+            TargetArtifactKind = target.Kind
+        };
+    }
+
+    static bool ConflictsWithTarget(
+        TypeReferenceDefinition type,
+        ArtifactMemberTypeUseFact? typeUse,
+        ArtifactKey target) =>
+        (type.Subject is not null && type.Subject != target.Subject) ||
+        (type.TargetArtifactKind is not null && type.TargetArtifactKind != target.Kind) ||
+        (typeUse?.Definition.Type.ObservedTypeSubject is not null && typeUse.Definition.Type.ObservedTypeSubject != target.Subject);
+
+    static bool TryIdentifierRole(MemberContext member, out bool isIdentifier)
+    {
+        isIdentifier = false;
+        var roleFacts = member.Facts.OfType<ArtifactMemberRoleFact>().ToArray();
+        var roleVariants = roleFacts.Select(fact => fact.Definition.Role).Distinct().ToArray();
+        if (roleVariants.Length > 1)
+        {
+            return member.Conflict(roleFacts, "has incompatible identifier roles");
+        }
+
+        isIdentifier = member.Existing?.Property.IsIdentifier == true ||
+                       roleVariants.SingleOrDefault() == ArtifactMemberRoleKind.EventSourceIdentifier;
+        return true;
+    }
+
+    static bool ReportDuplicateOrders(
+        ArtifactVariant variant,
+        GenerationFact[] memberFacts,
+        IEnumerable<OrderedProperty> properties,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        var key = variant.Definition.Key;
+        var duplicateOrders = properties
             .GroupBy(property => property.Order)
             .Where(group => group.Count() > 1)
             .ToArray();
@@ -365,27 +385,26 @@ static class GranularArtifactResolver
                 key.Subject,
                 involvedFacts,
                 $"Artifact '{key.Subject.Value}' has multiple members at declaration order {duplicateOrder.Key}");
-            failed = true;
         }
 
-        if (failed)
-        {
-            return null;
-        }
+        return duplicateOrders.Length > 0;
+    }
 
-        return new ArtifactVariant(
+    static ArtifactVariant WithProperties(
+        ArtifactVariant variant,
+        IEnumerable<OrderedProperty> properties,
+        IEnumerable<GenerationFact> supports) => new(
             variant.Definition with
             {
                 Properties =
                 [
-                    .. properties.Values
+                    .. properties
                         .OrderBy(property => property.Order)
                         .ThenBy(property => property.Property.Name, StringComparer.Ordinal)
                         .Select(property => property.Property)
                 ]
             },
             [.. CanonicalFacts(supports)]);
-    }
 
     static bool TryTypeReference(TypeUseDefinition type, out TypeReferenceDefinition reference)
     {
@@ -529,4 +548,31 @@ static class GranularArtifactResolver
     sealed record OrderedProperty(int Order, PropertyDefinition Property);
 
     sealed record ArtifactVariant(ArtifactDefinition Definition, List<GenerationFact> Supports);
+
+    sealed record MemberTypeUses(
+        ArtifactMemberTypeUseFact[] Facts,
+        IGrouping<string, ArtifactMemberTypeUseFact>? Variant,
+        ArtifactMemberTypeUseFact? Selected,
+        TypeReferenceDefinition? Type);
+
+    sealed record MemberContext(
+        ArtifactVariant Variant,
+        string Name,
+        GenerationFact[] Facts,
+        OrderedProperty? Existing,
+        HashSet<ArtifactKey> Declared,
+        List<GenerationDiagnostic> Diagnostics)
+    {
+        public bool Conflict(IEnumerable<GenerationFact> facts, string description) =>
+            Fail(GenerationDiagnosticCodes.ConflictingArtifactMember, GenerationDiagnosticOutcome.Conflict, facts, description);
+
+        public bool Incomplete(IEnumerable<GenerationFact> facts, string description) =>
+            Fail(GenerationDiagnosticCodes.IncompleteArtifactMember, GenerationDiagnosticOutcome.Unknown, facts, description);
+
+        public bool Fail(string code, GenerationDiagnosticOutcome outcome, IEnumerable<GenerationFact> facts, string description)
+        {
+            AddDiagnostic(Diagnostics, code, outcome, Variant.Definition.Key.Subject, facts, $"Artifact member '{Name}' {description}");
+            return false;
+        }
+    }
 }

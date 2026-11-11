@@ -125,18 +125,18 @@ public class when_calculating_artifact_placement_and_relationship_dispositions :
     [Fact] void should_omit_the_unplaced_artifact_with_its_stable_diagnostic() => OmittedCode("event:unplaced").ShouldEqual(GenerationDiagnosticCodes.IncompleteArtifact);
     [Fact] void should_lower_the_consumed_relationship() => Disposition("relationship:produces").ShouldEqual(GenerationFactDisposition.Lowered);
     [Fact] void should_omit_the_unconsumed_relationship_with_its_stable_diagnostic() => OmittedCode("relationship:handles").ShouldEqual(GenerationDiagnosticCodes.UnsupportedRelationship);
-    [Fact] void should_not_leave_any_fact_unknown() => _result.AdapterRun!.Facts.Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();
+    [Fact] void should_not_leave_any_fact_unknown() => _result.AdapterRun.Facts.Any(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeFalse();
     [Fact] void should_leave_input_dispositions_unknown() => _input.Facts.All(record => record.Disposition == GenerationFactDisposition.Unknown).ShouldBeTrue();
     [Fact] void should_return_a_new_snapshot() => ReferenceEquals(_result.AdapterRun, _input).ShouldBeFalse();
-    [Fact] void should_not_change_the_result_after_with_copying_the_input() => _result.AdapterRun!.Facts.Length.ShouldEqual(11);
+    [Fact] void should_not_change_the_result_after_with_copying_the_input() => _result.AdapterRun.Facts.Length.ShouldEqual(11);
     [Fact] void should_allow_the_input_copy_to_diverge() => _copiedAfterGeneration.Facts.ShouldBeEmpty();
 
-    GenerationFactDisposition Disposition(string id) => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == id).Disposition;
+    GenerationFactDisposition Disposition(string id) => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == id).Disposition;
 
     GenerationFactDisposition[] Dispositions(params string[] ids) =>
         [.. ids.Select(Disposition)];
 
-    string OmittedCode(string id) => _result.AdapterRun!.Facts
+    string OmittedCode(string id) => _result.AdapterRun.Facts
         .Single(record => record.Fact.Id.Value == id)
         .Diagnostics[0]
         .Code;

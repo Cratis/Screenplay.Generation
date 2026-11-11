@@ -51,5 +51,5 @@ public class when_reordered_payload_arguments_are_not_exact : given.a_compilatio
 
     static IReadOnlyList<DotNetValueFailure> Failures(DotNetBounded<DotNetPayloadValue> result) => ((DotNetUnknown<DotNetPayloadValue>)result).Failures;
 
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

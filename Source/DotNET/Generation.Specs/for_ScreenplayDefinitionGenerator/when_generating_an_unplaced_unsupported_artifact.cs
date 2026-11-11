@@ -42,6 +42,6 @@ public class when_generating_an_unplaced_unsupported_artifact : for_GenerationRe
     [Fact] void should_report_the_unsupported_artifact() => _result.Diagnostics.Single().Code.ShouldEqual(GenerationDiagnosticCodes.UnsupportedArtifact);
     [Fact] void should_type_the_unsupported_outcome() => _result.Diagnostics.Single().Outcome.ShouldEqual(GenerationDiagnosticOutcome.Unsupported);
     [Fact] void should_report_the_subject() => _result.Diagnostics.Single().Subject.ShouldEqual(new SubjectId { Value = "dotnet://Banking/Handlers.OpenAccount" });
-    [Fact] void should_preserve_the_source() => _result.Diagnostics.Single().Source!.Path.ShouldEqual("Accounts/Open/OpenAccountHandler.cs");
+    [Fact] void should_preserve_the_source() => _result.Diagnostics.Single().Source.Path.ShouldEqual("Accounts/Open/OpenAccountHandler.cs");
     [Fact] void should_not_emit_the_artifact() => _result.Source.ShouldNotContain("OpenAccountHandler");
 }

@@ -60,8 +60,8 @@ public class when_resolving_mixed_legacy_and_identity_evidence : given.facts
     static ArtifactFact LegacyFactCollidingWith(ArtifactFact identity)
     {
         var identityEvidence = identity.Evidence;
-        var identitySource = identityEvidence.Source!;
-        var identityFile = identitySource.FileIdentity!;
+        var identitySource = identityEvidence.Source;
+        var identityFile = identitySource.FileIdentity;
         var legacyAdapterId = $"{identityEvidence.Adapter.Id.Length.ToString(CultureInfo.InvariantCulture)}:identity";
         var legacyExplanation = string.Join(
             Separator,

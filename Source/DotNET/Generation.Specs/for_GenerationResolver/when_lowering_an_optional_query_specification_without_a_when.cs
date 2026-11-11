@@ -46,6 +46,6 @@ public class when_lowering_an_optional_query_specification_without_a_when : give
     [Fact] void should_lower_one_exact_result() => Specification().ThenQueries.Single().Results.Single().Properties.Single().Property.ShouldEqual("name");
     [Fact] void should_be_independent_of_fact_order() => _reversedSource.ShouldEqual(_source);
 
-    Cratis.Screenplay.Syntax.Specifications.SpecificationSyntax Specification() =>
+    Syntax.Specifications.SpecificationSyntax Specification() =>
         _lowering.Application.Modules.SelectMany(_ => _.Features).SelectMany(_ => _.Slices).Single(_ => _.Specifications.Any()).Specifications.Single();
 }

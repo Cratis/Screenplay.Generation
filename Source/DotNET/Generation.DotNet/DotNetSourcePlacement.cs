@@ -97,7 +97,7 @@ public sealed record DotNetSourcePlacement
     public required ArtifactPlacement Placement { get; init; }
 
     /// <summary>
-    /// Gets whether strict derivation failed solely with <c>DOTNETSP0004</c> and the explicit compatibility placement was used.
+    /// Gets whether strict derivation failed solely with DOTNETSP0004 and the explicit compatibility placement was used.
     /// </summary>
     public bool UsedCompatibilityPlacement { get; init; }
 
@@ -153,91 +153,14 @@ public static class DotNetSourcePlacementDerivation
                      .OrderBy(_ => _.Key, StringComparer.Ordinal))
         {
             var artifactRequests = group.ToArray();
-            var artifact = artifactRequests[0].Artifact;
-            if (artifactRequests.Length > 1)
+            var rejection = RequestRejection(group.Key, artifactRequests);
+            if (rejection is not null)
             {
-                diagnostics.Add(Diagnostic(
-                    DotNetSourceStructureDiagnosticCodes.ConflictingPlacementRequests,
-                    GenerationDiagnosticOutcome.Conflict,
-                    artifact.Subject,
-                    $"Artifact '{group.Key}' has conflicting source-placement requests"));
+                diagnostics.Add(rejection);
                 continue;
             }
 
-            var request = artifactRequests[0];
-            if (!Enum.IsDefined(request.Artifact.Kind) || request.Artifact.Kind == ArtifactKind.Unknown)
-            {
-                diagnostics.Add(Diagnostic(
-                    DotNetSourceStructureDiagnosticCodes.UnsupportedPlacementArtifactKind,
-                    GenerationDiagnosticOutcome.Unknown,
-                    request.Artifact.Subject,
-                    $"Artifact kind '{request.Artifact.Kind}' cannot request source placement",
-                    request.Structure.Source));
-                continue;
-            }
-
-            var sourceOwner = request.SourceOwner ?? request.Artifact.Subject;
-            if ((request.SourceOwner is not null &&
-                 (request.SourceOwner == request.Artifact.Subject || !IsSubject(request.SourceOwner))) ||
-                sourceOwner != request.Structure.Subject)
-            {
-                var message = request.SourceOwner is null
-                    ? $"Artifact subject '{request.Artifact.Subject.Value}' does not match source subject '{request.Structure.Subject.Value}'"
-                    : $"Artifact subject '{request.Artifact.Subject.Value}' nominates invalid or mismatched source owner '{request.SourceOwner.Value}' for source subject '{request.Structure.Subject.Value}'";
-                diagnostics.Add(Diagnostic(
-                    DotNetSourceStructureDiagnosticCodes.MismatchedPlacementSubject,
-                    GenerationDiagnosticOutcome.Conflict,
-                    request.Artifact.Subject,
-                    message,
-                    request.Structure.Source));
-                continue;
-            }
-
-            var resolution = DotNetSourceStructureResolver.Resolve(request.Structure, request.SliceKind, request.Policy);
-            var insufficientStructure = resolution.Placement is null &&
-                                        resolution.Diagnostics.Count == 1 &&
-                                        resolution.Diagnostics[0].Code == DotNetSourceStructureDiagnosticCodes.InsufficientStructure;
-            if (!resolution.IsSuccess && !insufficientStructure)
-            {
-                diagnostics.AddRange(resolution.Diagnostics);
-                continue;
-            }
-
-            if (!IsSupported(request.CompatibilityPolicy, request.SliceKind))
-            {
-                diagnostics.Add(Diagnostic(
-                    DotNetSourceStructureDiagnosticCodes.UnsupportedCompatibilityPolicy,
-                    GenerationDiagnosticOutcome.Unsupported,
-                    request.Artifact.Subject,
-                    "The explicit .NET source-placement compatibility policy is unsupported",
-                    request.Structure.Source));
-                continue;
-            }
-
-            var compatibilityUsed = insufficientStructure && request.CompatibilityPolicy is not null;
-            if (insufficientStructure && !compatibilityUsed)
-            {
-                diagnostics.AddRange(resolution.Diagnostics);
-            }
-
-            var compatibilityPolicy = Snapshot(request.CompatibilityPolicy);
-            var placement = resolution.Placement ?? (compatibilityUsed ? compatibilityPolicy!.Placement : null);
-            if (placement is not null)
-            {
-                placements.Add(new DotNetSourcePlacement
-                {
-                    Artifact = request.Artifact,
-                    Structure = request.Structure,
-                    SourceOwner = request.SourceOwner,
-                    Policy = request.Policy with { },
-                    CompatibilityPolicy = compatibilityPolicy,
-                    Placement = placement,
-                    UsedCompatibilityPlacement = compatibilityUsed,
-                    CompatibilityReasonCode = compatibilityUsed
-                        ? DotNetSourceStructureDiagnosticCodes.InsufficientStructure
-                        : null
-                });
-            }
+            Place(artifactRequests[0], placements, diagnostics);
         }
 
         return new()
@@ -256,18 +179,116 @@ public static class DotNetSourcePlacementDerivation
         };
     }
 
+    static GenerationDiagnostic? RequestRejection(string artifactKey, DotNetSourcePlacementRequest[] artifactRequests)
+    {
+        var request = artifactRequests[0];
+        if (artifactRequests.Length > 1)
+        {
+            return Diagnostic(
+                DotNetSourceStructureDiagnosticCodes.ConflictingPlacementRequests,
+                GenerationDiagnosticOutcome.Conflict,
+                request.Artifact.Subject,
+                $"Artifact '{artifactKey}' has conflicting source-placement requests");
+        }
+
+        if (!Enum.IsDefined(request.Artifact.Kind) || request.Artifact.Kind == ArtifactKind.Unknown)
+        {
+            return RequestDiagnostic(
+                request,
+                DotNetSourceStructureDiagnosticCodes.UnsupportedPlacementArtifactKind,
+                GenerationDiagnosticOutcome.Unknown,
+                $"Artifact kind '{request.Artifact.Kind}' cannot request source placement");
+        }
+
+        return HasMismatchedSourceOwner(request)
+            ? RequestDiagnostic(
+                request,
+                DotNetSourceStructureDiagnosticCodes.MismatchedPlacementSubject,
+                GenerationDiagnosticOutcome.Conflict,
+                SourceOwnerMismatchMessage(request))
+            : null;
+    }
+
+    static bool HasMismatchedSourceOwner(DotNetSourcePlacementRequest request)
+    {
+        var sourceOwner = request.SourceOwner ?? request.Artifact.Subject;
+        var nominatesInvalidOwner = request.SourceOwner is not null &&
+            (request.SourceOwner == request.Artifact.Subject || !IsSubject(request.SourceOwner));
+        return nominatesInvalidOwner || sourceOwner != request.Structure.Subject;
+    }
+
+    static string SourceOwnerMismatchMessage(DotNetSourcePlacementRequest request) => request.SourceOwner is null
+        ? $"Artifact subject '{request.Artifact.Subject.Value}' does not match source subject '{request.Structure.Subject.Value}'"
+        : $"Artifact subject '{request.Artifact.Subject.Value}' nominates invalid or mismatched source owner '{request.SourceOwner.Value}' for source subject '{request.Structure.Subject.Value}'";
+
+    static void Place(
+        DotNetSourcePlacementRequest request,
+        List<DotNetSourcePlacement> placements,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        var resolution = DotNetSourceStructureResolver.Resolve(request.Structure, request.SliceKind, request.Policy);
+        var insufficientStructure = resolution.Placement is null &&
+                                    resolution.Diagnostics.Count == 1 &&
+                                    resolution.Diagnostics[0].Code == DotNetSourceStructureDiagnosticCodes.InsufficientStructure;
+        if (!resolution.IsSuccess && !insufficientStructure)
+        {
+            diagnostics.AddRange(resolution.Diagnostics);
+            return;
+        }
+
+        if (!IsSupported(request.CompatibilityPolicy, request.SliceKind))
+        {
+            diagnostics.Add(RequestDiagnostic(
+                request,
+                DotNetSourceStructureDiagnosticCodes.UnsupportedCompatibilityPolicy,
+                GenerationDiagnosticOutcome.Unsupported,
+                "The explicit .NET source-placement compatibility policy is unsupported"));
+            return;
+        }
+
+        var compatibilityUsed = insufficientStructure && request.CompatibilityPolicy is not null;
+        if (insufficientStructure && !compatibilityUsed)
+        {
+            diagnostics.AddRange(resolution.Diagnostics);
+        }
+
+        var compatibilityPolicy = Snapshot(request.CompatibilityPolicy);
+        var placement = resolution.Placement ?? (compatibilityUsed ? compatibilityPolicy!.Placement : null);
+        if (placement is not null)
+        {
+            placements.Add(new DotNetSourcePlacement
+            {
+                Artifact = request.Artifact,
+                Structure = request.Structure,
+                SourceOwner = request.SourceOwner,
+                Policy = request.Policy with { },
+                CompatibilityPolicy = compatibilityPolicy,
+                Placement = placement,
+                UsedCompatibilityPlacement = compatibilityUsed,
+                CompatibilityReasonCode = compatibilityUsed
+                    ? DotNetSourceStructureDiagnosticCodes.InsufficientStructure
+                    : null
+            });
+        }
+    }
+
+    static GenerationDiagnostic RequestDiagnostic(
+        DotNetSourcePlacementRequest request,
+        string code,
+        GenerationDiagnosticOutcome outcome,
+        string message) =>
+        Diagnostic(code, outcome, request.Artifact.Subject, message) with { Source = request.Structure.Source };
+
     static GenerationDiagnostic Diagnostic(
         string code,
         GenerationDiagnosticOutcome outcome,
         SubjectId subject,
-        string message,
-        SourceRange? source = null) => new()
+        string message) => new()
         {
             Code = code,
             Severity = GenerationDiagnosticSeverity.Error,
             Outcome = outcome,
             Message = message,
-            Source = source,
             Subject = subject
         };
 

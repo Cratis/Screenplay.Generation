@@ -26,7 +26,8 @@ public class when_generating_several_concept_validation_rules : given.a_generato
     [Fact] void should_succeed_in_the_first_order() => _first.IsSuccess.ShouldBeTrue();
     [Fact] void should_succeed_in_the_second_order() => _second.IsSuccess.ShouldBeTrue();
     [Fact] void should_generate_identical_source_when_shuffled() => _second.Source.ShouldEqual(_first.Source);
-    [Fact] void should_order_rules_by_stable_rule_identity() =>
+    [Fact]
+    void should_order_rules_by_stable_rule_identity() =>
         (_first.Source.IndexOf("rule BeFirst", StringComparison.Ordinal) <
          _first.Source.IndexOf("rule BeMiddle", StringComparison.Ordinal) &&
          _first.Source.IndexOf("rule BeMiddle", StringComparison.Ordinal) <

@@ -59,7 +59,7 @@ public class when_member_declaration_orders_conflict : given.a_generator
 
     GenerationFactRecord[] Records(params string[] members) =>
     [
-        .. _result.AdapterRun!.Facts.Where(record => members.Any(member => record.Fact.Id.Value.EndsWith(member, StringComparison.Ordinal)))
+        .. _result.AdapterRun.Facts.Where(record => members.Any(member => record.Fact.Id.Value.EndsWith(member, StringComparison.Ordinal)))
     ];
 
     static GenerationFact[] Member(

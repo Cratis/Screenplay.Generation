@@ -48,5 +48,5 @@ public class when_direct_collection_initializer_entries_have_several_values : gi
 
     DotNetValueFailureKind[] FailureKinds(int index) => [.. ((DotNetUnknown<DotNetCollectionValue>)_results[index]).Failures.Select(_ => _.Kind)];
 
-    string[] FailureSources(int index) => [.. ((DotNetUnknown<DotNetCollectionValue>)_results[index]).Failures.Select(_ => _.Source.SourceTree!.GetText().ToString(_.Source.SourceSpan))];
+    string[] FailureSources(int index) => [.. ((DotNetUnknown<DotNetCollectionValue>)_results[index]).Failures.Select(_ => _.Source.SourceTree.GetText().ToString(_.Source.SourceSpan))];
 }

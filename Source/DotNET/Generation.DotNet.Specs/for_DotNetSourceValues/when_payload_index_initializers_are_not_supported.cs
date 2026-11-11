@@ -41,7 +41,7 @@ public class when_payload_index_initializers_are_not_supported : given.a_compila
 
     [Fact] void should_publish_no_partial_payload() => _result.ShouldBeOfExactType<DotNetUnknown<DotNetPayloadValue>>();
     [Fact] void should_report_shape_then_every_key_then_rhs_failure() => Failures.Select(_ => _.Kind).ShouldEqual([DotNetValueFailureKind.Unsupported, DotNetValueFailureKind.Unbound, DotNetValueFailureKind.Computed, DotNetValueFailureKind.Computed]);
-    [Fact] void should_locate_shape_then_every_key_then_rhs_failure() => Failures.Select(_ => _.Source.SourceTree!.GetText().ToString(_.Source.SourceSpan)).ShouldEqual(["[MissingKey, Helper()]", "MissingKey", "Helper()", "Helper()"]);
+    [Fact] void should_locate_shape_then_every_key_then_rhs_failure() => Failures.Select(_ => _.Source.SourceTree.GetText().ToString(_.Source.SourceSpan)).ShouldEqual(["[MissingKey, Helper()]", "MissingKey", "Helper()", "Helper()"]);
     [Fact] void should_not_interpret_the_index_target_as_a_payload_member() => Failures.Count(_ => _.Message.Contains("payload initializer", StringComparison.Ordinal)).ShouldEqual(1);
 
     IReadOnlyList<DotNetValueFailure> Failures => ((DotNetUnknown<DotNetPayloadValue>)_result).Failures;

@@ -21,7 +21,8 @@ public class without_compatibility_for_other_diagnostics : Specification
         };
     }
 
-    [Fact] void should_cover_every_other_strict_resolver_diagnostic() => _snapshots.Keys.ShouldContainOnly(
+    [Fact]
+    void should_cover_every_other_strict_resolver_diagnostic() => _snapshots.Keys.ShouldContainOnly(
         DotNetSourceStructureDiagnosticCodes.UnsupportedPolicy,
         DotNetSourceStructureDiagnosticCodes.InvalidPath,
         DotNetSourceStructureDiagnosticCodes.MissingFeatureRoot,

@@ -19,7 +19,8 @@ public class when_generating_mixed_invalid_public_discriminators : for_Generatio
         (_undefined, _undefinedReversed) = GenerateBothOrders(UndefinedValue);
     }
 
-    [Fact] void should_define_unknown_without_renumbering_public_fact_discriminators()
+    [Fact]
+    void should_define_unknown_without_renumbering_public_fact_discriminators()
     {
         ((int)ArtifactKind.Unknown).ShouldEqual(-1);
         ((int)RelationshipKind.Unknown).ShouldEqual(-1);
@@ -31,7 +32,8 @@ public class when_generating_mixed_invalid_public_discriminators : for_Generatio
         ((int)EvidenceStrength.Unknown).ShouldEqual(-1);
     }
 
-    [Fact] void should_keep_existing_discriminator_numeric_values()
+    [Fact]
+    void should_keep_existing_discriminator_numeric_values()
     {
         ((int)ArtifactKind.ApplicationHost).ShouldEqual(0);
         ((int)RelationshipKind.Handles).ShouldEqual(0);
@@ -43,7 +45,8 @@ public class when_generating_mixed_invalid_public_discriminators : for_Generatio
         ((int)EvidenceStrength.Exact).ShouldEqual(0);
     }
 
-    [Fact] void should_preserve_legacy_concept_attribute_record_equality()
+    [Fact]
+    void should_preserve_legacy_concept_attribute_record_equality()
     {
         var subject = Subject("attribute-equality");
         var legacyShape = new ConceptAttributeDefinition { Concept = subject, Name = "sensitive" };
@@ -57,25 +60,32 @@ public class when_generating_mixed_invalid_public_discriminators : for_Generatio
         legacyShape.ShouldEqual(typedShape);
     }
 
-    [Fact] void should_report_every_unknown_discriminator_with_a_typed_unknown_outcome() =>
+    [Fact]
+    void should_report_every_unknown_discriminator_with_a_typed_unknown_outcome() =>
         AssertDiagnostics(_unknown, GenerationDiagnosticOutcome.Unknown);
 
-    [Fact] void should_report_every_undefined_discriminator_with_a_typed_unsupported_outcome() =>
+    [Fact]
+    void should_report_every_undefined_discriminator_with_a_typed_unsupported_outcome() =>
         AssertDiagnostics(_undefined, GenerationDiagnosticOutcome.Unsupported);
 
-    [Fact] void should_omit_only_the_invalid_facts_and_keep_the_valid_artifact() =>
+    [Fact]
+    void should_omit_only_the_invalid_facts_and_keep_the_valid_artifact() =>
         AssertOnlyValidArtifactRemains(_unknown);
 
-    [Fact] void should_keep_generating_the_valid_artifact_for_undefined_values() =>
+    [Fact]
+    void should_keep_generating_the_valid_artifact_for_undefined_values() =>
         AssertOnlyValidArtifactRemains(_undefined);
 
-    [Fact] void should_be_adapter_and_fact_order_independent_for_unknown_values() =>
+    [Fact]
+    void should_be_adapter_and_fact_order_independent_for_unknown_values() =>
         AssertSameResult(_unknown, _unknownReversed);
 
-    [Fact] void should_be_adapter_and_fact_order_independent_for_undefined_values() =>
+    [Fact]
+    void should_be_adapter_and_fact_order_independent_for_undefined_values() =>
         AssertSameResult(_undefined, _undefinedReversed);
 
-    [Fact] void should_not_fabricate_a_source_for_invalid_evidence_without_a_source()
+    [Fact]
+    void should_not_fabricate_a_source_for_invalid_evidence_without_a_source()
     {
         var diagnostic = _unknown.Graph.Diagnostics.Single(_ => _.Subject == Subject("unknown-evidence"));
         diagnostic.Source.ShouldBeNull();

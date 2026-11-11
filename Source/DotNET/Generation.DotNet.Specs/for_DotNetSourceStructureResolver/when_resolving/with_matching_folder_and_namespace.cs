@@ -24,8 +24,8 @@ public class with_matching_folder_and_namespace : Specification
         });
 
     [Fact] void should_succeed() => _result.IsSuccess.ShouldBeTrue();
-    [Fact] void should_derive_the_root_as_the_module() => _result.Placement!.Module.ShouldEqual("Accounts");
-    [Fact] void should_derive_intermediate_segments_as_features() => _result.Placement!.Features.ShouldContainOnly("Projects");
-    [Fact] void should_derive_the_final_segment_as_the_slice() => _result.Placement!.Slice.ShouldEqual("Register");
-    [Fact] void should_preserve_the_independently_established_slice_kind() => _result.Placement!.SliceKind.ShouldEqual(GenerationSliceKind.StateChange);
+    [Fact] void should_derive_the_root_as_the_module() => _result.Placement.Module.ShouldEqual("Accounts");
+    [Fact] void should_derive_intermediate_segments_as_features() => _result.Placement.Features.ShouldContainOnly("Projects");
+    [Fact] void should_derive_the_final_segment_as_the_slice() => _result.Placement.Slice.ShouldEqual("Register");
+    [Fact] void should_preserve_the_independently_established_slice_kind() => _result.Placement.SliceKind.ShouldEqual(GenerationSliceKind.StateChange);
 }

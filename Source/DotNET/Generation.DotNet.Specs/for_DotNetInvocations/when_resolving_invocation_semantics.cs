@@ -51,14 +51,14 @@ public class when_resolving_invocation_semantics : given.a_compilation
         var staticInvocation = invocations.Single(_ => _.ToString().Contains("static", StringComparison.Ordinal));
         var instanceInvocation = invocations.Single(_ => _.ToString().EndsWith("Save()", StringComparison.Ordinal));
 
-        _reduced = DotNetInvocations.MethodFor(reducedInvocation, semanticModel)!;
-        _static = DotNetInvocations.MethodFor(staticInvocation, semanticModel)!;
-        _instance = DotNetInvocations.MethodFor(instanceInvocation, semanticModel)!;
-        _reducedName = DotNetInvocations.ArgumentForParameter(reducedInvocation, _reduced, "name", semanticModel)!;
-        _staticName = DotNetInvocations.ArgumentForParameter(staticInvocation, _static, "name", semanticModel)!;
-        _reducedRoot = DotNetInvocations.ReceiverRootParameter(reducedInvocation, _reduced, semanticModel)!;
-        _staticRoot = DotNetInvocations.ReceiverRootParameter(staticInvocation, _static, semanticModel)!;
-        _instanceRoot = DotNetInvocations.ReceiverRootParameter(instanceInvocation, _instance, semanticModel)!;
+        _reduced = DotNetInvocations.MethodFor(reducedInvocation, semanticModel);
+        _static = DotNetInvocations.MethodFor(staticInvocation, semanticModel);
+        _instance = DotNetInvocations.MethodFor(instanceInvocation, semanticModel);
+        _reducedName = DotNetInvocations.ArgumentForParameter(reducedInvocation, _reduced, "name", semanticModel);
+        _staticName = DotNetInvocations.ArgumentForParameter(staticInvocation, _static, "name", semanticModel);
+        _reducedRoot = DotNetInvocations.ReceiverRootParameter(reducedInvocation, _reduced, semanticModel);
+        _staticRoot = DotNetInvocations.ReceiverRootParameter(staticInvocation, _static, semanticModel);
+        _instanceRoot = DotNetInvocations.ReceiverRootParameter(instanceInvocation, _instance, semanticModel);
     }
 
     [Fact] void should_resolve_the_same_extension_definition() => DotNetInvocations.DefinitionOf(_reduced).ShouldEqual(DotNetInvocations.DefinitionOf(_static));

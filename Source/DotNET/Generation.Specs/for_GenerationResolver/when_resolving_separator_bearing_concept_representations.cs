@@ -25,15 +25,15 @@ public class when_resolving_separator_bearing_concept_representations : given.fa
         AdapterIdentity adapter,
         SubjectId subject,
         IReadOnlyList<string> values) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Definition = new ConceptRepresentationDefinition
         {
-            Concept = subject,
-            Kind = ConceptRepresentationKind.Enumeration,
-            EnumerationValues = values
-        },
-        Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
-    };
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Definition = new ConceptRepresentationDefinition
+            {
+                Concept = subject,
+                Kind = ConceptRepresentationKind.Enumeration,
+                EnumerationValues = values
+            },
+            Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
+        };
 }

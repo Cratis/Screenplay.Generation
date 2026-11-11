@@ -21,7 +21,7 @@ public class from_relocated_physical_checkouts : given.a_compilation
     {
         var structure = snapshot.Structures.Single();
         return $"{structure.Project}|{structure.ProjectRole}|{structure.Subject.Value}|{structure.Namespace}|" +
-               $"{string.Join(',', structure.ProjectRelativePaths)}|{structure.Source!.Path}|{structure.Source.FileIdentity}";
+               $"{string.Join(',', structure.ProjectRelativePaths)}|{structure.Source.Path}|{structure.Source.FileIdentity}";
     }
 
     string SnapshotAt(string root)

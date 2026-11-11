@@ -61,7 +61,7 @@ public class when_generating_conflicting_slice_kinds : for_GenerationResolver.gi
     [Fact] void should_report_the_slice_conflict() => _result.Diagnostics.Single().Code.ShouldEqual(GenerationDiagnosticCodes.ConflictingSliceKind);
     [Fact] void should_type_the_conflict_outcome() => _result.Diagnostics.Single().Outcome.ShouldEqual(GenerationDiagnosticOutcome.Conflict);
     [Fact] void should_preserve_a_deterministic_subject() => _result.Diagnostics.Single().Subject.ShouldEqual(EventSubject);
-    [Fact] void should_preserve_source_evidence() => _result.Diagnostics.Single().Source!.Path.ShouldEqual("Accounts/Open/AccountOpened.cs");
+    [Fact] void should_preserve_source_evidence() => _result.Diagnostics.Single().Source.Path.ShouldEqual("Accounts/Open/AccountOpened.cs");
     [Fact] void should_not_emit_an_arbitrary_slice_role() => _result.Source.ShouldNotContain("slice Open");
     [Fact] void should_not_emit_artifacts_under_an_arbitrary_role() => _result.Source.ShouldNotContain("event AccountOpened");
 
@@ -70,17 +70,17 @@ public class when_generating_conflicting_slice_kinds : for_GenerationResolver.gi
         ArtifactKey artifact,
         GenerationSliceKind kind,
         Evidence evidence) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = artifact.Subject,
-        Evidence = evidence,
-        Artifact = artifact,
-        Placement = new ArtifactPlacement
         {
-            Module = "Accounts",
-            Features = ["Opening"],
-            Slice = "Open",
-            SliceKind = kind
-        }
-    };
+            Id = new FactId { Value = id },
+            Subject = artifact.Subject,
+            Evidence = evidence,
+            Artifact = artifact,
+            Placement = new ArtifactPlacement
+            {
+                Module = "Accounts",
+                Features = ["Opening"],
+                Slice = "Open",
+                SliceKind = kind
+            }
+        };
 }

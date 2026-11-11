@@ -101,7 +101,7 @@ public class when_using_alternative_vogen_declaration_api_subsets : given.a_voge
         [
             .. probe.Evidence
                 .Where(evidence => evidence.ApiCapability is not null)
-                .Select(evidence => evidence.ApiCapability!.Id)
+                .Select(evidence => evidence.ApiCapability.Id)
         ];
 
     static string? ValidationMessage(AdapterRunSnapshot snapshot) =>

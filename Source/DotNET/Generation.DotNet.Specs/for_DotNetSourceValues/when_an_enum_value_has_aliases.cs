@@ -36,6 +36,6 @@ public class when_an_enum_value_has_aliases : given.a_compilation
         _cast = DotNetSourceValues.Extract(expressions[1], semanticModel);
     }
 
-    [Fact] void should_preserve_the_directly_authored_member() => ((IFieldSymbol)((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_direct).Value).Value!).Name.ShouldEqual("Enabled");
+    [Fact] void should_preserve_the_directly_authored_member() => ((IFieldSymbol)((DotNetConstantValue)((DotNetKnown<DotNetSourceValue>)_direct).Value).Value).Name.ShouldEqual("Enabled");
     [Fact] void should_reject_a_value_derived_ambiguous_alias() => ((DotNetUnknown<DotNetSourceValue>)_cast).Failures.Single().Kind.ShouldEqual(DotNetValueFailureKind.Ambiguous);
 }

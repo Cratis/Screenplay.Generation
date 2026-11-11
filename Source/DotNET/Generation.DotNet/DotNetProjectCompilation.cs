@@ -71,7 +71,7 @@ public sealed record DotNetProjectCompilation
 /// <summary>
 /// Provides deterministic access to all project compilations analyzed together.
 /// </summary>
-/// <param name="projects"></param>
+/// <param name="projects">The project compilations to analyze together.</param>
 public sealed class DotNetAnalysisContext(IEnumerable<DotNetProjectCompilation> projects)
 {
     /// <summary>

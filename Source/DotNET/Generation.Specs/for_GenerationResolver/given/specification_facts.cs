@@ -180,19 +180,19 @@ public class specification_facts : facts
         ArtifactKey artifact,
         GenerationSliceKind sliceKind = GenerationSliceKind.StateChange,
         string slice = "Register") => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Artifact = artifact,
-        Placement = new ArtifactPlacement
         {
-            Module = "Accounts",
-            Features = ["Registration"],
-            Slice = slice,
-            SliceKind = sliceKind
-        },
-        Evidence = Exact(5)
-    };
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Artifact = artifact,
+            Placement = new ArtifactPlacement
+            {
+                Module = "Accounts",
+                Features = ["Registration"],
+                Slice = slice,
+                SliceKind = sliceKind
+            },
+            Evidence = Exact(5)
+        };
 
     protected static ArtifactKey CommandKey() => new()
     {

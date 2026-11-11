@@ -114,11 +114,11 @@ public class when_identifier_roles_conflict : given.a_generator
     [Fact] void should_omit_the_command_instead_of_choosing_either_role() => _result.Graph.Artifacts.Any(artifact => artifact.Key.Kind == ArtifactKind.Command).ShouldBeFalse();
     [Fact] void should_conflict_both_role_facts() => Dispositions().ShouldContainOnly(GenerationFactDisposition.Conflicted, GenerationFactDisposition.Conflicted);
     [Fact] void should_not_emit_identifier_semantics() => _result.Source.ShouldNotContain("orderId Uuid identifier");
-    [Fact] void should_not_associate_a_quoted_member_name_with_an_unrelated_legacy_fact_id() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "orderId").Disposition.ShouldEqual(GenerationFactDisposition.Lowered);
+    [Fact] void should_not_associate_a_quoted_member_name_with_an_unrelated_legacy_fact_id() => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == "orderId").Disposition.ShouldEqual(GenerationFactDisposition.Lowered);
 
     GenerationFactDisposition[] Dispositions() =>
     [
-        .. _result.AdapterRun!.Facts
+        .. _result.AdapterRun.Facts
             .Where(record => record.Fact is ArtifactMemberRoleFact)
             .Select(record => record.Disposition)
     ];
@@ -129,10 +129,10 @@ public class when_identifier_roles_conflict : given.a_generator
         SubjectId subject,
         ArtifactMemberKey member,
         Evidence evidence) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Evidence = evidence,
-        Definition = new ArtifactMemberRoleDefinition { Member = member, Role = role }
-    };
+        {
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Evidence = evidence,
+            Definition = new ArtifactMemberRoleDefinition { Member = member, Role = role }
+        };
 }

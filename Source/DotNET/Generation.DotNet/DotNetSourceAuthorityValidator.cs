@@ -18,11 +18,7 @@ sealed class DotNetSourceAuthorityValidator(DotNetAnalysisContext context, bool 
 
     public bool IsAuthoritative(SourceRange source)
     {
-        var isOrdered = source.EndLine > source.StartLine ||
-                        (source.EndLine == source.StartLine && source.EndColumn >= source.StartColumn);
-        if ((_requiresStableIdentity && source.FileIdentity is null) ||
-            !IsPortableRelativePath(source.Path) ||
-            !isOrdered)
+        if (!HasAcceptableShape(source))
         {
             return false;
         }
@@ -30,6 +26,10 @@ sealed class DotNetSourceAuthorityValidator(DotNetAnalysisContext context, bool 
         var candidates = _sources.Where(candidate => Matches(candidate, source)).ToArray();
         return candidates.Length == 1 && CoordinatesAreValid(source, candidates[0].SyntaxTree);
     }
+
+    static bool IsOrdered(SourceRange source) =>
+        source.EndLine > source.StartLine ||
+        (source.EndLine == source.StartLine && source.EndColumn >= source.StartColumn);
 
     static IEnumerable<AuthoritativeSource> SourcesIn(DotNetProjectCompilation project)
     {
@@ -46,18 +46,24 @@ sealed class DotNetSourceAuthorityValidator(DotNetAnalysisContext context, bool 
                 continue;
             }
 
-            if (project.SourceContext is not null)
+            var source = SourceOf(project, tree);
+            if (source is not null)
             {
-                if (project.SourceContext.Files.TryGetValue(tree, out var file))
-                {
-                    yield return new AuthoritativeSource(tree, file.DisplayPath, file.Identity);
-                }
-
-                continue;
+                yield return source;
             }
-
-            yield return new AuthoritativeSource(tree, LegacyDisplayPath(project, tree), null);
         }
+    }
+
+    static AuthoritativeSource? SourceOf(DotNetProjectCompilation project, SyntaxTree tree)
+    {
+        if (project.SourceContext is null)
+        {
+            return new AuthoritativeSource(tree, LegacyDisplayPath(project, tree), null);
+        }
+
+        return project.SourceContext.Files.TryGetValue(tree, out var file)
+            ? new AuthoritativeSource(tree, file.DisplayPath, file.Identity)
+            : null;
     }
 
     static bool Matches(AuthoritativeSource candidate, SourceRange source)
@@ -107,47 +113,41 @@ sealed class DotNetSourceAuthorityValidator(DotNetAnalysisContext context, bool 
         return IsPortableRelativePath(displayPath) ? displayPath : string.Empty;
     }
 
-    static bool IsPortableRelativePath(string? value)
-    {
-        if (string.IsNullOrEmpty(value) ||
-            !string.Equals(value, value.Trim(), StringComparison.Ordinal) ||
-            value.Any(char.IsControl) ||
-            value[0] == '/' ||
-            value.Contains('\\') ||
-            IsDriveRooted(value))
-        {
-            return false;
-        }
+    static bool IsPortableRelativePath(string? value) =>
+        value is { Length: > 0 } &&
+        HasPortableShape(value) &&
+        IsNormalized(value) &&
+        value.Split('/').Select(IsPortableSegment).All(portable => portable);
 
+    static bool HasPortableShape(string value) =>
+        string.Equals(value, value.Trim(), StringComparison.Ordinal) &&
+        !value.Any(char.IsControl) &&
+        value[0] != '/' &&
+        !value.Contains('\\') &&
+        !IsDriveRooted(value);
+
+    static bool IsNormalized(string value)
+    {
         try
         {
-            if (!string.Equals(value, value.Normalize(), StringComparison.Ordinal))
-            {
-                return false;
-            }
+            return string.Equals(value, value.Normalize(), StringComparison.Ordinal);
         }
         catch (ArgumentException)
         {
             return false;
         }
-
-        var segments = value.Split('/');
-        for (var index = 0; index < segments.Length; index++)
-        {
-            if (string.IsNullOrEmpty(segments[index]) ||
-                !TryDecodeSegment(segments[index], out var decoded) ||
-                string.Equals(decoded, ".", StringComparison.Ordinal) ||
-                string.Equals(decoded, "..", StringComparison.Ordinal) ||
-                decoded.Contains('/') ||
-                decoded.Contains('\\') ||
-                (index == 0 && IsDriveRooted(decoded)))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
+
+    static bool IsPortableSegment(string segment, int index) =>
+        !string.IsNullOrEmpty(segment) &&
+        TryDecodeSegment(segment, out var decoded) &&
+        !IsTraversal(decoded) &&
+        !decoded.AsSpan().ContainsAny('/', '\\') &&
+        !(index == 0 && IsDriveRooted(decoded));
+
+    static bool IsTraversal(string decoded) =>
+        string.Equals(decoded, ".", StringComparison.Ordinal) ||
+        string.Equals(decoded, "..", StringComparison.Ordinal);
 
     static bool TryDecodeSegment(string segment, out string decoded)
     {
@@ -173,6 +173,11 @@ sealed class DotNetSourceAuthorityValidator(DotNetAnalysisContext context, bool 
 
     static bool IsDriveRooted(string path) =>
         path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':';
+
+    bool HasAcceptableShape(SourceRange source) =>
+        !(_requiresStableIdentity && source.FileIdentity is null) &&
+        IsPortableRelativePath(source.Path) &&
+        IsOrdered(source);
 
     sealed record AuthoritativeSource(
         SyntaxTree SyntaxTree,

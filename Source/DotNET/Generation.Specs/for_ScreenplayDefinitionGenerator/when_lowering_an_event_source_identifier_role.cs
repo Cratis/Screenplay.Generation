@@ -156,8 +156,8 @@ public class when_lowering_an_event_source_identifier_role : given.a_generator
     [Fact] void should_mark_the_exact_event_source_member_as_identifying() => Command("SubmitOrder").Definition.Properties.Single().IsIdentifier.ShouldBeTrue();
     [Fact] void should_not_collapse_an_ordinary_identifier_into_event_source_semantics() => Command("TrackOrder").Definition.Properties.Single().IsIdentifier.ShouldBeFalse();
     [Fact] void should_lower_the_event_source_identifier_role() => _result.Source.ShouldContain("orderId Uuid identifier");
-    [Fact] void should_classify_the_event_source_role_as_lowered() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "command:submit:event-source-identifier").Disposition.ShouldEqual(GenerationFactDisposition.Lowered);
-    [Fact] void should_retain_the_ordinary_identifier_role_as_provenance() => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == "command:track:identifier").Disposition.ShouldEqual(GenerationFactDisposition.ProvenanceOnly);
+    [Fact] void should_classify_the_event_source_role_as_lowered() => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == "command:submit:event-source-identifier").Disposition.ShouldEqual(GenerationFactDisposition.Lowered);
+    [Fact] void should_retain_the_ordinary_identifier_role_as_provenance() => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == "command:track:identifier").Disposition.ShouldEqual(GenerationFactDisposition.ProvenanceOnly);
     [Fact] void should_not_emit_ordinary_identifier_semantics() => _result.Source.ShouldNotContain("trackingId Uuid identifier");
 
     ResolvedArtifactVariant Command(string name) => _result.Graph.Artifacts

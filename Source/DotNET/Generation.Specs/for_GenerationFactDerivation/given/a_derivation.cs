@@ -32,53 +32,53 @@ public class a_derivation : Specification
         string name,
         int order,
         string suffix) => new()
-    {
-        Id = Id(ApplicationAdapter, suffix),
-        Subject = CommandSubject,
-        Evidence = Evidence(ApplicationAdapter, "Commands/RegisterCustomer.cs", order + 2),
-        Definition = new ArtifactMemberDeclarationDefinition
         {
-            Member = Member(name),
-            DeclarationOrder = order
-        }
-    };
+            Id = Id(ApplicationAdapter, suffix),
+            Subject = CommandSubject,
+            Evidence = Evidence(ApplicationAdapter, "Commands/RegisterCustomer.cs", order + 2),
+            Definition = new ArtifactMemberDeclarationDefinition
+            {
+                Member = Member(name),
+                DeclarationOrder = order
+            }
+        };
 
     protected static ArtifactMemberTypeUseFact TypeUse(
         string name,
         SubjectId? observedType,
         string suffix,
         params TypeUseShapeKind[] shape) => new()
-    {
-        Id = Id(ApplicationAdapter, suffix),
-        Subject = CommandSubject,
-        Evidence = Evidence(ApplicationAdapter, "Commands/RegisterCustomer.cs", 10),
-        Definition = new ArtifactMemberTypeUseDefinition
         {
-            Member = Member(name),
-            Type = new TypeUseDefinition
+            Id = Id(ApplicationAdapter, suffix),
+            Subject = CommandSubject,
+            Evidence = Evidence(ApplicationAdapter, "Commands/RegisterCustomer.cs", 10),
+            Definition = new ArtifactMemberTypeUseDefinition
             {
-                Name = "CustomerCode",
-                ObservedTypeSubject = observedType,
-                Shape = shape.Length == 0 ? [TypeUseShapeKind.Named] : shape
+                Member = Member(name),
+                Type = new TypeUseDefinition
+                {
+                    Name = "CustomerCode",
+                    ObservedTypeSubject = observedType,
+                    Shape = shape.Length == 0 ? [TypeUseShapeKind.Named] : shape
+                }
             }
-        }
-    };
+        };
 
     protected static ArtifactFact Concept(
         SubjectId subject,
         string suffix,
         string name = "CustomerCode") => new()
-    {
-        Id = Id(ConceptAdapter, suffix),
-        Subject = subject,
-        Evidence = Evidence(ConceptAdapter, $"Concepts/{suffix}.cs", 1),
-        Definition = new ArtifactDefinition
         {
-            Key = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Concept },
-            Name = name,
-            File = $"Concepts/{suffix}.cs"
-        }
-    };
+            Id = Id(ConceptAdapter, suffix),
+            Subject = subject,
+            Evidence = Evidence(ConceptAdapter, $"Concepts/{suffix}.cs", 1),
+            Definition = new ArtifactDefinition
+            {
+                Key = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Concept },
+                Name = name,
+                File = $"Concepts/{suffix}.cs"
+            }
+        };
 
     protected static ArtifactMemberKey Member(string name) => new()
     {

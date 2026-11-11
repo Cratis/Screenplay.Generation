@@ -40,10 +40,10 @@ public class when_resolving_null_and_empty_structural_fields : given.facts
         string id,
         AdapterIdentity adapter,
         RelationshipDefinition definition) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = definition.Key.Source,
-        Definition = definition,
-        Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
-    };
+        {
+            Id = new FactId { Value = id },
+            Subject = definition.Key.Source,
+            Definition = definition,
+            Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
+        };
 }

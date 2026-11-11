@@ -15,191 +15,95 @@ internal static class SpecificationSyntaxLowerer
         ResolvedApplicationGraph graph,
         ArtifactPlacement placement,
         Func<ArtifactKey, string?> artifactName,
-        ICollection<GenerationDiagnostic> diagnostics,
-        ScreenplayLoweringCoverageBuilder coverage)
+        LoweringSink sink)
     {
         var structuralPlacement = Structural.Placement(placement);
         var lowered = new List<SpecificationSyntax>();
         foreach (var scenario in graph.Specifications.Where(item =>
                      Structural.Placement(item.Placement) == structuralPlacement))
         {
-            if (TryLower(scenario, artifactName, out var specification))
+            if (TryLower(scenario, artifactName) is { } specification)
             {
-                lowered.Add(specification!);
-                MarkLowered(scenario, coverage);
+                lowered.Add(specification);
+                Mark(scenario, sink.Coverage.Lowered);
             }
             else
             {
                 var diagnostic = Unsupported(scenario);
-                diagnostics.Add(diagnostic);
-                MarkOmitted(scenario, diagnostic, coverage);
+                sink.Diagnostics.Add(diagnostic);
+                Mark(scenario, key => sink.Coverage.Omitted(key, diagnostic));
             }
         }
 
         return [.. lowered.OrderBy(item => item.Name, StringComparer.Ordinal)];
     }
 
-    static void MarkLowered(
+    static void Mark(
         AdmittedSpecificationScenario scenario,
-        ScreenplayLoweringCoverageBuilder coverage)
+        Action<string> mark)
     {
-        coverage.Lowered(GenerationFactSemanticKey.SpecificationScenario(scenario.Definition));
+        mark(GenerationFactSemanticKey.SpecificationScenario(scenario.Definition));
         foreach (var step in scenario.Steps)
         {
-            coverage.Lowered(GenerationFactSemanticKey.SpecificationStep(step.Definition));
+            mark(GenerationFactSemanticKey.SpecificationStep(step.Definition));
             foreach (var value in step.Values)
             {
-                MarkLowered(value, coverage);
+                Mark(value, mark);
             }
         }
     }
 
-    static void MarkLowered(
+    static void Mark(
         AdmittedSpecificationValue value,
-        ScreenplayLoweringCoverageBuilder coverage)
+        Action<string> mark)
     {
-        coverage.Lowered(GenerationFactSemanticKey.SpecificationValue(value.Definition));
+        mark(GenerationFactSemanticKey.SpecificationValue(value.Definition));
         foreach (var child in value.Children)
         {
-            MarkLowered(child, coverage);
+            Mark(child, mark);
         }
     }
 
-    static void MarkOmitted(
+    static SpecificationSyntax? TryLower(
         AdmittedSpecificationScenario scenario,
-        GenerationDiagnostic diagnostic,
-        ScreenplayLoweringCoverageBuilder coverage)
+        Func<ArtifactKey, string?> artifactName)
     {
-        coverage.Omitted(GenerationFactSemanticKey.SpecificationScenario(scenario.Definition), diagnostic);
-        foreach (var step in scenario.Steps)
+        if (!IsRepresentable(scenario))
         {
-            coverage.Omitted(GenerationFactSemanticKey.SpecificationStep(step.Definition), diagnostic);
-            foreach (var value in step.Values)
-            {
-                MarkOmitted(value, diagnostic, coverage);
-            }
-        }
-    }
-
-    static void MarkOmitted(
-        AdmittedSpecificationValue value,
-        GenerationDiagnostic diagnostic,
-        ScreenplayLoweringCoverageBuilder coverage)
-    {
-        coverage.Omitted(GenerationFactSemanticKey.SpecificationValue(value.Definition), diagnostic);
-        foreach (var child in value.Children)
-        {
-            MarkOmitted(child, diagnostic, coverage);
-        }
-    }
-
-    static bool TryLower(
-        AdmittedSpecificationScenario scenario,
-        Func<ArtifactKey, string?> artifactName,
-        out SpecificationSyntax? specification)
-    {
-        specification = null;
-        if (scenario.Steps.SelectMany(step => step.Values).Any(value => !SpecificationValueSyntaxLowerer.IsScalar(value)) ||
-            scenario.Steps.Any(step => step.Definition.Kind == SpecificationStepKind.Error &&
-                step.Definition.ErrorCode is not null))
-        {
-            return false;
+            return null;
         }
 
-        var givenEvents = new List<SpecificationEventSyntax>();
-        var givenReadModels = new List<SpecificationReadModelSyntax>();
-        SpecificationCommandSyntax? when = null;
-        var thenEvents = new List<SpecificationEventSyntax>();
-        var thenReadModels = new List<SpecificationReadModelSyntax>();
-        var thenQueries = new List<SpecificationQuerySyntax>();
-        var thenErrors = new List<SpecificationErrorSyntax>();
-
+        var lowered = new LoweredSteps();
         foreach (var step in scenario.Steps)
         {
             var name = step.Definition.Artifact is null ? null : artifactName(step.Definition.Artifact);
-            if (!TryLowerStep(
-                    step,
-                    name,
-                    givenEvents,
-                    givenReadModels,
-                    ref when,
-                    thenEvents,
-                    thenReadModels,
-                    thenQueries,
-                    thenErrors))
+            if (!lowered.TryAdd(step, name))
             {
-                return false;
+                return null;
             }
         }
 
-        specification = new(
+        return new(
             scenario.Definition.Name,
-            givenEvents,
-            when,
-            thenEvents,
-            thenErrors,
+            lowered.GivenEvents,
+            lowered.When,
+            lowered.ThenEvents,
+            lowered.ThenErrors,
             _generated,
-            givenReadModels,
-            thenReadModels)
+            lowered.GivenReadModels,
+            lowered.ThenReadModels)
         {
             File = FileFrom(scenario.Evidence),
-            ThenQueries = thenQueries
+            ThenQueries = lowered.ThenQueries
         };
-        return true;
     }
 
-    static bool TryLowerStep(
-        AdmittedSpecificationStep step,
-        string? artifactName,
-        List<SpecificationEventSyntax> givenEvents,
-        List<SpecificationReadModelSyntax> givenReadModels,
-        ref SpecificationCommandSyntax? when,
-        List<SpecificationEventSyntax> thenEvents,
-        List<SpecificationReadModelSyntax> thenReadModels,
-        List<SpecificationQuerySyntax> thenQueries,
-        List<SpecificationErrorSyntax> thenErrors)
-    {
-        var definition = step.Definition;
-        if (definition.Kind != SpecificationStepKind.Error && artifactName is null)
-        {
-            return false;
-        }
+    static bool IsRepresentable(AdmittedSpecificationScenario scenario) =>
+        scenario.Steps.SelectMany(step => step.Values).All(SpecificationValueSyntaxLowerer.IsScalar) &&
+        !scenario.Steps.Any(HasErrorCode);
 
-        if ((definition.Phase, definition.Kind) == (SpecificationStepPhase.Then, SpecificationStepKind.Read))
-        {
-            return SpecificationValueSyntaxLowerer.TryLowerQuery(artifactName!, step.Values, thenQueries);
-        }
-
-        if (step.Values.Any(value => value.Definition.Key.Path.Count != 1))
-        {
-            return false;
-        }
-
-        var mappings = step.Values.Select(SpecificationValueSyntaxLowerer.Mapping).ToArray();
-        switch (definition.Phase, definition.Kind)
-        {
-            case (SpecificationStepPhase.Given, SpecificationStepKind.Event):
-                givenEvents.Add(new(artifactName!, mappings, _generated));
-                return true;
-            case (SpecificationStepPhase.Given, SpecificationStepKind.ReadModel):
-                givenReadModels.Add(new(artifactName!, mappings, _generated));
-                return true;
-            case (SpecificationStepPhase.When, SpecificationStepKind.Command):
-                when = new(artifactName!, mappings, _generated);
-                return true;
-            case (SpecificationStepPhase.Then, SpecificationStepKind.Event):
-                thenEvents.Add(new(artifactName!, mappings, _generated));
-                return true;
-            case (SpecificationStepPhase.Then, SpecificationStepKind.ReadModel):
-                thenReadModels.Add(new(artifactName!, mappings, _generated));
-                return true;
-            case (SpecificationStepPhase.Then, SpecificationStepKind.Error):
-                thenErrors.Add(new(definition.ErrorMessage, _generated));
-                return true;
-            default:
-                return false;
-        }
-    }
+    static bool HasErrorCode(AdmittedSpecificationStep step) =>
+        step.Definition.Kind == SpecificationStepKind.Error && step.Definition.ErrorCode is not null;
 
     static FileReferenceSyntax? FileFrom(IEnumerable<Evidence> evidence) =>
         evidence
@@ -217,4 +121,65 @@ internal static class SpecificationSyntaxLowerer
         Source = scenario.Evidence.Select(item => item.Source).FirstOrDefault(source => source is not null),
         Subject = scenario.Definition.Key.Scenario
     };
+
+    sealed class LoweredSteps
+    {
+        public List<SpecificationEventSyntax> GivenEvents { get; } = [];
+
+        public List<SpecificationReadModelSyntax> GivenReadModels { get; } = [];
+
+        public SpecificationCommandSyntax? When { get; private set; }
+
+        public List<SpecificationEventSyntax> ThenEvents { get; } = [];
+
+        public List<SpecificationReadModelSyntax> ThenReadModels { get; } = [];
+
+        public List<SpecificationQuerySyntax> ThenQueries { get; } = [];
+
+        public List<SpecificationErrorSyntax> ThenErrors { get; } = [];
+
+        public bool TryAdd(AdmittedSpecificationStep step, string? artifactName)
+        {
+            var definition = step.Definition;
+            if (definition.Kind != SpecificationStepKind.Error && artifactName is null)
+            {
+                return false;
+            }
+
+            if ((definition.Phase, definition.Kind) == (SpecificationStepPhase.Then, SpecificationStepKind.Read))
+            {
+                return SpecificationValueSyntaxLowerer.TryLowerQuery(artifactName!, step.Values, ThenQueries);
+            }
+
+            return step.Values.All(value => value.Definition.Key.Path.Count == 1) &&
+                Add(definition, artifactName, [.. step.Values.Select(SpecificationValueSyntaxLowerer.Mapping)]);
+        }
+
+        bool Add(SpecificationStepDefinition definition, string? artifactName, PropertyMappingSyntax[] mappings)
+        {
+            switch (definition.Phase, definition.Kind)
+            {
+                case (SpecificationStepPhase.Given, SpecificationStepKind.Event):
+                    GivenEvents.Add(new(artifactName!, mappings, _generated));
+                    return true;
+                case (SpecificationStepPhase.Given, SpecificationStepKind.ReadModel):
+                    GivenReadModels.Add(new(artifactName!, mappings, _generated));
+                    return true;
+                case (SpecificationStepPhase.When, SpecificationStepKind.Command):
+                    When = new(artifactName!, mappings, _generated);
+                    return true;
+                case (SpecificationStepPhase.Then, SpecificationStepKind.Event):
+                    ThenEvents.Add(new(artifactName!, mappings, _generated));
+                    return true;
+                case (SpecificationStepPhase.Then, SpecificationStepKind.ReadModel):
+                    ThenReadModels.Add(new(artifactName!, mappings, _generated));
+                    return true;
+                case (SpecificationStepPhase.Then, SpecificationStepKind.Error):
+                    ThenErrors.Add(new(definition.ErrorMessage, _generated));
+                    return true;
+                default:
+                    return false;
+            }
+        }
+    }
 }

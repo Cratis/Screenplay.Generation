@@ -1,10 +1,26 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
+
 namespace Cratis.Screenplay.Generation;
 
 static class GenerationFactDiscriminatorValidator
 {
+    static readonly DiscriminatorRule<EvidenceStrength> _evidenceStrength = new(EvidenceStrength.Unknown, GenerationDiagnosticCodes.UnsupportedEvidenceStrength);
+    static readonly DiscriminatorRule<ArtifactKind> _artifactKind = new(ArtifactKind.Unknown, GenerationDiagnosticCodes.UnsupportedArtifactKind);
+    static readonly DiscriminatorRule<GenerationSliceKind> _sliceKind = new(GenerationSliceKind.Unknown, GenerationDiagnosticCodes.UnsupportedSliceKind);
+    static readonly DiscriminatorRule<TypeUseShapeKind> _typeUseShapeKind = new(TypeUseShapeKind.Unknown, GenerationDiagnosticCodes.UnsupportedTypeUseShapeKind);
+    static readonly DiscriminatorRule<ArtifactMemberRoleKind> _artifactMemberRoleKind = new(ArtifactMemberRoleKind.Unknown, GenerationDiagnosticCodes.UnsupportedArtifactMemberRoleKind);
+    static readonly DiscriminatorRule<RelationshipKind> _relationshipKind = new(RelationshipKind.Unknown, GenerationDiagnosticCodes.UnsupportedRelationshipKind);
+    static readonly DiscriminatorRule<ConceptRepresentationKind> _conceptRepresentationKind = new(ConceptRepresentationKind.Unknown, GenerationDiagnosticCodes.UnsupportedConceptRepresentationKind);
+    static readonly DiscriminatorRule<GenerationPrimitiveKind> _primitiveKind = new(GenerationPrimitiveKind.Unknown, GenerationDiagnosticCodes.UnsupportedPrimitiveKind);
+    static readonly DiscriminatorRule<ConceptAttributeKind> _conceptAttributeKind = new(ConceptAttributeKind.Unknown, GenerationDiagnosticCodes.UnsupportedConceptAttributeKind);
+    static readonly DiscriminatorRule<ConceptValidationRuleKind> _conceptValidationRuleKind = new(ConceptValidationRuleKind.Unknown, GenerationDiagnosticCodes.UnsupportedConceptValidationRuleKind);
+    static readonly DiscriminatorRule<SpecificationStepPhase> _specificationStepPhase = new(SpecificationStepPhase.Unknown, GenerationDiagnosticCodes.UnsupportedSpecificationStepPhase);
+    static readonly DiscriminatorRule<SpecificationStepKind> _specificationStepKind = new(SpecificationStepKind.Unknown, GenerationDiagnosticCodes.UnsupportedSpecificationStepKind);
+    static readonly DiscriminatorRule<SpecificationValueKind> _specificationValueKind = new(SpecificationValueKind.Unknown, GenerationDiagnosticCodes.UnsupportedSpecificationValueKind);
+
     public static GenerationFactDiscriminatorValidationResult Validate(IEnumerable<GenerationFact> facts)
     {
         var validFacts = new List<GenerationFact>();
@@ -14,74 +30,7 @@ static class GenerationFactDiscriminatorValidator
         foreach (var fact in facts)
         {
             var diagnosticCount = diagnostics.Count;
-            ValidateEvidenceStrength(fact, diagnostics);
-
-            switch (fact)
-            {
-                case ArtifactFact artifact:
-                    ValidateArtifactKind(fact, artifact.Definition.Key.Kind, diagnostics);
-                    foreach (var property in artifact.Definition.Properties)
-                    {
-                        ValidateTypeReference(fact, property.Type, diagnostics);
-                    }
-                    break;
-                case ArtifactPlacementFact placement:
-                    ValidateArtifactKind(fact, placement.Artifact.Kind, diagnostics);
-                    ValidateSliceKind(fact, placement.Placement.SliceKind, diagnostics);
-                    break;
-                case ArtifactDeclarationFact declaration:
-                    ValidateArtifactKind(fact, declaration.Definition.Artifact.Kind, diagnostics);
-                    break;
-                case ArtifactMemberDeclarationFact member:
-                    ValidateArtifactKind(fact, member.Definition.Member.Artifact.Kind, diagnostics);
-                    break;
-                case ArtifactMemberTypeUseFact typeUse:
-                    ValidateArtifactKind(fact, typeUse.Definition.Member.Artifact.Kind, diagnostics);
-                    ValidateTypeUseShape(fact, typeUse.Definition.Type.Shape, diagnostics);
-                    break;
-                case TypeUseBindingFact binding:
-                    ValidateArtifactKind(fact, binding.Definition.Member.Artifact.Kind, diagnostics);
-                    ValidateArtifactKind(fact, binding.Definition.Target.Kind, diagnostics);
-                    break;
-                case ArtifactMemberRoleFact role:
-                    ValidateArtifactKind(fact, role.Definition.Member.Artifact.Kind, diagnostics);
-                    ValidateArtifactMemberRole(fact, role.Definition.Role, diagnostics);
-                    break;
-                case RelationshipFact relationship:
-                    ValidateRelationshipKind(fact, relationship.Definition.Key.Kind, diagnostics);
-                    break;
-                case ConceptRepresentationFact representation:
-                    ValidateConceptRepresentationKind(fact, representation.Definition.Kind, diagnostics);
-                    if (representation.Definition.Primitive is { } primitive)
-                    {
-                        ValidatePrimitiveKind(fact, primitive, diagnostics);
-                    }
-                    break;
-                case ConceptAttributeFact attribute:
-                    ValidateConceptAttributeKind(fact, attribute.Definition.Kind, diagnostics);
-                    break;
-                case ConceptValidationRuleFact validationRule:
-                    ValidateConceptValidationRuleKind(fact, validationRule.Definition.Kind, diagnostics);
-                    break;
-                case SpecificationScenarioFact scenario:
-                    ValidateArtifactKind(fact, scenario.Definition.TargetArtifact.Kind, diagnostics);
-                    break;
-                case SpecificationStepFact step:
-                    ValidateSpecificationStepPhase(fact, step.Definition.Phase, diagnostics);
-                    ValidateSpecificationStepKind(fact, step.Definition.Kind, diagnostics);
-                    if (step.Definition.Artifact is { } stepArtifact)
-                    {
-                        ValidateArtifactKind(fact, stepArtifact.Kind, diagnostics);
-                    }
-                    break;
-                case SpecificationValueFact value:
-                    ValidateSpecificationValueKind(fact, value.Definition.Kind, diagnostics);
-                    if (value.Definition.Type is not null)
-                    {
-                        ValidateTypeReference(fact, value.Definition.Type, diagnostics);
-                    }
-                    break;
-            }
+            ValidateFact(fact, diagnostics);
 
             if (diagnostics.Count == diagnosticCount)
             {
@@ -96,16 +45,123 @@ static class GenerationFactDiscriminatorValidator
         return new([.. validFacts], [.. rejectedFacts], [.. diagnostics]);
     }
 
-    static void ValidateArtifactKind(GenerationFact fact, ArtifactKind kind, List<GenerationDiagnostic> diagnostics)
+    static void ValidateFact(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
     {
-        if (kind == ArtifactKind.Unknown || !Enum.IsDefined(kind))
+        Validate(fact, fact.Evidence.Strength, _evidenceStrength, diagnostics);
+
+        switch (fact)
         {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedArtifactKind,
-                nameof(ArtifactKind),
-                (int)kind,
-                kind == ArtifactKind.Unknown));
+            case ArtifactFact or
+                ArtifactPlacementFact or
+                ArtifactDeclarationFact or
+                ArtifactMemberDeclarationFact or
+                ArtifactMemberTypeUseFact or
+                TypeUseBindingFact or
+                ArtifactMemberRoleFact:
+                ValidateArtifactFamily(fact, diagnostics);
+                break;
+            case RelationshipFact relationship:
+                Validate(fact, relationship.Definition.Key.Kind, _relationshipKind, diagnostics);
+                break;
+            case ConceptRepresentationFact or ConceptAttributeFact or ConceptValidationRuleFact:
+                ValidateConceptFamily(fact, diagnostics);
+                break;
+            case SpecificationScenarioFact or SpecificationStepFact or SpecificationValueFact:
+                ValidateSpecificationFamily(fact, diagnostics);
+                break;
+        }
+    }
+
+    static void ValidateArtifactFamily(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
+        switch (fact)
+        {
+            case ArtifactFact artifact:
+                ValidateArtifact(fact, artifact.Definition, diagnostics);
+                break;
+            case ArtifactPlacementFact placement:
+                Validate(fact, placement.Artifact.Kind, _artifactKind, diagnostics);
+                Validate(fact, placement.Placement.SliceKind, _sliceKind, diagnostics);
+                break;
+            case ArtifactDeclarationFact declaration:
+                Validate(fact, declaration.Definition.Artifact.Kind, _artifactKind, diagnostics);
+                break;
+            case ArtifactMemberDeclarationFact member:
+                Validate(fact, member.Definition.Member.Artifact.Kind, _artifactKind, diagnostics);
+                break;
+            case ArtifactMemberTypeUseFact typeUse:
+                Validate(fact, typeUse.Definition.Member.Artifact.Kind, _artifactKind, diagnostics);
+                ValidateTypeUseShape(fact, typeUse.Definition.Type.Shape, diagnostics);
+                break;
+            case TypeUseBindingFact binding:
+                Validate(fact, binding.Definition.Member.Artifact.Kind, _artifactKind, diagnostics);
+                Validate(fact, binding.Definition.Target.Kind, _artifactKind, diagnostics);
+                break;
+            case ArtifactMemberRoleFact role:
+                Validate(fact, role.Definition.Member.Artifact.Kind, _artifactKind, diagnostics);
+                Validate(fact, role.Definition.Role, _artifactMemberRoleKind, diagnostics);
+                break;
+        }
+    }
+
+    static void ValidateArtifact(GenerationFact fact, ArtifactDefinition definition, List<GenerationDiagnostic> diagnostics)
+    {
+        Validate(fact, definition.Key.Kind, _artifactKind, diagnostics);
+        foreach (var property in definition.Properties)
+        {
+            ValidateTypeReference(fact, property.Type, diagnostics);
+        }
+    }
+
+    static void ValidateConceptFamily(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
+        switch (fact)
+        {
+            case ConceptRepresentationFact representation:
+                Validate(fact, representation.Definition.Kind, _conceptRepresentationKind, diagnostics);
+                if (representation.Definition.Primitive is { } primitive)
+                {
+                    Validate(fact, primitive, _primitiveKind, diagnostics);
+                }
+
+                break;
+            case ConceptAttributeFact attribute:
+                Validate(fact, attribute.Definition.Kind, _conceptAttributeKind, diagnostics);
+                break;
+            case ConceptValidationRuleFact validationRule:
+                Validate(fact, validationRule.Definition.Kind, _conceptValidationRuleKind, diagnostics);
+                break;
+        }
+    }
+
+    static void ValidateSpecificationFamily(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
+        switch (fact)
+        {
+            case SpecificationScenarioFact scenario:
+                Validate(fact, scenario.Definition.TargetArtifact.Kind, _artifactKind, diagnostics);
+                break;
+            case SpecificationStepFact step:
+                ValidateStep(fact, step.Definition, diagnostics);
+                break;
+            case SpecificationValueFact value:
+                Validate(fact, value.Definition.Kind, _specificationValueKind, diagnostics);
+                if (value.Definition.Type is not null)
+                {
+                    ValidateTypeReference(fact, value.Definition.Type, diagnostics);
+                }
+
+                break;
+        }
+    }
+
+    static void ValidateStep(GenerationFact fact, SpecificationStepDefinition step, List<GenerationDiagnostic> diagnostics)
+    {
+        Validate(fact, step.Phase, _specificationStepPhase, diagnostics);
+        Validate(fact, step.Kind, _specificationStepKind, diagnostics);
+        if (step.Artifact is { } stepArtifact)
+        {
+            Validate(fact, stepArtifact.Kind, _artifactKind, diagnostics);
         }
     }
 
@@ -116,20 +172,7 @@ static class GenerationFactDiscriminatorValidator
     {
         if (type.TargetArtifactKind is { } targetArtifactKind)
         {
-            ValidateArtifactKind(fact, targetArtifactKind, diagnostics);
-        }
-    }
-
-    static void ValidateSliceKind(GenerationFact fact, GenerationSliceKind kind, List<GenerationDiagnostic> diagnostics)
-    {
-        if (kind == GenerationSliceKind.Unknown || !Enum.IsDefined(kind))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedSliceKind,
-                nameof(GenerationSliceKind),
-                (int)kind,
-                kind == GenerationSliceKind.Unknown));
+            Validate(fact, targetArtifactKind, _artifactKind, diagnostics);
         }
     }
 
@@ -141,15 +184,7 @@ static class GenerationFactDiscriminatorValidator
         var nodes = shape.ToArray();
         foreach (var kind in nodes)
         {
-            if (kind == TypeUseShapeKind.Unknown || !Enum.IsDefined(kind))
-            {
-                diagnostics.Add(Unsupported(
-                    fact,
-                    GenerationDiagnosticCodes.UnsupportedTypeUseShapeKind,
-                    nameof(TypeUseShapeKind),
-                    (int)kind,
-                    kind == TypeUseShapeKind.Unknown));
-            }
+            Validate(fact, kind, _typeUseShapeKind, diagnostics);
         }
 
         var nodesAreDefined = nodes.All(kind =>
@@ -178,170 +213,35 @@ static class GenerationFactDiscriminatorValidator
         ? "<empty>"
         : string.Join(" -> ", shape);
 
-    static void ValidateArtifactMemberRole(
+    static void Validate<TEnum>(
         GenerationFact fact,
-        ArtifactMemberRoleKind role,
+        TEnum value,
+        DiscriminatorRule<TEnum> rule,
         List<GenerationDiagnostic> diagnostics)
+        where TEnum : struct, Enum
     {
-        if (role == ArtifactMemberRoleKind.Unknown || !Enum.IsDefined(role))
+        var isUnknown = EqualityComparer<TEnum>.Default.Equals(value, rule.Unknown);
+        if (isUnknown || !Enum.IsDefined(value))
         {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedArtifactMemberRoleKind,
-                nameof(ArtifactMemberRoleKind),
-                (int)role,
-                role == ArtifactMemberRoleKind.Unknown));
+            var number = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            var problem = $"{(isUnknown ? "unknown" : "undefined")} {typeof(TEnum).Name} value '{number}'";
+            diagnostics.Add(Unsupported(fact, rule.Code, problem, isUnknown));
         }
     }
 
-    static void ValidateRelationshipKind(GenerationFact fact, RelationshipKind kind, List<GenerationDiagnostic> diagnostics)
-    {
-        if (kind == RelationshipKind.Unknown || !Enum.IsDefined(kind))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedRelationshipKind,
-                nameof(RelationshipKind),
-                (int)kind,
-                kind == RelationshipKind.Unknown));
-        }
-    }
-
-    static void ValidateConceptRepresentationKind(
-        GenerationFact fact,
-        ConceptRepresentationKind kind,
-        List<GenerationDiagnostic> diagnostics)
-    {
-        if (kind == ConceptRepresentationKind.Unknown || !Enum.IsDefined(kind))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedConceptRepresentationKind,
-                nameof(ConceptRepresentationKind),
-                (int)kind,
-                kind == ConceptRepresentationKind.Unknown));
-        }
-    }
-
-    static void ValidatePrimitiveKind(GenerationFact fact, GenerationPrimitiveKind kind, List<GenerationDiagnostic> diagnostics)
-    {
-        if (kind == GenerationPrimitiveKind.Unknown || !Enum.IsDefined(kind))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedPrimitiveKind,
-                nameof(GenerationPrimitiveKind),
-                (int)kind,
-                kind == GenerationPrimitiveKind.Unknown));
-        }
-    }
-
-    static void ValidateConceptAttributeKind(GenerationFact fact, ConceptAttributeKind kind, List<GenerationDiagnostic> diagnostics)
-    {
-        if (kind == ConceptAttributeKind.Unknown || !Enum.IsDefined(kind))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedConceptAttributeKind,
-                nameof(ConceptAttributeKind),
-                (int)kind,
-                kind == ConceptAttributeKind.Unknown));
-        }
-    }
-
-    static void ValidateConceptValidationRuleKind(
-        GenerationFact fact,
-        ConceptValidationRuleKind kind,
-        List<GenerationDiagnostic> diagnostics)
-    {
-        if (kind == ConceptValidationRuleKind.Unknown || !Enum.IsDefined(kind))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedConceptValidationRuleKind,
-                nameof(ConceptValidationRuleKind),
-                (int)kind,
-                kind == ConceptValidationRuleKind.Unknown));
-        }
-    }
-
-    static void ValidateSpecificationStepPhase(
-        GenerationFact fact,
-        SpecificationStepPhase phase,
-        List<GenerationDiagnostic> diagnostics)
-    {
-        if (phase == SpecificationStepPhase.Unknown || !Enum.IsDefined(phase))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedSpecificationStepPhase,
-                nameof(SpecificationStepPhase),
-                (int)phase,
-                phase == SpecificationStepPhase.Unknown));
-        }
-    }
-
-    static void ValidateSpecificationStepKind(
-        GenerationFact fact,
-        SpecificationStepKind kind,
-        List<GenerationDiagnostic> diagnostics)
-    {
-        if (kind == SpecificationStepKind.Unknown || !Enum.IsDefined(kind))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedSpecificationStepKind,
-                nameof(SpecificationStepKind),
-                (int)kind,
-                kind == SpecificationStepKind.Unknown));
-        }
-    }
-
-    static void ValidateSpecificationValueKind(
-        GenerationFact fact,
-        SpecificationValueKind kind,
-        List<GenerationDiagnostic> diagnostics)
-    {
-        if (kind == SpecificationValueKind.Unknown || !Enum.IsDefined(kind))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedSpecificationValueKind,
-                nameof(SpecificationValueKind),
-                (int)kind,
-                kind == SpecificationValueKind.Unknown));
-        }
-    }
-
-    static void ValidateEvidenceStrength(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
-    {
-        var strength = fact.Evidence.Strength;
-        if (strength == EvidenceStrength.Unknown || !Enum.IsDefined(strength))
-        {
-            diagnostics.Add(Unsupported(
-                fact,
-                GenerationDiagnosticCodes.UnsupportedEvidenceStrength,
-                nameof(EvidenceStrength),
-                (int)strength,
-                strength == EvidenceStrength.Unknown));
-        }
-    }
-
-    static GenerationDiagnostic Unsupported(
-        GenerationFact fact,
-        string code,
-        string discriminator,
-        int value,
-        bool isUnknown) => new()
+    static GenerationDiagnostic Unsupported(GenerationFact fact, string code, string problem, bool isUnknown) => new()
     {
         Code = code,
         Severity = GenerationDiagnosticSeverity.Warning,
         Outcome = isUnknown ? GenerationDiagnosticOutcome.Unknown : GenerationDiagnosticOutcome.Unsupported,
-        Message = $"Fact '{fact.Id.Value}' from adapter '{fact.Evidence.Adapter.Id}' uses {(isUnknown ? "unknown" : "undefined")} {discriminator} value '{value}'; the affected fact was omitted",
+        Message = $"Fact '{fact.Id.Value}' from adapter '{fact.Evidence.Adapter.Id}' uses {problem}; the affected fact was omitted",
         Facts = [fact.Id],
         Source = fact.Evidence.Source,
         Subject = fact.Subject
     };
+
+    sealed record DiscriminatorRule<TEnum>(TEnum Unknown, string Code)
+        where TEnum : struct, Enum;
 }
 
 sealed record GenerationFactDiscriminatorValidationResult(

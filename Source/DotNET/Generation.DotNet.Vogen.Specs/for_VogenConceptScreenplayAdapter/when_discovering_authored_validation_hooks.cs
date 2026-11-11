@@ -123,7 +123,7 @@ public class when_discovering_authored_validation_hooks : given.a_vogen_compilat
     [Fact] void should_point_to_the_authored_predicate() => _contribution.Facts.OfType<ConceptValidationRuleFact>().All(_ => _.Definition.Kind == ConceptValidationRuleKind.NamedPredicate && _.Definition.Predicate == "Validate").ShouldBeTrue();
     [Fact] void should_use_a_stable_fact_identity() => _customerCodeRule.Id.Value.ShouldEqual($"vogen:concept-validation:vogen.validate:{_customerCodeRule.Subject.Value}");
     [Fact] void should_preserve_the_implementation_file() => _contribution.Facts.OfType<ConceptValidationRuleFact>().All(_ => _.Definition.ImplementationFile == "Concepts/Validation.cs").ShouldBeTrue();
-    [Fact] void should_anchor_evidence_at_the_authored_method() => _customerCodeRule.Evidence.Source!.StartLine.ShouldEqual(6);
+    [Fact] void should_anchor_evidence_at_the_authored_method() => Range(_customerCodeRule.Evidence.Source).ShouldEqual("Concepts/Validation.cs@6:5-7:107");
     [Fact] void should_use_exact_evidence() => _contribution.Facts.OfType<ConceptValidationRuleFact>().All(_ => _.Evidence.Strength == EvidenceStrength.Exact).ShouldBeTrue();
     [Fact] void should_preserve_a_semantically_constant_invalid_message_from_an_expression_body() => _customerCodeRule.Definition.Message.ShouldEqual("Customer codes cannot be blank");
     [Fact] void should_preserve_a_semantically_constant_invalid_message_from_a_return_expression() => _quantityRule.Definition.Message.ShouldEqual("Quantity must be positive");

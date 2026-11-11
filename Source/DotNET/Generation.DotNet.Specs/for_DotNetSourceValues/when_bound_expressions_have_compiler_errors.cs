@@ -64,5 +64,5 @@ public class when_bound_expressions_have_compiler_errors : given.a_compilation
     [Fact] void should_locate_each_failure_at_its_complete_authored_expression() => string.Join('|', _results.SelectMany(Failures).Select(_ => SourceText(_.Source))).ShouldEqual("LegacyValue|typeof(LegacyType)|new(42)|42");
 
     static IReadOnlyList<DotNetValueFailure> Failures(DotNetBounded<DotNetSourceValue> result) => ((DotNetUnknown<DotNetSourceValue>)result).Failures;
-    static string SourceText(Location source) => source.SourceTree!.GetText().ToString(source.SourceSpan);
+    static string SourceText(Location source) => source.SourceTree.GetText().ToString(source.SourceSpan);
 }

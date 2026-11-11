@@ -93,6 +93,10 @@ public class a_vogen_compilation : Specification
         return Project(name, compilation, authoredSyntaxTrees: authored, sourceContext: sourceContext);
     }
 
+    protected static string Range(SourceRange? source) => source is null
+        ? "<none>"
+        : $"{source.Path}@{source.StartLine}:{source.StartColumn}-{source.EndLine}:{source.EndColumn}";
+
     protected static ArtifactFact ConceptNamed(AdapterContribution contribution, string name) =>
         contribution.Facts.OfType<ArtifactFact>().Single(_ => _.Definition.Name == name);
 

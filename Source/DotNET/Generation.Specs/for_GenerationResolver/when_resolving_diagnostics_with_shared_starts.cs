@@ -26,19 +26,21 @@ public class when_resolving_diagnostics_with_shared_starts : given.facts
         ]);
     }
 
-    [Fact] void should_order_diagnostics_independently_of_contribution_order() =>
+    [Fact]
+    void should_order_diagnostics_independently_of_contribution_order() =>
         JsonSerializer.Serialize(_reverse.Diagnostics).ShouldEqual(JsonSerializer.Serialize(_forward.Diagnostics));
 
-    [Fact] void should_use_the_complete_source_range_as_a_tie_breaker() =>
-        _forward.Diagnostics.Select(_ => _.Source!.EndLine).ShouldContainOnly(8, 12);
+    [Fact]
+    void should_use_the_complete_source_range_as_a_tie_breaker() =>
+        _forward.Diagnostics.Select(_ => _.Source.EndLine).ShouldContainOnly(8, 12);
 
     static AdapterContribution ContributionWithDiagnostic(
         AdapterIdentity adapter,
         GenerationDiagnostic diagnostic) => new()
-    {
-        Adapter = adapter,
-        Diagnostics = [diagnostic]
-    };
+        {
+            Adapter = adapter,
+            Diagnostics = [diagnostic]
+        };
 
     static GenerationDiagnostic Diagnostic(int endLine, GenerationDiagnosticOutcome outcome) => new()
     {

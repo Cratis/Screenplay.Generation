@@ -34,13 +34,13 @@ public class when_signature_dimensions_differ : given.a_compilation
                 public static string Match<T>(this int source, ref int count, params T[] values) => source.ToString();
             }
             """));
-        _method = compilation.GetTypeByMetadataName("Framework.Expected")!.GetMembers("Match").OfType<IMethodSymbol>().Single();
-        _lookalike = compilation.GetTypeByMetadataName("Framework.Lookalike")!.GetMembers("Match").OfType<IMethodSymbol>().Single();
+        _method = compilation.GetTypeByMetadataName("Framework.Expected").GetMembers("Match").OfType<IMethodSymbol>().Single();
+        _lookalike = compilation.GetTypeByMetadataName("Framework.Lookalike").GetMembers("Match").OfType<IMethodSymbol>().Single();
         _expected = DotNetMethodSignatures.From(_method);
         _integer = compilation.GetSpecialType(SpecialType.System_Int32);
-        _string = compilation.GetTypeByMetadataName("Framework.Expected")!.GetMembers("Echo").OfType<IMethodSymbol>().Single().Parameters[0].Type;
-        _nullableString = compilation.GetTypeByMetadataName("Framework.Expected")!.GetMembers("Nullable").OfType<IMethodSymbol>().Single().ReturnType;
-        _nullableStringParameter = compilation.GetTypeByMetadataName("Framework.Expected")!.GetMembers("NullableParameter").OfType<IMethodSymbol>().Single().Parameters[0].Type;
+        _string = compilation.GetTypeByMetadataName("Framework.Expected").GetMembers("Echo").OfType<IMethodSymbol>().Single().Parameters[0].Type;
+        _nullableString = compilation.GetTypeByMetadataName("Framework.Expected").GetMembers("Nullable").OfType<IMethodSymbol>().Single().ReturnType;
+        _nullableStringParameter = compilation.GetTypeByMetadataName("Framework.Expected").GetMembers("NullableParameter").OfType<IMethodSymbol>().Single().Parameters[0].Type;
         _unrelatedGenericArray = _lookalike.Parameters[2].Type;
     }
 

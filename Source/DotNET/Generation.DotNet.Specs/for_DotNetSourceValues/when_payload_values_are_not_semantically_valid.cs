@@ -66,5 +66,5 @@ public class when_payload_values_are_not_semantically_valid : given.a_compilatio
 
     DotNetValueFailureKind[] FailureKinds(int index) => [.. ((DotNetUnknown<DotNetPayloadValue>)_results[index]).Failures.Select(_ => _.Kind)];
 
-    string[] FailureSources(int index) => [.. ((DotNetUnknown<DotNetPayloadValue>)_results[index]).Failures.Select(_ => _.Source.SourceTree!.GetText().ToString(_.Source.SourceSpan))];
+    string[] FailureSources(int index) => [.. ((DotNetUnknown<DotNetPayloadValue>)_results[index]).Failures.Select(_ => _.Source.SourceTree.GetText().ToString(_.Source.SourceSpan))];
 }

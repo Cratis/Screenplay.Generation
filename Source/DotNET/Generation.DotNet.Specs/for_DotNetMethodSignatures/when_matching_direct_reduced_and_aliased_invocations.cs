@@ -57,9 +57,9 @@ public class when_matching_direct_reduced_and_aliased_invocations : given.a_comp
         [
             .. invocations
                 .Where(invocation => invocation.ToString().Contains("Map", StringComparison.Ordinal) && !invocation.ToString().Contains("dynamicValue", StringComparison.Ordinal))
-                .Select(invocation => DotNetInvocations.MethodFor(invocation, semanticModel)!)
+                .Select(invocation => DotNetInvocations.MethodFor(invocation, semanticModel))
         ];
-        var definition = compilation.GetTypeByMetadataName("Framework.Extensions")!.GetMembers("Map").OfType<IMethodSymbol>().Single();
+        var definition = compilation.GetTypeByMetadataName("Framework.Extensions").GetMembers("Map").OfType<IMethodSymbol>().Single();
         _signature = DotNetMethodSignatures.From(definition);
         _dynamic = DotNetInvocations.MethodFor(invocations.Single(invocation => invocation.ToString().Contains("dynamicValue", StringComparison.Ordinal)), semanticModel);
         _ambiguous = DotNetInvocations.MethodFor(invocations.Single(invocation => invocation.ToString().Contains("Ambiguous", StringComparison.Ordinal)), semanticModel);

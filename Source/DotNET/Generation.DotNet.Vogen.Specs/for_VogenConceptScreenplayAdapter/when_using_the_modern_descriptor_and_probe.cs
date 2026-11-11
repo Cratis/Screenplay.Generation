@@ -36,8 +36,8 @@ public class when_using_the_modern_descriptor_and_probe : given.a_vogen_compilat
     [Fact] void should_require_authored_stable_semantic_host_capabilities() => string.Join(',', _adapter.Descriptor.RequiredHostCapabilities).ShouldEqual("AuthoredSource,StableSourceLocations,SemanticAnalysis");
     [Fact] void should_declare_exact_emitted_fact_capabilities() => string.Join(',', _adapter.Descriptor.EmittedFactCapabilities).ShouldEqual("Artifact,ConceptRepresentation,ConceptValidationRule");
     [Fact] void should_require_only_the_alternative_vogen_declaration_capability() => _adapter.Descriptor.RequiredApiCapabilities.Select(capability => capability.Id).ShouldEqual(["vogen.value-object-declaration"]);
-    [Fact] void should_prove_the_required_declaration_capability() => _probe.Evidence.Where(evidence => evidence.ApiCapability is not null).Select(evidence => evidence.ApiCapability!.Id).ShouldContain("vogen.value-object-declaration");
-    [Fact] void should_capture_optional_validation_result_api_evidence() => _probe.Evidence.Where(evidence => evidence.ApiCapability is not null).Select(evidence => evidence.ApiCapability!.Id).ShouldContain("vogen.validation-result");
-    [Fact] void should_anchor_the_authored_declaration_probe_evidence_to_stable_source() => _probe.Evidence.Single(evidence => evidence.Source is not null).Source!.FileIdentity.ShouldEqual(new SourceFileIdentity { Project = "concepts-project", Path = "CustomerId.cs" });
+    [Fact] void should_prove_the_required_declaration_capability() => _probe.Evidence.Where(evidence => evidence.ApiCapability is not null).Select(evidence => evidence.ApiCapability.Id).ShouldContain("vogen.value-object-declaration");
+    [Fact] void should_capture_optional_validation_result_api_evidence() => _probe.Evidence.Where(evidence => evidence.ApiCapability is not null).Select(evidence => evidence.ApiCapability.Id).ShouldContain("vogen.validation-result");
+    [Fact] void should_anchor_the_authored_declaration_probe_evidence_to_stable_source() => _probe.Evidence.Single(evidence => evidence.Source is not null).Source.FileIdentity.ShouldEqual(new SourceFileIdentity { Project = "concepts-project", Path = "CustomerId.cs" });
     [Fact] void should_admit_the_modern_vogen_contribution() => _record.Disposition.ShouldEqual(AdapterRunDisposition.Admitted);
 }

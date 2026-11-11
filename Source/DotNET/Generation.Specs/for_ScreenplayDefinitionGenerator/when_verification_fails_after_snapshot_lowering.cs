@@ -31,7 +31,7 @@ public class when_verification_fails_after_snapshot_lowering : given.a_generator
     [Fact] void should_keep_the_lowered_artifact_disposition() => Disposition("event:AccountOpened").ShouldEqual(GenerationFactDisposition.Lowered);
     [Fact] void should_keep_the_lowered_placement_disposition() => Disposition("placement:AccountOpened").ShouldEqual(GenerationFactDisposition.Lowered);
 
-    GenerationFactDisposition Disposition(string id) => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == id).Disposition;
+    GenerationFactDisposition Disposition(string id) => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == id).Disposition;
 
     sealed class FailingCompiler : IScreenplayCompiler
     {

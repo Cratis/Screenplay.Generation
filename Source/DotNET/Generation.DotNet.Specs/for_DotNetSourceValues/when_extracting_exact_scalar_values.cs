@@ -84,8 +84,8 @@ public class when_extracting_exact_scalar_values : given.a_compilation
 
     [Fact] void should_extract_literal_and_named_string_constants() => _values.Take(2).Select(_ => _.Value).ShouldEqual(["literal", "Screenplay"]);
     [Fact] void should_extract_numeric_constants() => _values[2].Value.ShouldEqual(42);
-    [Fact] void should_preserve_the_exact_enum_member_symbol() => ((IFieldSymbol)_values[3].Value!).Name.ShouldEqual("Active");
-    [Fact] void should_preserve_the_enum_type() => _values[3].Type!.Name.ShouldEqual("ProjectStatus");
+    [Fact] void should_preserve_the_exact_enum_member_symbol() => ((IFieldSymbol)_values[3].Value).Name.ShouldEqual("Active");
+    [Fact] void should_preserve_the_enum_type() => _values[3].Type.Name.ShouldEqual("ProjectStatus");
     [Fact] void should_extract_null() => _values[4].Value.ShouldBeNull();
     [Fact] void should_extract_nameof_as_a_semantic_constant() => _values[5].Value.ShouldEqual("Usage");
     [Fact] void should_extract_a_typed_constant() => ((DotNetKnown<string>)_typed).Value.ShouldEqual("Screenplay");
@@ -94,5 +94,5 @@ public class when_extracting_exact_scalar_values : given.a_compilation
     [Fact] void should_apply_a_roslyn_proven_long_conversion() => ((DotNetKnown<long>)_typedLong).Value.ShouldEqual(2L);
     [Fact] void should_not_expose_a_source_enum_as_its_underlying_runtime_number() => _typedEnum.ShouldBeOfExactType<DotNetUnknown<int>>();
     [Fact] void should_not_widen_a_typed_constant_to_object() => _typedObject.ShouldBeOfExactType<DotNetUnknown<object>>();
-    [Fact] void should_preserve_a_direct_enum_member_under_contextual_object_conversion() => ((IFieldSymbol)_contextualEnum.Value!).Name.ShouldEqual("Enabled");
+    [Fact] void should_preserve_a_direct_enum_member_under_contextual_object_conversion() => ((IFieldSymbol)_contextualEnum.Value).Name.ShouldEqual("Enabled");
 }

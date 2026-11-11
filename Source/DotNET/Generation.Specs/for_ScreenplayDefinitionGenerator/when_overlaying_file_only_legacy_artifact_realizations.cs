@@ -87,7 +87,7 @@ public class when_overlaying_file_only_legacy_artifact_realizations : given.a_ge
 
     [Fact] void should_retain_one_effective_semantic_variant() => Event().Variants.Count.ShouldEqual(1);
     [Fact] void should_retain_both_file_realizations() => Event().Variants.Single().Files.ShouldEqual("Events/First.cs", "Events/Second.cs");
-    [Fact] void should_bind_the_effective_semantic_variant() => Event().Variants.Single().Definition.Properties.Single().Type.Subject!.Value.ShouldEqual("dotnet://Ordering/Concepts.CustomerCode");
+    [Fact] void should_bind_the_effective_semantic_variant() => Event().Variants.Single().Definition.Properties.Single().Type.Subject.Value.ShouldEqual("dotnet://Ordering/Concepts.CustomerCode");
     [Fact] void should_retain_both_complete_legacy_support_facts_as_provenance() => Dispositions("event:first", "event:second").ShouldContainOnly(GenerationFactDisposition.ProvenanceOnly, GenerationFactDisposition.ProvenanceOnly);
     [Fact] void should_lower_the_binding_supporting_the_effective_variant() => Dispositions("event:binding").ShouldContainOnly(GenerationFactDisposition.Lowered);
 
@@ -95,7 +95,7 @@ public class when_overlaying_file_only_legacy_artifact_realizations : given.a_ge
 
     GenerationFactDisposition[] Dispositions(params string[] ids) =>
     [
-        .. ids.Select(id => _result.AdapterRun!.Facts.Single(record => record.Fact.Id.Value == id).Disposition)
+        .. ids.Select(id => _result.AdapterRun.Facts.Single(record => record.Fact.Id.Value == id).Disposition)
     ];
 
     static ArtifactFact Legacy(
@@ -104,16 +104,16 @@ public class when_overlaying_file_only_legacy_artifact_realizations : given.a_ge
         ArtifactKey artifact,
         SubjectId subject,
         Evidence evidence) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Evidence = evidence,
-        Definition = new ArtifactDefinition
         {
-            Key = artifact,
-            Name = "CustomerRegistered",
-            File = file,
-            Properties =
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Evidence = evidence,
+            Definition = new ArtifactDefinition
+            {
+                Key = artifact,
+                Name = "CustomerRegistered",
+                File = file,
+                Properties =
             [
                 new PropertyDefinition
                 {
@@ -121,6 +121,6 @@ public class when_overlaying_file_only_legacy_artifact_realizations : given.a_ge
                     Type = new TypeReferenceDefinition { Name = "RawCustomerCode" }
                 }
             ]
-        }
-    };
+            }
+        };
 }
