@@ -12,9 +12,14 @@ namespace Cratis.Screenplay.Generation.DotNet.given;
 /// </summary>
 public class a_value_snapshot : a_compilation
 {
-    protected static string[] SnapshotOf(string path, string source)
+    protected static string[] SnapshotOf(string path, string source, bool allowUnsafe = false)
     {
         var compilation = CompilationFrom(new SourceFile(path, source));
+        if (allowUnsafe)
+        {
+            compilation = compilation.WithOptions(compilation.Options.WithAllowUnsafe(true));
+        }
+
         var tree = compilation.SyntaxTrees.Single();
         var semanticModel = compilation.GetSemanticModel(tree);
         return
