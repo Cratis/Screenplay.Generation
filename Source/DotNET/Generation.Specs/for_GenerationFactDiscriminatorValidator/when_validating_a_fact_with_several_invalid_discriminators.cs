@@ -33,13 +33,14 @@ public class when_validating_a_fact_with_several_invalid_discriminators : Specif
             }
         };
 
-        var validator = typeof(GenerationResolver).Assembly.GetType("Cratis.Screenplay.Generation.GenerationFactDiscriminatorValidator")!;
-        var result = validator.GetMethod("Validate", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [new GenerationFact[] { fact }])!;
-        var diagnostics = (GenerationDiagnostic[])result.GetType().GetProperty("Diagnostics")!.GetValue(result)!;
+        var validator = typeof(GenerationResolver).Assembly.GetType("Cratis.Screenplay.Generation.GenerationFactDiscriminatorValidator");
+        var result = validator.GetMethod("Validate", BindingFlags.Public | BindingFlags.Static).Invoke(null, [new GenerationFact[] { fact }]);
+        var diagnostics = (GenerationDiagnostic[])result.GetType().GetProperty("Diagnostics").GetValue(result);
         _diagnostics = [.. diagnostics.Select(_ => $"{_.Code}|{_.Outcome}|{_.Message}")];
     }
 
-    [Fact] void should_accumulate_in_validation_order_not_sorted_order() => _diagnostics.ShouldEqual(
+    [Fact]
+    void should_accumulate_in_validation_order_not_sorted_order() => _diagnostics.ShouldEqual(
     [
         "GEN0029|Unknown|Fact 'artifact' from adapter 'first' uses unknown EvidenceStrength value '-1'; the affected fact was omitted",
         "GEN0022|Unknown|Fact 'artifact' from adapter 'first' uses unknown ArtifactKind value '-1'; the affected fact was omitted",
