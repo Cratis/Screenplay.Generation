@@ -494,6 +494,7 @@ public sealed class VogenConceptScreenplayAdapter : IDotNetScreenplayAdapter, ID
             method.IsStatic &&
             !method.IsGenericMethod &&
             !method.ReturnsByRef &&
+            !method.ReturnsByRefReadonly &&
             SymbolEqualityComparer.Default.Equals(method.ReturnType, ReturnType) &&
             HasExactParameter(method);
 

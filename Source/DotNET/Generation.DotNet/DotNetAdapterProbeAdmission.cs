@@ -129,6 +129,7 @@ static class DotNetAdapterProbeAdmission
         .ThenBy(item => item.Source?.StartColumn)
         .ThenBy(item => item.Source?.EndLine)
         .ThenBy(item => item.Source?.EndColumn)
+        .ThenBy(item => item.Subject?.Value, StringComparer.Ordinal)
         .ThenBy(item => item.Description, StringComparer.Ordinal);
 
     static bool TryFreezeDiagnostics(
@@ -196,7 +197,7 @@ static class DotNetAdapterProbeAdmission
 
         var pathEnd = value.IndexOfAny(['?', '#'], pathStart);
         var path = pathEnd < 0 ? value[pathStart..] : value[pathStart..pathEnd];
-        return false;
+        return path.Split('/').Any(IsDotSegment);
     }
 
     static bool IsDotSegment(string segment)
