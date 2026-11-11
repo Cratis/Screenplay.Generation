@@ -44,13 +44,12 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
         out AdmittedSpecificationValue? admitted)
     {
         admitted = null;
-        if (!TryResolve(key, step, visiting, out var resolved) ||
-            TryAdmitChildren(resolved!.Variants.Single().Definition, step, visiting) is not { } children)
+        if (!TryResolve(key, step, visiting, out var variant) ||
+            TryAdmitChildren(variant!.Definition, step, visiting) is not { } children)
         {
             return false;
         }
 
-        var variant = resolved.Variants.Single();
         admitted = new()
         {
             Definition = variant.Definition,
@@ -64,7 +63,7 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
         SpecificationValueKey key,
         SpecificationStepKey step,
         HashSet<string> visiting,
-        out ResolvedSpecificationValue? resolved)
+        out ResolvedSpecificationValueVariant? resolved)
     {
         resolved = null;
         var canonicalKey = Structural.SpecificationValueKey(key);
@@ -76,13 +75,13 @@ internal sealed class SpecificationValueAdmission(IEnumerable<ResolvedSpecificat
             return false;
         }
 
-        var definition = candidate.Variants.Single().Definition;
-        if (!IsValidShape(definition) || !HasUniqueChildren(definition))
+        var variant = candidate.Variants.Single();
+        if (!IsValidShape(variant.Definition) || !HasUniqueChildren(variant.Definition))
         {
             return false;
         }
 
-        resolved = candidate;
+        resolved = variant;
         return true;
     }
 

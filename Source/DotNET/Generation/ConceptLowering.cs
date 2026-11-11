@@ -86,7 +86,7 @@ internal static class ConceptLowering
                         GenerationDiagnosticOutcome.Unknown,
                         $"Concept '{definition.Name}' has no proven representation and was omitted"),
                     definition,
-                    null),
+                    []),
                 GenerationFactSemanticKey.Artifact(definition));
             return null;
         }
@@ -98,7 +98,7 @@ internal static class ConceptLowering
 
         var variant = resolved.Variants.Single();
         var representation = variant.Definition;
-        var check = Check(definition, representation, FirstSource(variant.Evidence));
+        var check = Check(definition, representation, variant.Evidence);
         if (check.Problem is { } problem)
         {
             sink.Omit(
@@ -123,9 +123,9 @@ internal static class ConceptLowering
         return concept;
     }
 
-    static ConceptCheck Check(ArtifactDefinition definition, ConceptRepresentationDefinition representation, SourceRange? source)
+    static ConceptCheck Check(ArtifactDefinition definition, ConceptRepresentationDefinition representation, IEnumerable<Evidence> evidence)
     {
-        var problem = KindProblem(definition, representation, source) ?? PrimitiveProblem(definition, representation, source);
+        var problem = KindProblem(definition, representation, evidence) ?? PrimitiveProblem(definition, representation, evidence);
         if (problem is not null)
         {
             return new(null, [], problem);
@@ -142,7 +142,7 @@ internal static class ConceptLowering
                         GenerationDiagnosticOutcome.Unsupported,
                         $"Concept '{definition.Name}' has an invalid or unsupported {representation.Kind} representation and was omitted"),
                     definition,
-                    source));
+                    evidence));
         }
 
         IReadOnlyList<string> values = representation.Kind == ConceptRepresentationKind.Enumeration
@@ -159,10 +159,10 @@ internal static class ConceptLowering
                         GenerationDiagnosticOutcome.Unsupported,
                         $"Concept '{definition.Name}' has empty or duplicate enumeration values after Screenplay naming and was omitted"),
                     definition,
-                    source));
+                    evidence));
     }
 
-    static GenerationDiagnostic? KindProblem(ArtifactDefinition definition, ConceptRepresentationDefinition representation, SourceRange? source) =>
+    static GenerationDiagnostic? KindProblem(ArtifactDefinition definition, ConceptRepresentationDefinition representation, IEnumerable<Evidence> evidence) =>
         representation.Kind == ConceptRepresentationKind.Unknown || !Enum.IsDefined(representation.Kind)
             ? Attach(
                 Warning(
@@ -170,10 +170,10 @@ internal static class ConceptLowering
                     OutcomeFor(representation.Kind, ConceptRepresentationKind.Unknown),
                     $"Concept '{definition.Name}' uses unknown or undefined ConceptRepresentationKind value '{(int)representation.Kind}' and was omitted"),
                 definition,
-                source)
+                evidence)
             : null;
 
-    static GenerationDiagnostic? PrimitiveProblem(ArtifactDefinition definition, ConceptRepresentationDefinition representation, SourceRange? source) =>
+    static GenerationDiagnostic? PrimitiveProblem(ArtifactDefinition definition, ConceptRepresentationDefinition representation, IEnumerable<Evidence> evidence) =>
         representation.Primitive is { } primitive && (primitive == GenerationPrimitiveKind.Unknown || !Enum.IsDefined(primitive))
             ? Attach(
                 Warning(
@@ -181,7 +181,7 @@ internal static class ConceptLowering
                     OutcomeFor(primitive, GenerationPrimitiveKind.Unknown),
                     $"Concept '{definition.Name}' uses unknown or undefined GenerationPrimitiveKind value '{(int)primitive}' and was omitted"),
                 definition,
-                source)
+                evidence)
             : null;
 
     static ConceptAttributeSyntax[] BuildAttributes(ResolvedApplicationGraph graph, ArtifactDefinition concept, LoweringSink sink)
@@ -193,7 +193,7 @@ internal static class ConceptLowering
         {
             var variant = resolved.Variants.Single();
             var definition = variant.Definition;
-            var problem = AttributeProblem(concept, definition, FirstSource(variant.Evidence));
+            var problem = AttributeProblem(concept, definition, variant.Evidence);
             if (problem is not null)
             {
                 sink.Omit(problem, GenerationFactSemanticKey.ConceptAttribute(definition));
@@ -207,7 +207,7 @@ internal static class ConceptLowering
         return [.. attributes];
     }
 
-    static GenerationDiagnostic? AttributeProblem(ArtifactDefinition concept, ConceptAttributeDefinition definition, SourceRange? source)
+    static GenerationDiagnostic? AttributeProblem(ArtifactDefinition concept, ConceptAttributeDefinition definition, IEnumerable<Evidence> evidence)
     {
         if (definition.Kind != ConceptAttributeKind.Named)
         {
@@ -217,7 +217,7 @@ internal static class ConceptLowering
                     OutcomeFor(definition.Kind, ConceptAttributeKind.Unknown),
                     $"Concept '{concept.Name}' has unknown or undefined ConceptAttributeKind value '{(int)definition.Kind}', which was omitted"),
                 concept,
-                source);
+                evidence);
         }
 
         return IsIdentifier(definition.Name)
@@ -228,7 +228,7 @@ internal static class ConceptLowering
                     GenerationDiagnosticOutcome.Unsupported,
                     $"Concept '{concept.Name}' has invalid attribute name '{definition.Name}', which was omitted"),
                 concept,
-                source);
+                evidence);
     }
 
     static ValidateSyntax[] BuildValidations(ResolvedApplicationGraph graph, ArtifactDefinition concept, LoweringSink sink)
@@ -241,7 +241,7 @@ internal static class ConceptLowering
             if (string.IsNullOrWhiteSpace(resolved.RuleIdentity))
             {
                 sink.Omit(
-                    UnsupportedValidation(concept, resolved.RuleIdentity, "has no rule identity", FirstSource(resolved.Variants.SelectMany(_ => _.Evidence))),
+                    UnsupportedValidation(concept, resolved.RuleIdentity, "has no rule identity", resolved.Variants.SelectMany(_ => _.Evidence)),
                     [.. resolved.Variants.Select(_ => GenerationFactSemanticKey.ConceptValidationRule(_.Definition))]);
                 continue;
             }
@@ -253,7 +253,7 @@ internal static class ConceptLowering
 
             var variant = resolved.Variants.Single();
             var definition = variant.Definition;
-            var problem = RuleProblem(concept, definition, FirstSource(variant.Evidence));
+            var problem = RuleProblem(concept, definition, variant.Evidence);
             if (problem is not null)
             {
                 sink.Omit(problem, GenerationFactSemanticKey.ConceptValidationRule(definition));
@@ -275,7 +275,7 @@ internal static class ConceptLowering
             : [new DeclarativeValidateSyntax(rules, Generated)];
     }
 
-    static GenerationDiagnostic? RuleProblem(ArtifactDefinition concept, ConceptValidationRuleDefinition definition, SourceRange? source)
+    static GenerationDiagnostic? RuleProblem(ArtifactDefinition concept, ConceptValidationRuleDefinition definition, IEnumerable<Evidence> evidence)
     {
         if (definition.Kind == ConceptValidationRuleKind.Unknown || !Enum.IsDefined(definition.Kind))
         {
@@ -285,25 +285,25 @@ internal static class ConceptLowering
                     OutcomeFor(definition.Kind, ConceptValidationRuleKind.Unknown),
                     $"Concept '{concept.Name}' validation rule '{definition.RuleIdentity}' uses unknown or undefined ConceptValidationRuleKind value '{(int)definition.Kind}' and was omitted"),
                 concept,
-                source);
+                evidence);
         }
 
         return HasNamedPredicate(definition) && IsValidImplementationFile(definition.ImplementationFile)
             ? null
-            : UnsupportedValidation(concept, definition.RuleIdentity, "has invalid or missing required data", source);
+            : UnsupportedValidation(concept, definition.RuleIdentity, "has invalid or missing required data", evidence);
     }
 
-    static GenerationDiagnostic UnsupportedValidation(ArtifactDefinition concept, string? ruleIdentity, string reason, SourceRange? source) =>
+    static GenerationDiagnostic UnsupportedValidation(ArtifactDefinition concept, string? ruleIdentity, string reason, IEnumerable<Evidence> evidence) =>
         Attach(
             Warning(
                 GenerationDiagnosticCodes.UnsupportedConceptValidationRule,
                 GenerationDiagnosticOutcome.Unsupported,
                 $"Concept '{concept.Name}' validation rule '{ruleIdentity ?? string.Empty}' {reason} and was omitted"),
             concept,
-            source);
+            evidence);
 
-    static GenerationDiagnostic Attach(GenerationDiagnostic diagnostic, ArtifactDefinition concept, SourceRange? source) =>
-        diagnostic with { Source = source, Subject = concept.Key.Subject };
+    static GenerationDiagnostic Attach(GenerationDiagnostic diagnostic, ArtifactDefinition concept, IEnumerable<Evidence> evidence) =>
+        diagnostic with { Source = FirstSource(evidence), Subject = concept.Key.Subject };
 
     static bool HasNamedPredicate(ConceptValidationRuleDefinition definition) =>
         definition.Kind == ConceptValidationRuleKind.NamedPredicate &&

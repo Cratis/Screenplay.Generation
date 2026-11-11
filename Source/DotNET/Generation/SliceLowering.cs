@@ -35,21 +35,30 @@ internal static class SliceLowering
         string name,
         GenerationSliceKind kind,
         IReadOnlyList<PlacedArtifact> artifacts,
-        LoweringContext context) => new(
+        LoweringContext context)
+    {
+        var commands = LowerEach(artifacts, ArtifactKind.Command, _ => ArtifactLowering.BuildCommand(_, context), context);
+        var events = LowerEach(artifacts, ArtifactKind.Event, _ => ArtifactLowering.BuildEvent(_, context), context);
+        var queries = LowerEach(artifacts, ArtifactKind.Query, _ => ArtifactLowering.BuildQuery(_, context), context);
+        var readModels = LowerEach(artifacts, ArtifactKind.ReadModel, _ => ArtifactLowering.BuildReadModel(_, context), context);
+        var reducers = LowerEach(artifacts, ArtifactKind.Reducer, _ => ArtifactLowering.BuildReducer(_, context), context);
+        var specifications = context.SpecificationsFor(artifacts[0].Placement);
+        return new(
             SliceTypeFrom(kind),
             name,
-            LowerEach(artifacts, ArtifactKind.Event, _ => ArtifactLowering.BuildEvent(_, context), context),
-            LowerEach(artifacts, ArtifactKind.Command, _ => ArtifactLowering.BuildCommand(_, context), context),
-            LowerEach(artifacts, ArtifactKind.Query, _ => ArtifactLowering.BuildQuery(_, context), context),
+            events,
+            commands,
+            queries,
             [],
             [],
             [],
             [],
             [],
-            context.SpecificationsFor(artifacts[0].Placement),
+            specifications,
             Generated,
-            ReadModels: LowerEach(artifacts, ArtifactKind.ReadModel, _ => ArtifactLowering.BuildReadModel(_, context), context),
-            Reducers: LowerEach(artifacts, ArtifactKind.Reducer, _ => ArtifactLowering.BuildReducer(_, context), context));
+            ReadModels: readModels,
+            Reducers: reducers);
+    }
 
     static T[] LowerEach<T>(
         IReadOnlyList<PlacedArtifact> artifacts,
