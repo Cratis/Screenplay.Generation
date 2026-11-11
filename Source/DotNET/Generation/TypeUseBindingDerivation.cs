@@ -16,8 +16,7 @@ static class TypeUseBindingDerivation
     public static TypeUseBindingDerivationResult Derive(ImmutableArray<GenerationFactRecord> baseFacts)
     {
         var facts = baseFacts.Select(record => record.Fact).ToArray();
-        var declarations = ArtifactDeclarations(facts);
-        var members = MemberDeclarations(facts);
+        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts));
         var consideredInputs = facts
             .Where(fact => fact is ArtifactFact or
                            ArtifactDeclarationFact or
@@ -35,7 +34,16 @@ static class TypeUseBindingDerivation
 
         foreach (var group in typeUseGroups)
         {
-            DeriveBinding([.. group], declarations, members, derived, diagnostics);
+            var outcome = DeriveBinding([.. group], index);
+            if (outcome.Record is { } record)
+            {
+                derived.Add(record);
+            }
+
+            if (outcome.Diagnostic is { } diagnostic)
+            {
+                diagnostics.Add(diagnostic);
+            }
         }
 
         return new TypeUseBindingDerivationResult(
@@ -44,89 +52,168 @@ static class TypeUseBindingDerivation
             [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]);
     }
 
-    static void DeriveBinding(
-        ArtifactMemberTypeUseFact[] typeUses,
-        IReadOnlyList<DeclaredArtifact> declarations,
-        IReadOnlyList<DeclaredMember> members,
-        List<GenerationFactRecord> derived,
-        List<GenerationDiagnostic> diagnostics)
+    static BindingOutcome DeriveBinding(ArtifactMemberTypeUseFact[] typeUses, DeclarationIndex index)
     {
-        var member = typeUses[0].Definition.Member;
-        var typeVariants = typeUses
-            .GroupBy(fact => Structural.TypeUse(fact.Definition.Type), StringComparer.Ordinal)
-            .OrderBy(group => group.Key, StringComparer.Ordinal)
-            .ToArray();
-        if (typeVariants.Length > 1)
+        var context = new BindingContext(typeUses[0].Definition.Member, typeUses);
+        if (ConflictingTypeUse(context) is { } typeUseConflict)
         {
-            diagnostics.Add(Diagnostic(
-                GenerationDiagnosticCodes.ConflictingMemberTypeUse,
-                GenerationDiagnosticOutcome.Conflict,
-                member,
-                typeUses,
-                $"Incompatible exact type uses were asserted for member '{member.Name}'"));
-            return;
+            return BindingOutcome.Failed(typeUseConflict);
         }
 
-        var typeUse = typeVariants[0]
+        var typeUse = typeUses
             .OrderBy(fact => fact.Id.Value, StringComparer.Ordinal)
             .ThenBy(DerivationInputKey, StringComparer.Ordinal)
             .First();
         if (typeUse.Definition.Type.ObservedTypeSubject is not { } observedType)
         {
-            return;
+            return BindingOutcome.Skipped;
         }
 
-        var ownerDeclarations = declarations
-            .Where(declaration => declaration.Key == member.Artifact)
-            .ToArray();
-        if (ownerDeclarations.Length == 0)
+        var owner = ResolveOwner(context, index);
+        if (owner.Failure is { } ownerFailure)
         {
-            diagnostics.Add(Diagnostic(
+            return BindingOutcome.Failed(ownerFailure);
+        }
+
+        var memberDeclarations = ResolveMember(context, owner.Value, index);
+        if (memberDeclarations.Failure is { } memberFailure)
+        {
+            return BindingOutcome.Failed(memberFailure);
+        }
+
+        var target = ResolveTarget(context, observedType, owner.Value, index);
+        if (target.Failure is { } targetFailure)
+        {
+            return BindingOutcome.Failed(targetFailure);
+        }
+
+        return BindingOutcome.Bound(CreateRecord(
+            context,
+            typeUse,
+            target.Value,
+            owner.Value.Select(declaration => declaration.Fact)
+                .Concat(memberDeclarations.Value.Select(declaration => declaration.Fact))));
+    }
+
+    static GenerationDiagnostic? ConflictingTypeUse(BindingContext context)
+    {
+        var typeVariants = context.TypeUses
+            .Select(fact => Structural.TypeUse(fact.Definition.Type))
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        return typeVariants > 1
+            ? context.Diagnostic(
+                GenerationDiagnosticCodes.ConflictingMemberTypeUse,
+                GenerationDiagnosticOutcome.Conflict,
+                [],
+                $"Incompatible exact type uses were asserted for member '{context.Member.Name}'")
+            : null;
+    }
+
+    static Resolution<DeclaredArtifact[]> ResolveOwner(BindingContext context, DeclarationIndex index)
+    {
+        var owners = index.Artifacts
+            .Where(declaration => declaration.Key == context.Member.Artifact)
+            .ToArray();
+        if (owners.Length == 0)
+        {
+            return Resolution<DeclaredArtifact[]>.Fail(context.Diagnostic(
                 GenerationDiagnosticCodes.MissingTypeUseOwner,
                 GenerationDiagnosticOutcome.Unknown,
-                member,
-                typeUses,
-                $"Artifact owner '{member.Artifact.Subject.Value}' was not declared for member '{member.Name}'"));
-            return;
+                [],
+                $"Artifact owner '{context.Member.Artifact.Subject.Value}' was not declared for member '{context.Member.Name}'"));
         }
 
-        if (HasConflictingDeclarations(ownerDeclarations))
-        {
-            diagnostics.Add(Diagnostic(
+        return HasConflictingDeclarations(owners)
+            ? Resolution<DeclaredArtifact[]>.Fail(context.Diagnostic(
                 GenerationDiagnosticCodes.ConflictingTypeUseDeclaration,
                 GenerationDiagnosticOutcome.Conflict,
-                member,
-                ownerDeclarations.Select(declaration => declaration.Fact).Concat(typeUses),
-                $"Incompatible declarations were asserted for artifact owner '{member.Artifact.Subject.Value}'"));
-            return;
-        }
+                owners.Select(declaration => declaration.Fact),
+                $"Incompatible declarations were asserted for artifact owner '{context.Member.Artifact.Subject.Value}'"))
+            : Resolution<DeclaredArtifact[]>.Succeed(owners);
+    }
 
-        var memberDeclarations = members
-            .Where(declaration => declaration.Member == member)
+    static Resolution<DeclaredMember[]> ResolveMember(
+        BindingContext context,
+        DeclaredArtifact[] owners,
+        DeclarationIndex index)
+    {
+        var memberDeclarations = index.Members
+            .Where(declaration => declaration.Member == context.Member)
             .ToArray();
         if (memberDeclarations.Length == 0)
         {
-            diagnostics.Add(Diagnostic(
+            return Resolution<DeclaredMember[]>.Fail(context.Diagnostic(
                 GenerationDiagnosticCodes.MissingTypeUseMember,
                 GenerationDiagnosticOutcome.Unknown,
-                member,
-                ownerDeclarations.Select(declaration => declaration.Fact).Concat(typeUses),
-                $"Member '{member.Name}' was not declared on artifact owner '{member.Artifact.Subject.Value}'"));
-            return;
+                owners.Select(declaration => declaration.Fact),
+                $"Member '{context.Member.Name}' was not declared on artifact owner '{context.Member.Artifact.Subject.Value}'"));
         }
 
-        if (memberDeclarations.Select(declaration => declaration.Order).Distinct().Count() > 1)
-        {
-            diagnostics.Add(Diagnostic(
+        return memberDeclarations.Select(declaration => declaration.Order).Distinct().Count() > 1
+            ? Resolution<DeclaredMember[]>.Fail(context.Diagnostic(
                 GenerationDiagnosticCodes.ConflictingTypeUseDeclaration,
                 GenerationDiagnosticOutcome.Conflict,
-                member,
-                memberDeclarations.Select(declaration => declaration.Fact).Concat(typeUses),
-                $"Incompatible declaration orders were asserted for member '{member.Name}'"));
-            return;
+                memberDeclarations.Select(declaration => declaration.Fact),
+                $"Incompatible declaration orders were asserted for member '{context.Member.Name}'"))
+            : Resolution<DeclaredMember[]>.Succeed(memberDeclarations);
+    }
+
+    static Resolution<DeclaredArtifact[]> ResolveTarget(
+        BindingContext context,
+        SubjectId observedType,
+        DeclaredArtifact[] owners,
+        DeclarationIndex index)
+    {
+        var legacyTargets = LegacyTargets(context.Member, observedType, owners);
+        if (legacyTargets.Length > 1)
+        {
+            return Resolution<DeclaredArtifact[]>.Fail(context.Diagnostic(
+                GenerationDiagnosticCodes.ConflictingTypeUseTarget,
+                GenerationDiagnosticOutcome.Conflict,
+                owners.Select(declaration => declaration.Fact),
+                $"Artifact member '{context.Member.Name}' retains incompatible exact legacy target roles"));
         }
 
-        var legacyTargets = ownerDeclarations
+        var targetDeclarations = index.Artifacts
+            .Where(declaration => declaration.Key.Subject == observedType &&
+                                  (legacyTargets.Length == 0 || declaration.Key == legacyTargets[0]))
+            .ToArray();
+        if (targetDeclarations.Length == 0)
+        {
+            return Resolution<DeclaredArtifact[]>.Fail(context.Diagnostic(
+                GenerationDiagnosticCodes.MissingTypeUseTarget,
+                GenerationDiagnosticOutcome.Unknown,
+                [],
+                $"Observed type subject '{observedType.Value}' has no declared artifact target"));
+        }
+
+        var targetKeys = targetDeclarations
+            .GroupBy(declaration => Structural.ArtifactKey(declaration.Key), StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .ToArray();
+        if (targetKeys.Length > 1)
+        {
+            return Resolution<DeclaredArtifact[]>.Fail(context.Diagnostic(
+                GenerationDiagnosticCodes.ConflictingTypeUseTarget,
+                GenerationDiagnosticOutcome.Conflict,
+                targetDeclarations.Select(declaration => declaration.Fact),
+                $"Observed type subject '{observedType.Value}' declares incompatible artifact targets"));
+        }
+
+        var exactTargetDeclarations = targetKeys[0].ToArray();
+        return HasConflictingDeclarations(exactTargetDeclarations)
+            ? Resolution<DeclaredArtifact[]>.Fail(context.Diagnostic(
+                GenerationDiagnosticCodes.ConflictingTypeUseDeclaration,
+                GenerationDiagnosticOutcome.Conflict,
+                exactTargetDeclarations.Select(declaration => declaration.Fact),
+                $"Observed type subject '{observedType.Value}' has incompatible declarations"))
+            : Resolution<DeclaredArtifact[]>.Succeed(exactTargetDeclarations);
+    }
+
+    static ArtifactKey[] LegacyTargets(ArtifactMemberKey member, SubjectId observedType, DeclaredArtifact[] owners) =>
+    [
+        .. owners
             .SelectMany(declaration => declaration.Fact is ArtifactFact artifact
                 ? artifact.Definition.Properties
                     .Where(property => property.Name == member.Name &&
@@ -139,79 +226,32 @@ static class TypeUseBindingDerivation
                     })
                 : [])
             .Distinct()
-            .ToArray();
-        if (legacyTargets.Length > 1)
-        {
-            diagnostics.Add(Diagnostic(
-                GenerationDiagnosticCodes.ConflictingTypeUseTarget,
-                GenerationDiagnosticOutcome.Conflict,
-                member,
-                ownerDeclarations.Select(declaration => declaration.Fact).Concat(typeUses),
-                $"Artifact member '{member.Name}' retains incompatible exact legacy target roles"));
-            return;
-        }
+    ];
 
-        var targetDeclarations = declarations
-            .Where(declaration => declaration.Key.Subject == observedType &&
-                                  (legacyTargets.Length == 0 || declaration.Key == legacyTargets[0]))
-            .ToArray();
-        if (targetDeclarations.Length == 0)
-        {
-            diagnostics.Add(Diagnostic(
-                GenerationDiagnosticCodes.MissingTypeUseTarget,
-                GenerationDiagnosticOutcome.Unknown,
-                member,
-                typeUses,
-                $"Observed type subject '{observedType.Value}' has no declared artifact target"));
-            return;
-        }
-
-        var targetKeys = targetDeclarations
-            .GroupBy(declaration => Structural.ArtifactKey(declaration.Key), StringComparer.Ordinal)
-            .OrderBy(group => group.Key, StringComparer.Ordinal)
-            .ToArray();
-        if (targetKeys.Length > 1)
-        {
-            diagnostics.Add(Diagnostic(
-                GenerationDiagnosticCodes.ConflictingTypeUseTarget,
-                GenerationDiagnosticOutcome.Conflict,
-                member,
-                targetDeclarations.Select(declaration => declaration.Fact).Concat(typeUses),
-                $"Observed type subject '{observedType.Value}' declares incompatible artifact targets"));
-            return;
-        }
-
-        var exactTargetDeclarations = targetKeys[0].ToArray();
-        if (HasConflictingDeclarations(exactTargetDeclarations))
-        {
-            diagnostics.Add(Diagnostic(
-                GenerationDiagnosticCodes.ConflictingTypeUseDeclaration,
-                GenerationDiagnosticOutcome.Conflict,
-                member,
-                exactTargetDeclarations.Select(declaration => declaration.Fact).Concat(typeUses),
-                $"Observed type subject '{observedType.Value}' has incompatible declarations"));
-            return;
-        }
-
+    static GenerationFactRecord CreateRecord(
+        BindingContext context,
+        ArtifactMemberTypeUseFact typeUse,
+        DeclaredArtifact[] targets,
+        IEnumerable<GenerationFact> declarations)
+    {
         var inputs = CanonicalInputs(
-            typeUses
+            context.TypeUses
                 .Cast<GenerationFact>()
-                .Concat(ownerDeclarations.Select(declaration => declaration.Fact))
-                .Concat(memberDeclarations.Select(declaration => declaration.Fact))
-                .Concat(exactTargetDeclarations.Select(declaration => declaration.Fact)));
-        var target = exactTargetDeclarations[0].Key;
+                .Concat(declarations)
+                .Concat(targets.Select(declaration => declaration.Fact)));
+        var target = targets[0].Key;
         var fact = new TypeUseBindingFact
         {
-            Id = DerivedId(member, target),
-            Subject = member.Artifact.Subject,
+            Id = DerivedId(context.Member, target),
+            Subject = context.Member.Artifact.Subject,
             Evidence = typeUse.Evidence,
             Definition = new TypeUseBindingDefinition
             {
-                Member = member,
+                Member = context.Member,
                 Target = target
             }
         };
-        derived.Add(new GenerationFactRecord
+        return new GenerationFactRecord
         {
             Fact = fact,
             Lineage = new GenerationFactLineage
@@ -220,7 +260,7 @@ static class TypeUseBindingDerivation
                 Inputs = [.. inputs.Select(input => input.Id)],
                 Evidence = [.. inputs.Select(input => input.Evidence)]
             }
-        });
+        };
     }
 
     static IReadOnlyList<DeclaredArtifact> ArtifactDeclarations(IEnumerable<GenerationFact> facts) =>
@@ -313,27 +353,6 @@ static class TypeUseBindingDerivation
             fact.Evidence.Explanation);
     }
 
-    static GenerationDiagnostic Diagnostic(
-        string code,
-        GenerationDiagnosticOutcome outcome,
-        ArtifactMemberKey member,
-        IEnumerable<GenerationFact> inputs,
-        string message)
-    {
-        var canonicalInputs = CanonicalInputs(inputs);
-        var identities = string.Join(", ", canonicalInputs.Select(input => $"'{input.Id.Value}'"));
-        return new GenerationDiagnostic
-        {
-            Code = code,
-            Severity = GenerationDiagnosticSeverity.Error,
-            Outcome = outcome,
-            Message = $"{message}. Input facts: {identities}",
-            Facts = [.. canonicalInputs.Select(input => input.Id)],
-            Source = canonicalInputs.FirstOrDefault()?.Evidence.Source,
-            Subject = member.Artifact.Subject
-        };
-    }
-
     static FactId DerivedId(ArtifactMemberKey member, ArtifactKey target) => new()
     {
         Value = string.Join(
@@ -351,6 +370,54 @@ static class TypeUseBindingDerivation
 
     static string Escape(string value) => string.Concat(
         value.Select(character => ((int)character).ToString("X4", System.Globalization.CultureInfo.InvariantCulture)));
+
+    sealed record DeclarationIndex(IReadOnlyList<DeclaredArtifact> Artifacts, IReadOnlyList<DeclaredMember> Members);
+
+    sealed record BindingContext(ArtifactMemberKey Member, ArtifactMemberTypeUseFact[] TypeUses)
+    {
+        public GenerationDiagnostic Diagnostic(
+            string code,
+            GenerationDiagnosticOutcome outcome,
+            IEnumerable<GenerationFact> declarations,
+            string message) =>
+            Create(code, outcome, declarations.Concat(TypeUses), message);
+
+        GenerationDiagnostic Create(
+            string code,
+            GenerationDiagnosticOutcome outcome,
+            IEnumerable<GenerationFact> inputs,
+            string message)
+        {
+            var canonicalInputs = CanonicalInputs(inputs);
+            var identities = string.Join(", ", canonicalInputs.Select(input => $"'{input.Id.Value}'"));
+            return new GenerationDiagnostic
+            {
+                Code = code,
+                Severity = GenerationDiagnosticSeverity.Error,
+                Outcome = outcome,
+                Message = $"{message}. Input facts: {identities}",
+                Facts = [.. canonicalInputs.Select(input => input.Id)],
+                Source = canonicalInputs.FirstOrDefault()?.Evidence.Source,
+                Subject = Member.Artifact.Subject
+            };
+        }
+    }
+
+    sealed record Resolution<T>(T Value, GenerationDiagnostic? Failure)
+    {
+        public static Resolution<T> Succeed(T value) => new(value, null);
+
+        public static Resolution<T> Fail(GenerationDiagnostic failure) => new(default!, failure);
+    }
+
+    sealed record BindingOutcome(GenerationFactRecord? Record, GenerationDiagnostic? Diagnostic)
+    {
+        public static BindingOutcome Skipped { get; } = new(null, null);
+
+        public static BindingOutcome Bound(GenerationFactRecord record) => new(record, null);
+
+        public static BindingOutcome Failed(GenerationDiagnostic diagnostic) => new(null, diagnostic);
+    }
 
     sealed record DeclaredArtifact(ArtifactKey Key, string Declaration, GenerationFact Fact);
 
