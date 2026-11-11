@@ -9,126 +9,96 @@ static class ResolverDiagnosticCoverage
         ResolvedApplicationGraph graph,
         ScreenplayLoweringCoverageBuilder coverage)
     {
-        PropagateConflicts(graph, coverage);
+        var propagation = new ConflictPropagation(graph, coverage);
+        PropagateIdentityConflicts(propagation);
+        PropagateSpecificationConflicts(propagation);
         PropagateRejectedSpecifications(graph, coverage);
     }
 
-    static void PropagateConflicts(
-        ResolvedApplicationGraph graph,
-        ScreenplayLoweringCoverageBuilder coverage)
+    static void PropagateIdentityConflicts(ConflictPropagation propagation)
     {
-        foreach (var artifact in graph.Artifacts.Where(_ => _.IsConflicted))
+        foreach (var artifact in propagation.Graph.Artifacts.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingArtifact,
                 $"Artifact '{artifact.Key.Subject.Value}' has {artifact.Variants.Count} incompatible {artifact.Key.Kind} definitions",
-                artifact.Key.Subject);
-            AddConflict(artifact.Variants.Select(_ => GenerationFactSemanticKey.Artifact(_.Definition)), diagnostic, coverage);
+                artifact.Key.Subject,
+                artifact.Variants.Select(_ => GenerationFactSemanticKey.Artifact(_.Definition)));
         }
 
-        foreach (var representation in graph.ConceptRepresentations.Where(_ => _.IsConflicted))
+        foreach (var representation in propagation.Graph.ConceptRepresentations.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingConceptRepresentation,
                 $"Concept '{representation.Concept.Value}' has {representation.Variants.Count} incompatible representations",
-                representation.Concept);
-            AddConflict(
-                representation.Variants.Select(_ => GenerationFactSemanticKey.ConceptRepresentation(_.Definition)),
-                diagnostic,
-                coverage);
+                representation.Concept,
+                representation.Variants.Select(_ => GenerationFactSemanticKey.ConceptRepresentation(_.Definition)));
         }
 
-        foreach (var attribute in graph.ConceptAttributes.Where(_ => _.IsConflicted))
+        foreach (var attribute in propagation.Graph.ConceptAttributes.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingConceptAttribute,
                 $"Concept '{attribute.Concept.Value}' has {attribute.Variants.Count} incompatible '{attribute.Name}' attribute definitions",
-                attribute.Concept);
-            AddConflict(
-                attribute.Variants.Select(_ => GenerationFactSemanticKey.ConceptAttribute(_.Definition)),
-                diagnostic,
-                coverage);
+                attribute.Concept,
+                attribute.Variants.Select(_ => GenerationFactSemanticKey.ConceptAttribute(_.Definition)));
         }
 
-        foreach (var rule in graph.ConceptValidationRules.Where(_ => _.IsConflicted))
+        foreach (var rule in propagation.Graph.ConceptValidationRules.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingConceptValidationRule,
                 $"Concept '{rule.Concept.Value}' has {rule.Variants.Count} incompatible validation definitions for rule identity '{rule.RuleIdentity}'",
-                rule.Concept);
-            AddConflict(
-                rule.Variants.Select(_ => GenerationFactSemanticKey.ConceptValidationRule(_.Definition)),
-                diagnostic,
-                coverage);
+                rule.Concept,
+                rule.Variants.Select(_ => GenerationFactSemanticKey.ConceptValidationRule(_.Definition)));
         }
 
-        foreach (var placement in graph.Placements.Where(_ => _.IsConflicted))
+        foreach (var placement in propagation.Graph.Placements.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingPlacement,
                 $"Artifact '{placement.Artifact.Subject.Value}' has {placement.EffectiveVariants.Count} equally strong incompatible {placement.Artifact.Kind} placements",
-                placement.Artifact.Subject);
-            AddConflict(
-                placement.EffectiveVariants.Select(_ => GenerationFactSemanticKey.Placement(placement.Artifact, _.Placement)),
-                diagnostic,
-                coverage);
+                placement.Artifact.Subject,
+                placement.EffectiveVariants.Select(_ => GenerationFactSemanticKey.Placement(placement.Artifact, _.Placement)));
         }
 
-        foreach (var relationship in graph.Relationships.Where(_ => _.IsConflicted))
+        foreach (var relationship in propagation.Graph.Relationships.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingRelationship,
                 $"Relationship '{relationship.Key.Kind}' from '{relationship.Key.Source.Value}' to '{relationship.Key.Target.Value}' has {relationship.Definitions.Count} incompatible definitions",
-                relationship.Key.Source);
-            AddConflict(
-                relationship.Definitions.Select(GenerationFactSemanticKey.Relationship),
-                diagnostic,
-                coverage);
+                relationship.Key.Source,
+                relationship.Definitions.Select(GenerationFactSemanticKey.Relationship));
         }
+    }
 
-        foreach (var scenario in graph.SpecificationScenarios.Where(_ => _.IsConflicted))
+    static void PropagateSpecificationConflicts(ConflictPropagation propagation)
+    {
+        foreach (var scenario in propagation.Graph.SpecificationScenarios.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingSpecificationScenario,
                 $"Specification scenario '{scenario.Key.Scenario.Value}' has {scenario.Variants.Count} incompatible definitions",
-                scenario.Key.Scenario);
-            AddConflict(
-                scenario.Variants.Select(_ => GenerationFactSemanticKey.SpecificationScenario(_.Definition)),
-                diagnostic,
-                coverage);
+                scenario.Key.Scenario,
+                scenario.Variants.Select(_ => GenerationFactSemanticKey.SpecificationScenario(_.Definition)));
         }
 
-        foreach (var step in graph.SpecificationSteps.Where(_ => _.IsConflicted))
+        foreach (var step in propagation.Graph.SpecificationSteps.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingSpecificationStep,
                 $"Specification step '{step.Key.Index}' in '{step.Key.Scenario.Scenario.Value}' has {step.Variants.Count} incompatible definitions",
-                step.Key.Scenario.Scenario);
-            AddConflict(
-                step.Variants.Select(_ => GenerationFactSemanticKey.SpecificationStep(_.Definition)),
-                diagnostic,
-                coverage);
+                step.Key.Scenario.Scenario,
+                step.Variants.Select(_ => GenerationFactSemanticKey.SpecificationStep(_.Definition)));
         }
 
-        foreach (var value in graph.SpecificationValues.Where(_ => _.IsConflicted))
+        foreach (var value in propagation.Graph.SpecificationValues.Where(_ => _.IsConflicted))
         {
-            var diagnostic = Find(
-                graph,
+            propagation.Add(
                 GenerationDiagnosticCodes.ConflictingSpecificationValue,
                 $"Specification value '{string.Join('.', value.Key.Path)}' in step '{value.Key.Step.Index}' has {value.Variants.Count} incompatible definitions",
-                value.Key.Step.Scenario.Scenario);
-            AddConflict(
-                value.Variants.Select(_ => GenerationFactSemanticKey.SpecificationValue(_.Definition)),
-                diagnostic,
-                coverage);
+                value.Key.Step.Scenario.Scenario,
+                value.Variants.Select(_ => GenerationFactSemanticKey.SpecificationValue(_.Definition)));
         }
     }
 
@@ -139,12 +109,14 @@ static class ResolverDiagnosticCoverage
         var admitted = graph.Specifications
             .Select(_ => Structural.SpecificationScenario(_.Definition))
             .ToHashSet(StringComparer.Ordinal);
-        var steps = graph.SpecificationSteps.ToDictionary(
-            _ => Structural.SpecificationStepKey(_.Key),
-            StringComparer.Ordinal);
-        var values = graph.SpecificationValues.ToDictionary(
-            _ => Structural.SpecificationValueKey(_.Key),
-            StringComparer.Ordinal);
+        var omission = new SpecificationOmission(
+            coverage,
+            graph.SpecificationSteps.ToDictionary(
+                _ => Structural.SpecificationStepKey(_.Key),
+                StringComparer.Ordinal),
+            graph.SpecificationValues.ToDictionary(
+                _ => Structural.SpecificationValueKey(_.Key),
+                StringComparer.Ordinal));
 
         foreach (var scenario in graph.SpecificationScenarios.Where(_ => !_.IsConflicted))
         {
@@ -159,67 +131,10 @@ static class ResolverDiagnosticCoverage
                 GenerationDiagnosticCodes.IncompleteSpecificationScenario,
                 $"Specification scenario '{scenario.Key.Scenario.Value}' could not be represented completely; no partial scenario was admitted",
                 scenario.Key.Scenario);
-            if (diagnostic is null)
+            if (diagnostic is not null)
             {
-                continue;
+                omission.OmitScenario(definition, diagnostic);
             }
-
-            coverage.Omitted(GenerationFactSemanticKey.SpecificationScenario(definition), diagnostic);
-            foreach (var stepKey in definition.Steps)
-            {
-                if (!steps.TryGetValue(Structural.SpecificationStepKey(stepKey), out var step))
-                {
-                    continue;
-                }
-
-                foreach (var stepVariant in step.Variants)
-                {
-                    coverage.Omitted(GenerationFactSemanticKey.SpecificationStep(stepVariant.Definition), diagnostic);
-                    foreach (var valueKey in stepVariant.Definition.Values)
-                    {
-                        PropagateValue(valueKey, diagnostic, values, coverage, []);
-                    }
-                }
-            }
-        }
-    }
-
-    static void PropagateValue(
-        SpecificationValueKey key,
-        GenerationDiagnostic diagnostic,
-        IReadOnlyDictionary<string, ResolvedSpecificationValue> values,
-        ScreenplayLoweringCoverageBuilder coverage,
-        HashSet<string> visited)
-    {
-        var keyIdentity = Structural.SpecificationValueKey(key);
-        if (!visited.Add(keyIdentity) || !values.TryGetValue(keyIdentity, out var value))
-        {
-            return;
-        }
-
-        foreach (var variant in value.Variants)
-        {
-            coverage.Omitted(GenerationFactSemanticKey.SpecificationValue(variant.Definition), diagnostic);
-            foreach (var child in variant.Definition.Children)
-            {
-                PropagateValue(child, diagnostic, values, coverage, visited);
-            }
-        }
-    }
-
-    static void AddConflict(
-        IEnumerable<string> keys,
-        GenerationDiagnostic? diagnostic,
-        ScreenplayLoweringCoverageBuilder coverage)
-    {
-        if (diagnostic is null)
-        {
-            return;
-        }
-
-        foreach (var key in keys)
-        {
-            coverage.Conflicted(key, diagnostic);
         }
     }
 
@@ -235,4 +150,71 @@ static class ResolverDiagnosticCoverage
                 _.Subject == subject)
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .FirstOrDefault();
+
+    sealed record ConflictPropagation(
+        ResolvedApplicationGraph Graph,
+        ScreenplayLoweringCoverageBuilder Coverage)
+    {
+        public void Add(string code, string message, SubjectId subject, IEnumerable<string> keys)
+        {
+            var diagnostic = Find(Graph, code, message, subject);
+            if (diagnostic is null)
+            {
+                return;
+            }
+
+            foreach (var key in keys)
+            {
+                Coverage.Conflicted(key, diagnostic);
+            }
+        }
+    }
+
+    sealed record SpecificationOmission(
+        ScreenplayLoweringCoverageBuilder Coverage,
+        IReadOnlyDictionary<string, ResolvedSpecificationStep> Steps,
+        IReadOnlyDictionary<string, ResolvedSpecificationValue> Values)
+    {
+        public void OmitScenario(SpecificationScenarioDefinition definition, GenerationDiagnostic diagnostic)
+        {
+            Coverage.Omitted(GenerationFactSemanticKey.SpecificationScenario(definition), diagnostic);
+            foreach (var stepKey in definition.Steps)
+            {
+                if (Steps.TryGetValue(Structural.SpecificationStepKey(stepKey), out var step))
+                {
+                    OmitStep(step, diagnostic);
+                }
+            }
+        }
+
+        void OmitStep(ResolvedSpecificationStep step, GenerationDiagnostic diagnostic)
+        {
+            foreach (var stepVariant in step.Variants)
+            {
+                Coverage.Omitted(GenerationFactSemanticKey.SpecificationStep(stepVariant.Definition), diagnostic);
+                foreach (var valueKey in stepVariant.Definition.Values)
+                {
+                    OmitValue(valueKey, diagnostic, []);
+                }
+            }
+        }
+
+        void OmitValue(SpecificationValueKey key, GenerationDiagnostic diagnostic, HashSet<string> visited)
+        {
+            var keyIdentity = Structural.SpecificationValueKey(key);
+            if (!visited.Add(keyIdentity) || !Values.TryGetValue(keyIdentity, out var value))
+            {
+                return;
+            }
+
+            foreach (var variant in value.Variants)
+            {
+                Coverage.Omitted(GenerationFactSemanticKey.SpecificationValue(variant.Definition), diagnostic);
+                foreach (var child in variant.Definition.Children)
+                {
+                    OmitValue(child, diagnostic, visited);
+                }
+            }
+        }
+    }
 }
