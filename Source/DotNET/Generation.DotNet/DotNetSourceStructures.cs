@@ -45,87 +45,21 @@ public static class DotNetSourceStructures
         {
             if (project.Role is not DotNetProjectRole.Application and not DotNetProjectRole.Specifications)
             {
-                diagnostics.Add(new GenerationDiagnostic
-                {
-                    Code = DotNetSourceStructureDiagnosticCodes.UnsupportedProjectRole,
-                    Severity = GenerationDiagnosticSeverity.Error,
-                    Outcome = GenerationDiagnosticOutcome.Unsupported,
-                    Message = $"Project '{project.Name}' has unsupported role '{project.Role}'"
-                });
+                diagnostics.Add(Unsupported(
+                    DotNetSourceStructureDiagnosticCodes.UnsupportedProjectRole,
+                    $"Project '{project.Name}' has unsupported role '{project.Role}'"));
                 continue;
             }
 
-            if (project.SourceContext is null)
+            if (project.SourceContext is not { } sourceContext)
             {
-                diagnostics.Add(new GenerationDiagnostic
-                {
-                    Code = DotNetSourceStructureDiagnosticCodes.MissingSourceContext,
-                    Severity = GenerationDiagnosticSeverity.Error,
-                    Outcome = GenerationDiagnosticOutcome.Unsupported,
-                    Message = $"Project '{project.Name}' has no host-supplied source context"
-                });
+                diagnostics.Add(Unsupported(
+                    DotNetSourceStructureDiagnosticCodes.MissingSourceContext,
+                    $"Project '{project.Name}' has no host-supplied source context"));
                 continue;
             }
 
-            foreach (var type in new DotNetArtifactCatalog(project.Compilation).Types)
-            {
-                var declarations = DotNetSource.AuthoredDeclarationsOf(type, project.AuthoredSyntaxTrees);
-                if (declarations.Count == 0)
-                {
-                    continue;
-                }
-
-                var subject = project.SubjectForType(type);
-                var mappedDeclarations = new List<MappedDeclaration>();
-                var isMissingMapping = false;
-                foreach (var declaration in declarations)
-                {
-                    if (!project.SourceContext.Files.TryGetValue(declaration.SyntaxTree, out var sourceFile))
-                    {
-                        isMissingMapping = true;
-                        break;
-                    }
-
-                    mappedDeclarations.Add(new(
-                        sourceFile,
-                        declaration.GetSyntax().GetLocation(),
-                        declaration.Span.Start));
-                }
-
-                if (isMissingMapping)
-                {
-                    diagnostics.Add(new GenerationDiagnostic
-                    {
-                        Code = DotNetSourceStructureDiagnosticCodes.MissingSourceMapping,
-                        Severity = GenerationDiagnosticSeverity.Error,
-                        Outcome = GenerationDiagnosticOutcome.Unsupported,
-                        Message = $"An authored declaration for subject '{subject.Value}' has no host-supplied source mapping",
-                        Subject = subject
-                    });
-                    continue;
-                }
-
-                var orderedDeclarations = mappedDeclarations
-                    .OrderBy(_ => _.SourceFile.ProjectRelativePath, StringComparer.Ordinal)
-                    .ThenBy(_ => _.SpanStart)
-                    .ToArray();
-                structures.Add(new DotNetSourceStructure
-                {
-                    Subject = subject,
-                    Project = project.SourceContext.ProjectIdentity,
-                    ProjectRole = project.Role,
-                    Namespace = type.ContainingNamespace.IsGlobalNamespace
-                        ? string.Empty
-                        : type.ContainingNamespace.ToDisplayString(),
-                    ProjectRelativePaths =
-                    [
-                        .. orderedDeclarations
-                            .Select(_ => _.SourceFile.ProjectRelativePath)
-                            .Distinct(StringComparer.Ordinal)
-                    ],
-                    Source = DotNetSource.RangeForProject(orderedDeclarations[0].Location, project)
-                });
-            }
+            AddStructures(project, sourceContext, structures, diagnostics);
         }
 
         var duplicateSubjects = structures
@@ -164,6 +98,95 @@ public static class DotNetSourceStructures
             ]
         };
     }
+
+    static void AddStructures(
+        DotNetProjectCompilation project,
+        DotNetProjectSourceContext sourceContext,
+        List<DotNetSourceStructure> structures,
+        List<GenerationDiagnostic> diagnostics)
+    {
+        foreach (var type in new DotNetArtifactCatalog(project.Compilation).Types)
+        {
+            var declarations = DotNetSource.AuthoredDeclarationsOf(type, project.AuthoredSyntaxTrees);
+            if (declarations.Count == 0)
+            {
+                continue;
+            }
+
+            var subject = project.SubjectForType(type);
+            var mappedDeclarations = MapDeclarations(declarations, sourceContext);
+            if (mappedDeclarations is null)
+            {
+                diagnostics.Add(Unsupported(
+                    DotNetSourceStructureDiagnosticCodes.MissingSourceMapping,
+                    $"An authored declaration for subject '{subject.Value}' has no host-supplied source mapping") with
+                {
+                    Subject = subject
+                });
+                continue;
+            }
+
+            structures.Add(StructureOf(project, sourceContext, type, subject, mappedDeclarations));
+        }
+    }
+
+    static List<MappedDeclaration>? MapDeclarations(
+        IReadOnlyList<SyntaxReference> declarations,
+        DotNetProjectSourceContext sourceContext)
+    {
+        var mappedDeclarations = new List<MappedDeclaration>();
+        foreach (var declaration in declarations)
+        {
+            if (!sourceContext.Files.TryGetValue(declaration.SyntaxTree, out var sourceFile))
+            {
+                return null;
+            }
+
+            mappedDeclarations.Add(new(
+                sourceFile,
+                declaration.GetSyntax().GetLocation(),
+                declaration.Span.Start));
+        }
+
+        return mappedDeclarations;
+    }
+
+    static DotNetSourceStructure StructureOf(
+        DotNetProjectCompilation project,
+        DotNetProjectSourceContext sourceContext,
+        INamedTypeSymbol type,
+        SubjectId subject,
+        List<MappedDeclaration> mappedDeclarations)
+    {
+        var orderedDeclarations = mappedDeclarations
+            .OrderBy(_ => _.SourceFile.ProjectRelativePath, StringComparer.Ordinal)
+            .ThenBy(_ => _.SpanStart)
+            .ToArray();
+        return new DotNetSourceStructure
+        {
+            Subject = subject,
+            Project = sourceContext.ProjectIdentity,
+            ProjectRole = project.Role,
+            Namespace = type.ContainingNamespace.IsGlobalNamespace
+                ? string.Empty
+                : type.ContainingNamespace.ToDisplayString(),
+            ProjectRelativePaths =
+            [
+                .. orderedDeclarations
+                    .Select(_ => _.SourceFile.ProjectRelativePath)
+                    .Distinct(StringComparer.Ordinal)
+            ],
+            Source = DotNetSource.RangeForProject(orderedDeclarations[0].Location, project)
+        };
+    }
+
+    static GenerationDiagnostic Unsupported(string code, string message) => new()
+    {
+        Code = code,
+        Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Unsupported,
+        Message = message
+    };
 
     sealed record MappedDeclaration(DotNetSourceFile SourceFile, Location Location, int SpanStart);
 }

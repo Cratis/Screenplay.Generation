@@ -143,21 +143,12 @@ public static class DotNetSourcePaths
                      .OrderBy(_ => _.ProjectRelativePath, StringComparer.Ordinal)
                      .ThenBy(_ => _.WorkspaceRelativePath, StringComparer.Ordinal))
         {
-            var projectPath = NormalizeRelativePath(document.ProjectRelativePath);
-            var workspacePath = NormalizeRelativePath(document.WorkspaceRelativePath);
-            var identityPath = IdentityPath(projectPath, policy.CasePolicy);
-            var identity = new SourceFileIdentity { Project = normalizedProject, Path = identityPath };
-            if (!identities.Add(identity))
+            var sourceFile = MapDocument(document, normalizedProject, policy);
+            if (!identities.Add(sourceFile.Identity))
             {
-                throw new DuplicateDotNetSourceIdentity(identity);
+                throw new DuplicateDotNetSourceIdentity(sourceFile.Identity);
             }
 
-            var sourceFile = new DotNetSourceFile
-            {
-                Identity = identity,
-                ProjectRelativePath = projectPath,
-                DisplayPath = policy.DisplayRoot == DotNetSourceDisplayRoot.Workspace ? workspacePath : projectPath
-            };
             if (!files.TryAdd(document.SyntaxTree, sourceFile))
             {
                 throw new DuplicateDotNetSourceTree(document.SyntaxTree.FilePath);
@@ -165,6 +156,19 @@ public static class DotNetSourcePaths
         }
 
         return new(normalizedProject, policy, files);
+    }
+
+    static DotNetSourceFile MapDocument(DotNetSourceDocument document, string project, DotNetSourcePathPolicy policy)
+    {
+        var projectPath = NormalizeRelativePath(document.ProjectRelativePath);
+        var workspacePath = NormalizeRelativePath(document.WorkspaceRelativePath);
+        var identityPath = IdentityPath(projectPath, policy.CasePolicy);
+        return new DotNetSourceFile
+        {
+            Identity = new SourceFileIdentity { Project = project, Path = identityPath },
+            ProjectRelativePath = projectPath,
+            DisplayPath = policy.DisplayRoot == DotNetSourceDisplayRoot.Workspace ? workspacePath : projectPath
+        };
     }
 
     static void ValidatePolicy(DotNetSourcePathPolicy policy)
@@ -224,44 +228,34 @@ public static class DotNetSourcePaths
 
     static string NormalizeRelativePath(string value)
     {
-        string normalized;
-        try
-        {
-            normalized = value?.Normalize(NormalizationForm.FormC).Replace('\\', '/') ?? string.Empty;
-        }
-        catch (ArgumentException)
-        {
-            throw new InvalidDotNetSourcePath(value ?? string.Empty);
-        }
-        if (string.IsNullOrWhiteSpace(normalized) ||
-            normalized.Any(char.IsControl) ||
-            IsRooted(normalized))
-        {
-            throw new InvalidDotNetSourcePath(value ?? string.Empty);
-        }
-
-        var segments = new List<string>();
-        foreach (var segment in normalized.Split('/'))
-        {
-            if (string.IsNullOrEmpty(segment) || segment == ".")
-            {
-                continue;
-            }
-
-            if (segment == "..")
-            {
-                throw new InvalidDotNetSourcePath(value ?? string.Empty);
-            }
-
-            segments.Add(segment);
-        }
-
-        if (segments.Count == 0)
+        var normalized = FoldToForwardSlashes(value);
+        var segments = IsUnusable(normalized) ? [] : SignificantSegments(normalized);
+        if (segments.Count == 0 || segments.Contains(".."))
         {
             throw new InvalidDotNetSourcePath(value ?? string.Empty);
         }
 
         return string.Join('/', segments);
+    }
+
+    static bool IsUnusable(string normalized) =>
+        string.IsNullOrWhiteSpace(normalized) ||
+        normalized.Any(char.IsControl) ||
+        IsRooted(normalized);
+
+    static List<string> SignificantSegments(string normalized) =>
+        [.. normalized.Split('/').Where(segment => !string.IsNullOrEmpty(segment) && segment != ".")];
+
+    static string FoldToForwardSlashes(string value)
+    {
+        try
+        {
+            return value?.Normalize(NormalizationForm.FormC).Replace('\\', '/') ?? string.Empty;
+        }
+        catch (ArgumentException)
+        {
+            throw new InvalidDotNetSourcePath(value ?? string.Empty);
+        }
     }
 
     static bool IsRooted(string path) =>
