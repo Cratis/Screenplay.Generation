@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Frozen;
 using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -14,6 +15,24 @@ namespace Cratis.Screenplay.Generation.DotNet;
 /// </summary>
 public static class DotNetSourceValues
 {
+    static readonly FrozenDictionary<SpecialType, Type> _runtimeTypes = new Dictionary<SpecialType, Type>
+    {
+        [SpecialType.System_Boolean] = typeof(bool),
+        [SpecialType.System_Byte] = typeof(byte),
+        [SpecialType.System_SByte] = typeof(sbyte),
+        [SpecialType.System_Int16] = typeof(short),
+        [SpecialType.System_UInt16] = typeof(ushort),
+        [SpecialType.System_Int32] = typeof(int),
+        [SpecialType.System_UInt32] = typeof(uint),
+        [SpecialType.System_Int64] = typeof(long),
+        [SpecialType.System_UInt64] = typeof(ulong),
+        [SpecialType.System_Single] = typeof(float),
+        [SpecialType.System_Double] = typeof(double),
+        [SpecialType.System_Decimal] = typeof(decimal),
+        [SpecialType.System_Char] = typeof(char),
+        [SpecialType.System_String] = typeof(string)
+    }.ToFrozenDictionary();
+
     /// <summary>
     /// Extracts an exact semantic constant, <see langword="typeof"/> value, payload, or collection.
     /// </summary>
@@ -24,51 +43,22 @@ public static class DotNetSourceValues
         ExpressionSyntax expression,
         SemanticModel semanticModel)
     {
-        var authoredExpression = expression;
         if (ConditionalExpressionWithin(expression) is { } conditionalExpression)
         {
             return Unknown<DotNetSourceValue>(conditionalExpression, DotNetValueFailureKind.Conditional, "The value depends on a condition");
         }
 
-        expression = UnwrapParentheses(expression);
-        if (expression is TypeOfExpressionSyntax typeOf)
-        {
-            var operandTypeInfo = semanticModel.GetTypeInfo(typeOf.Type);
-            var typeSymbol = semanticModel.GetSymbolInfo(typeOf.Type);
-            if (typeSymbol.CandidateReason == CandidateReason.Ambiguous)
-            {
-                return Unknown<DotNetSourceValue>(expression, DotNetValueFailureKind.Ambiguous, "The typeof operand has ambiguous binding");
-            }
+        var unwrapped = UnwrapParentheses(expression);
+        return unwrapped is TypeOfExpressionSyntax typeOf
+            ? ExtractTypeOf(typeOf, expression, semanticModel)
+            : ExtractValue(unwrapped, expression, semanticModel);
+    }
 
-            if (SemanticTypeFailure(expression, "typeof operand", true, operandTypeInfo.Type, operandTypeInfo.ConvertedType) is { } failure)
-            {
-                return new DotNetUnknown<DotNetSourceValue>([failure]);
-            }
-
-            var valueTypeInfo = semanticModel.GetTypeInfo(authoredExpression);
-            if (SemanticTypeFailure(
-                    expression,
-                    "typeof value",
-                    true,
-                    valueTypeInfo.Type,
-                    valueTypeInfo.ConvertedType) is { } valueTypeFailure)
-            {
-                return new DotNetUnknown<DotNetSourceValue>([valueTypeFailure]);
-            }
-
-            if (ContextualConversionFailure(authoredExpression, semanticModel, "typeof value") is { } conversionFailure)
-            {
-                return new DotNetUnknown<DotNetSourceValue>([conversionFailure]);
-            }
-
-            if (CompilerErrorFailure(authoredExpression, semanticModel, "typeof value") is { } compilerFailure)
-            {
-                return new DotNetUnknown<DotNetSourceValue>([compilerFailure]);
-            }
-
-            return new DotNetKnown<DotNetSourceValue>(new DotNetTypeValue(operandTypeInfo.Type ?? operandTypeInfo.ConvertedType!));
-        }
-
+    static DotNetBounded<DotNetSourceValue> ExtractValue(
+        ExpressionSyntax expression,
+        ExpressionSyntax authoredExpression,
+        SemanticModel semanticModel)
+    {
         var typeInfo = semanticModel.GetTypeInfo(authoredExpression);
         if (DotNetCollectionValues.TryExtract(expression, semanticModel) is { } collection)
         {
@@ -80,11 +70,17 @@ public static class DotNetSourceValues
             return DotNetPayloadValues.Extract(creation, semanticModel);
         }
 
-        if (SemanticTypeFailure(expression, "value", false, typeInfo.Type, typeInfo.ConvertedType) is { } typeFailure)
-        {
-            return new DotNetUnknown<DotNetSourceValue>([typeFailure]);
-        }
+        return SemanticTypeFailure(expression, "value", false, typeInfo.Type, typeInfo.ConvertedType) is { } typeFailure
+            ? new DotNetUnknown<DotNetSourceValue>([typeFailure])
+            : ExtractBoundValue(expression, authoredExpression, semanticModel, typeInfo);
+    }
 
+    static DotNetBounded<DotNetSourceValue> ExtractBoundValue(
+        ExpressionSyntax expression,
+        ExpressionSyntax authoredExpression,
+        SemanticModel semanticModel,
+        TypeInfo typeInfo)
+    {
         var symbol = semanticModel.GetSymbolInfo(expression);
         if (symbol.Symbol is null && symbol.CandidateReason == CandidateReason.Ambiguous)
         {
@@ -93,65 +89,108 @@ public static class DotNetSourceValues
 
         var operation = semanticModel.GetOperation(authoredExpression);
         var constant = operation is { ConstantValue.HasValue: true } ? operation.ConstantValue : semanticModel.GetConstantValue(authoredExpression);
-        if (constant.HasValue)
+        if (!constant.HasValue)
         {
-            if (ContextualConversionFailure(authoredExpression, semanticModel, "value") is { } conversionFailure)
-            {
-                return new DotNetUnknown<DotNetSourceValue>([conversionFailure]);
-            }
-
-            if (CompilerErrorFailure(authoredExpression, semanticModel, "value") is { } compilerFailure)
-            {
-                return new DotNetUnknown<DotNetSourceValue>([compilerFailure]);
-            }
-
-            var sourceType = typeInfo.Type ?? operation?.Type;
-            var enumType = constant.Value is null
-                ? null
-                : EnumTypeFor(sourceType) ?? EnumTypeFor(typeInfo.ConvertedType);
-            var type = enumType ?? typeInfo.ConvertedType ?? sourceType;
-            if (enumType is not null)
-            {
-                if (symbol.Symbol is IFieldSymbol { HasConstantValue: true } direct &&
-                    SymbolEqualityComparer.Default.Equals(direct.ContainingType, enumType) &&
-                    Equals(direct.ConstantValue, constant.Value))
-                {
-                    return new DotNetKnown<DotNetSourceValue>(new DotNetConstantValue(direct, enumType));
-                }
-
-                var members = enumType.GetMembers()
-                    .OfType<IFieldSymbol>()
-                    .Where(field => field.HasConstantValue && Equals(field.ConstantValue, constant.Value))
-                    .OrderBy(field => field.Name, StringComparer.Ordinal)
-                    .ToArray();
-                if (members.Length != 1)
-                {
-                    var kind = members.Length > 1 ? DotNetValueFailureKind.Ambiguous : DotNetValueFailureKind.Unsupported;
-                    return Unknown<DotNetSourceValue>(expression, kind, kind == DotNetValueFailureKind.Ambiguous
-                        ? "The enum constant names several declared members"
-                        : "The enum constant names no declared member");
-                }
-
-                return new DotNetKnown<DotNetSourceValue>(new DotNetConstantValue(members[0], enumType));
-            }
-
-            return new DotNetKnown<DotNetSourceValue>(new DotNetConstantValue(constant.Value, type));
+            return UnknownWithoutConstant(expression, symbol.Symbol);
         }
 
-        if (symbol.Symbol is null && RequiresBinding(expression))
+        if (ConstantConversionFailure(authoredExpression, semanticModel) is { } constantFailure)
+        {
+            return new DotNetUnknown<DotNetSourceValue>([constantFailure]);
+        }
+
+        return ExtractConstantValue(new(expression, typeInfo, symbol.Symbol, operation, constant.Value));
+    }
+
+    static DotNetBounded<DotNetSourceValue> ExtractTypeOf(
+        TypeOfExpressionSyntax typeOf,
+        ExpressionSyntax authoredExpression,
+        SemanticModel semanticModel)
+    {
+        var operandTypeInfo = semanticModel.GetTypeInfo(typeOf.Type);
+        var typeSymbol = semanticModel.GetSymbolInfo(typeOf.Type);
+        var failure = typeSymbol.CandidateReason == CandidateReason.Ambiguous
+            ? new DotNetValueFailure(DotNetValueFailureKind.Ambiguous, typeOf.GetLocation(), "The typeof operand has ambiguous binding")
+            : null;
+        failure ??= SemanticTypeFailure(typeOf, "typeof operand", true, operandTypeInfo.Type, operandTypeInfo.ConvertedType);
+        failure ??= TypeOfValueFailure(typeOf, authoredExpression, semanticModel);
+        return failure is null
+            ? new DotNetKnown<DotNetSourceValue>(new DotNetTypeValue(operandTypeInfo.Type ?? operandTypeInfo.ConvertedType!))
+            : new DotNetUnknown<DotNetSourceValue>([failure]);
+    }
+
+    static DotNetValueFailure? TypeOfValueFailure(
+        TypeOfExpressionSyntax typeOf,
+        ExpressionSyntax authoredExpression,
+        SemanticModel semanticModel)
+    {
+        var valueTypeInfo = semanticModel.GetTypeInfo(authoredExpression);
+        return SemanticTypeFailure(typeOf, "typeof value", true, valueTypeInfo.Type, valueTypeInfo.ConvertedType) ??
+            ContextualConversionFailure(authoredExpression, semanticModel, "typeof value") ??
+            CompilerErrorFailure(authoredExpression, semanticModel, "typeof value");
+    }
+
+    static DotNetValueFailure? ConstantConversionFailure(ExpressionSyntax authoredExpression, SemanticModel semanticModel) =>
+        ContextualConversionFailure(authoredExpression, semanticModel, "value") ??
+        CompilerErrorFailure(authoredExpression, semanticModel, "value");
+
+    static DotNetBounded<DotNetSourceValue> ExtractConstantValue(ConstantSite site)
+    {
+        var sourceType = site.TypeInfo.Type ?? site.Operation?.Type;
+        var enumType = site.Value is null
+            ? null
+            : EnumTypeFor(sourceType) ?? EnumTypeFor(site.TypeInfo.ConvertedType);
+        if (enumType is not null)
+        {
+            return ExtractEnumConstant(site, enumType);
+        }
+
+        return new DotNetKnown<DotNetSourceValue>(new DotNetConstantValue(site.Value, site.TypeInfo.ConvertedType ?? sourceType));
+    }
+
+    static DotNetBounded<DotNetSourceValue> ExtractEnumConstant(ConstantSite site, INamedTypeSymbol enumType)
+    {
+        if (site.Symbol is IFieldSymbol { HasConstantValue: true } direct && IsDirectEnumField(direct, enumType, site.Value))
+        {
+            return new DotNetKnown<DotNetSourceValue>(new DotNetConstantValue(direct, enumType));
+        }
+
+        var members = enumType.GetMembers()
+            .OfType<IFieldSymbol>()
+            .Where(field => field.HasConstantValue && Equals(field.ConstantValue, site.Value))
+            .OrderBy(field => field.Name, StringComparer.Ordinal)
+            .ToArray();
+        if (members.Length != 1)
+        {
+            var kind = members.Length > 1 ? DotNetValueFailureKind.Ambiguous : DotNetValueFailureKind.Unsupported;
+            return Unknown<DotNetSourceValue>(site.Expression, kind, kind == DotNetValueFailureKind.Ambiguous
+                ? "The enum constant names several declared members"
+                : "The enum constant names no declared member");
+        }
+
+        return new DotNetKnown<DotNetSourceValue>(new DotNetConstantValue(members[0], enumType));
+    }
+
+    static bool IsDirectEnumField(IFieldSymbol field, INamedTypeSymbol enumType, object? value) =>
+        SymbolEqualityComparer.Default.Equals(field.ContainingType, enumType) &&
+        Equals(field.ConstantValue, value);
+
+    static DotNetUnknown<DotNetSourceValue> UnknownWithoutConstant(ExpressionSyntax expression, ISymbol? symbol)
+    {
+        if (symbol is null && RequiresBinding(expression))
         {
             return Unknown<DotNetSourceValue>(expression, DotNetValueFailureKind.Unbound, "The value has no exact bound symbol");
         }
 
-        if (expression is InvocationExpressionSyntax or MemberAccessExpressionSyntax or ElementAccessExpressionSyntax or
-            ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax or AwaitExpressionSyntax or
-            BinaryExpressionSyntax or PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax or InterpolatedStringExpressionSyntax)
-        {
-            return Unknown<DotNetSourceValue>(expression, DotNetValueFailureKind.Computed, "The value is computed by executable code");
-        }
-
-        return Unknown<DotNetSourceValue>(expression, DotNetValueFailureKind.Unsupported, "The authored value shape is outside bounded extraction");
+        return IsComputedShape(expression)
+            ? Unknown<DotNetSourceValue>(expression, DotNetValueFailureKind.Computed, "The value is computed by executable code")
+            : Unknown<DotNetSourceValue>(expression, DotNetValueFailureKind.Unsupported, "The authored value shape is outside bounded extraction");
     }
+
+    static bool IsComputedShape(ExpressionSyntax expression) => expression is
+        InvocationExpressionSyntax or MemberAccessExpressionSyntax or ElementAccessExpressionSyntax or
+        ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax or AwaitExpressionSyntax or
+        BinaryExpressionSyntax or PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax or InterpolatedStringExpressionSyntax;
 
     /// <summary>
     /// Extracts one exact semantic constant of the requested runtime value type.
@@ -223,28 +262,29 @@ public static class DotNetSourceValues
         params ITypeSymbol?[] types)
     {
         var boundTypes = types.Where(type => type is not null).Cast<ITypeSymbol>().ToArray();
-        DotNetValueFailureKind? kind = null;
-        if (boundTypes.Any(type => ContainsSemanticTypeKind(type, TypeKind.Dynamic)))
+        return SemanticTypeFailureKind(boundTypes, requiresType) switch
         {
-            kind = DotNetValueFailureKind.Dynamic;
-        }
-        else if ((requiresType && boundTypes.Length == 0) || boundTypes.Any(type => ContainsSemanticTypeKind(type, TypeKind.Error)))
-        {
-            kind = DotNetValueFailureKind.Unbound;
-        }
-
-        return kind switch
-        {
-            DotNetValueFailureKind.Dynamic => new(kind.Value, source.GetLocation(), $"The {description} is dynamically bound"),
-            DotNetValueFailureKind.Unbound => new(kind.Value, source.GetLocation(), $"The {description} has no exact error-free binding"),
+            DotNetValueFailureKind.Dynamic => new(DotNetValueFailureKind.Dynamic, source.GetLocation(), $"The {description} is dynamically bound"),
+            DotNetValueFailureKind.Unbound => new(DotNetValueFailureKind.Unbound, source.GetLocation(), $"The {description} has no exact error-free binding"),
             _ => null
         };
     }
 
+    static DotNetValueFailureKind? SemanticTypeFailureKind(ITypeSymbol[] boundTypes, bool requiresType)
+    {
+        if (boundTypes.Any(type => ContainsSemanticTypeKind(type, TypeKind.Dynamic)))
+        {
+            return DotNetValueFailureKind.Dynamic;
+        }
+
+        return (requiresType && boundTypes.Length == 0) || boundTypes.Any(type => ContainsSemanticTypeKind(type, TypeKind.Error))
+            ? DotNetValueFailureKind.Unbound
+            : null;
+    }
+
     internal static bool HasInvalidOperation(IOperation? operation) =>
         operation is null or IInvalidOperation ||
-        (operation is IConversionOperation conversion &&
-            (!conversion.Conversion.Exists || conversion.Conversion.IsUserDefined)) ||
+        (operation is IConversionOperation conversion && IsBrokenConversion(conversion.Conversion)) ||
         operation.ChildOperations.Any(HasInvalidOperation);
 
     internal static DotNetValueFailure? CompilerErrorFailure(
@@ -281,13 +321,16 @@ public static class DotNetSourceValues
         List<DotNetValueFailure> failures,
         DotNetValueFailure failure)
     {
-        if (!failures.Exists(existing => existing.Kind == failure.Kind &&
-            existing.Source.SourceTree == failure.Source.SourceTree &&
-            existing.Source.SourceSpan == failure.Source.SourceSpan))
+        if (!failures.Exists(existing => IsSameFailureLocation(existing, failure)))
         {
             failures.Add(failure);
         }
     }
+
+    static bool IsSameFailureLocation(DotNetValueFailure existing, DotNetValueFailure failure) =>
+        existing.Kind == failure.Kind &&
+        existing.Source.SourceTree == failure.Source.SourceTree &&
+        existing.Source.SourceSpan == failure.Source.SourceSpan;
 
     internal static void AddFailures(
         List<DotNetValueFailure> failures,
@@ -329,61 +372,50 @@ public static class DotNetSourceValues
 
     internal static ExpressionSyntax? ConditionalExpressionWithin(ExpressionSyntax expression)
     {
-        while (expression is ParenthesizedExpressionSyntax or CastExpressionSyntax or CheckedExpressionSyntax or
-            PostfixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.SuppressNullableWarningExpression })
+        while (WrappedExpression(expression) is { } inner)
         {
-            expression = expression switch
-            {
-                ParenthesizedExpressionSyntax parenthesized => parenthesized.Expression,
-                CastExpressionSyntax cast => cast.Expression,
-                CheckedExpressionSyntax checkedExpression => checkedExpression.Expression,
-                PostfixUnaryExpressionSyntax suppression => suppression.Operand,
-                _ => expression
-            };
+            expression = inner;
         }
 
-        return expression is ConditionalExpressionSyntax or ConditionalAccessExpressionSyntax or SwitchExpressionSyntax or
-            BinaryExpressionSyntax
+        return IsConditionalShape(expression) ? expression : null;
+    }
+
+    static ExpressionSyntax? WrappedExpression(ExpressionSyntax expression) => expression switch
+    {
+        ParenthesizedExpressionSyntax parenthesized => parenthesized.Expression,
+        CastExpressionSyntax cast => cast.Expression,
+        CheckedExpressionSyntax checkedExpression => checkedExpression.Expression,
+        PostfixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.SuppressNullableWarningExpression } suppression => suppression.Operand,
+        _ => null
+    };
+
+    static bool IsConditionalShape(ExpressionSyntax expression) => expression is
+        ConditionalExpressionSyntax or ConditionalAccessExpressionSyntax or SwitchExpressionSyntax or
+        BinaryExpressionSyntax
         {
             RawKind: (int)SyntaxKind.CoalesceExpression or
                     (int)SyntaxKind.LogicalAndExpression or
                     (int)SyntaxKind.LogicalOrExpression
         } or
-            AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.CoalesceAssignmentExpression }
-                ? expression
-                : null;
-    }
+        AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.CoalesceAssignmentExpression };
 
     static bool HasInvalidContextualOperation(
         IOperation? operation,
-        ExpressionSyntax expression)
+        ExpressionSyntax expression) =>
+        operation is null or IInvalidOperation ||
+        (operation is IConversionOperation conversion && IsBrokenConversion(conversion.Conversion)) ||
+        HasInvalidContextualParent(operation, expression);
+
+    static bool HasInvalidContextualParent(IOperation operation, ExpressionSyntax expression) => operation.Parent switch
     {
-        if (operation is null or IInvalidOperation)
-        {
-            return true;
-        }
+        IInvalidOperation => true,
+        IConversionOperation parentConversion =>
+            parentConversion.Syntax.Span == expression.Span && IsBrokenConversion(parentConversion.Conversion),
+        IArgumentOperation argument => IsBrokenConversion(argument.InConversion),
+        _ => false
+    };
 
-        if (operation is IConversionOperation conversion &&
-            (!conversion.Conversion.Exists || conversion.Conversion.IsUserDefined))
-        {
-            return true;
-        }
-
-        if (operation.Parent is IInvalidOperation)
-        {
-            return true;
-        }
-
-        if (operation.Parent is IConversionOperation parentConversion &&
-            parentConversion.Syntax.Span == expression.Span &&
-            (!parentConversion.Conversion.Exists || parentConversion.Conversion.IsUserDefined))
-        {
-            return true;
-        }
-
-        return operation.Parent is IArgumentOperation argument &&
-            (!argument.InConversion.Exists || argument.InConversion.IsUserDefined);
-    }
+    static bool IsBrokenConversion(CommonConversion conversion) => !conversion.Exists || conversion.IsUserDefined;
 
     static bool TryRuntimeConstant<T>(DotNetConstantValue constant, out T? value)
     {
@@ -410,14 +442,15 @@ public static class DotNetSourceValues
             return true;
         }
 
-        if (constant.Value is not IConvertible)
-        {
-            return false;
-        }
+        return constant.Value is IConvertible && TryChangeType(constant.Value, runtimeType, out value);
+    }
 
+    static bool TryChangeType<T>(object constantValue, Type runtimeType, out T? value)
+    {
+        value = default;
         try
         {
-            value = (T)Convert.ChangeType(constant.Value, runtimeType, CultureInfo.InvariantCulture);
+            value = (T)Convert.ChangeType(constantValue, runtimeType, CultureInfo.InvariantCulture);
             return true;
         }
         catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException)
@@ -446,34 +479,24 @@ public static class DotNetSourceValues
         type.TypeKind == kind || type switch
         {
             IArrayTypeSymbol array => ContainsSemanticTypeKind(array.ElementType, kind),
-            IFunctionPointerTypeSymbol functionPointer =>
-                ContainsSemanticTypeKind(functionPointer.Signature.ReturnType, kind) ||
-                functionPointer.Signature.Parameters.Any(parameter => ContainsSemanticTypeKind(parameter.Type, kind)),
-            INamedTypeSymbol named =>
-                (named.ContainingType is not null && ContainsSemanticTypeKind(named.ContainingType, kind)) ||
-                named.TypeArguments.Any(typeArgument => ContainsSemanticTypeKind(typeArgument, kind)),
+            IFunctionPointerTypeSymbol functionPointer => SignatureContainsSemanticTypeKind(functionPointer, kind),
+            INamedTypeSymbol named => NamedTypeContainsSemanticTypeKind(named, kind),
             IPointerTypeSymbol pointer => ContainsSemanticTypeKind(pointer.PointedAtType, kind),
             _ => false
         };
 
-    static bool MatchesRuntimeType(ITypeSymbol? sourceType, Type runtimeType) => sourceType?.SpecialType switch
-    {
-        SpecialType.System_Boolean => runtimeType == typeof(bool),
-        SpecialType.System_Byte => runtimeType == typeof(byte),
-        SpecialType.System_SByte => runtimeType == typeof(sbyte),
-        SpecialType.System_Int16 => runtimeType == typeof(short),
-        SpecialType.System_UInt16 => runtimeType == typeof(ushort),
-        SpecialType.System_Int32 => runtimeType == typeof(int),
-        SpecialType.System_UInt32 => runtimeType == typeof(uint),
-        SpecialType.System_Int64 => runtimeType == typeof(long),
-        SpecialType.System_UInt64 => runtimeType == typeof(ulong),
-        SpecialType.System_Single => runtimeType == typeof(float),
-        SpecialType.System_Double => runtimeType == typeof(double),
-        SpecialType.System_Decimal => runtimeType == typeof(decimal),
-        SpecialType.System_Char => runtimeType == typeof(char),
-        SpecialType.System_String => runtimeType == typeof(string),
-        _ => false
-    };
+    static bool SignatureContainsSemanticTypeKind(IFunctionPointerTypeSymbol functionPointer, TypeKind kind) =>
+        ContainsSemanticTypeKind(functionPointer.Signature.ReturnType, kind) ||
+        functionPointer.Signature.Parameters.Any(parameter => ContainsSemanticTypeKind(parameter.Type, kind));
+
+    static bool NamedTypeContainsSemanticTypeKind(INamedTypeSymbol named, TypeKind kind) =>
+        (named.ContainingType is not null && ContainsSemanticTypeKind(named.ContainingType, kind)) ||
+        named.TypeArguments.Any(typeArgument => ContainsSemanticTypeKind(typeArgument, kind));
+
+    static bool MatchesRuntimeType(ITypeSymbol? sourceType, Type runtimeType) =>
+        sourceType is not null &&
+        _runtimeTypes.TryGetValue(sourceType.SpecialType, out var expected) &&
+        runtimeType == expected;
 
     static bool RequiresBinding(ExpressionSyntax expression) => expression is
         IdentifierNameSyntax or GenericNameSyntax or MemberAccessExpressionSyntax or ElementAccessExpressionSyntax or InvocationExpressionSyntax;
@@ -487,4 +510,11 @@ public static class DotNetSourceValues
 
         return expression;
     }
+
+    readonly record struct ConstantSite(
+        ExpressionSyntax Expression,
+        TypeInfo TypeInfo,
+        ISymbol? Symbol,
+        IOperation? Operation,
+        object? Value);
 }
