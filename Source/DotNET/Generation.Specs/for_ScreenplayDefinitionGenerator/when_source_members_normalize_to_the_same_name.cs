@@ -45,14 +45,14 @@ public class when_source_members_normalize_to_the_same_name : given.a_generator
         SubjectId subject,
         ArtifactMemberKey member,
         Evidence evidence) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Evidence = evidence,
-        Definition = new ArtifactMemberDeclarationDefinition
         {
-            Member = member,
-            DeclarationOrder = order
-        }
-    };
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Evidence = evidence,
+            Definition = new ArtifactMemberDeclarationDefinition
+            {
+                Member = member,
+                DeclarationOrder = order
+            }
+        };
 }

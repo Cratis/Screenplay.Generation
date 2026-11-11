@@ -344,11 +344,11 @@ public static class DotNetSourceValues
 
         return expression is ConditionalExpressionSyntax or ConditionalAccessExpressionSyntax or SwitchExpressionSyntax or
             BinaryExpressionSyntax
-            {
-                RawKind: (int)SyntaxKind.CoalesceExpression or
+        {
+            RawKind: (int)SyntaxKind.CoalesceExpression or
                     (int)SyntaxKind.LogicalAndExpression or
                     (int)SyntaxKind.LogicalOrExpression
-            } or
+        } or
             AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.CoalesceAssignmentExpression }
                 ? expression
                 : null;

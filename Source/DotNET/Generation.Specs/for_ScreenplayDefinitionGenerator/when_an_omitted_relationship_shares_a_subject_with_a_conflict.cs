@@ -34,16 +34,16 @@ public class when_an_omitted_relationship_shares_a_subject_with_a_conflict : giv
         SubjectId source,
         SubjectId target,
         string? sourceMember) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = source,
-        Evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact },
-        Definition = new RelationshipDefinition
         {
-            Key = new RelationshipKey { Kind = kind, Source = source, Target = target },
-            SourceMember = sourceMember
-        }
-    };
+            Id = new FactId { Value = id },
+            Subject = source,
+            Evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact },
+            Definition = new RelationshipDefinition
+            {
+                Key = new RelationshipKey { Kind = kind, Source = source, Target = target },
+                SourceMember = sourceMember
+            }
+        };
 
     GenerationFactRecord Record(string id) =>
         _result.AdapterRun!.Facts.Single(_ => _.Fact.Id.Value == id);

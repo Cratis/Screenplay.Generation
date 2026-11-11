@@ -63,11 +63,11 @@ public class when_generating_from_adapter_run_snapshots_in_different_orders : gi
         AdapterIdentity adapter,
         IReadOnlyList<GenerationFact> facts,
         IReadOnlyList<GenerationDiagnostic> diagnostics) => new()
-    {
-        Adapter = adapter,
-        Facts = facts,
-        Diagnostics = diagnostics
-    };
+        {
+            Adapter = adapter,
+            Facts = facts,
+            Diagnostics = diagnostics
+        };
 
     static GenerationDiagnostic[] Diagnostics(string code, SubjectId subject, AdapterIdentity adapter) =>
     [

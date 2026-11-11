@@ -70,17 +70,17 @@ public class when_generating_conflicting_slice_kinds : for_GenerationResolver.gi
         ArtifactKey artifact,
         GenerationSliceKind kind,
         Evidence evidence) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = artifact.Subject,
-        Evidence = evidence,
-        Artifact = artifact,
-        Placement = new ArtifactPlacement
         {
-            Module = "Accounts",
-            Features = ["Opening"],
-            Slice = "Open",
-            SliceKind = kind
-        }
-    };
+            Id = new FactId { Value = id },
+            Subject = artifact.Subject,
+            Evidence = evidence,
+            Artifact = artifact,
+            Placement = new ArtifactPlacement
+            {
+                Module = "Accounts",
+                Features = ["Opening"],
+                Slice = "Open",
+                SliceKind = kind
+            }
+        };
 }

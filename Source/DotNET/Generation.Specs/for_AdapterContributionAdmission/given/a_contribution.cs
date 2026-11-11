@@ -267,11 +267,11 @@ public class a_contribution : Specification
         IReadOnlyList<GenerationFact>? facts = null,
         IReadOnlyList<GenerationDiagnostic>? diagnostics = null,
         AdapterIdentity? adapter = null) => new()
-    {
-        Adapter = adapter ?? Adapter,
-        Facts = facts ?? EveryFact(),
-        Diagnostics = diagnostics ?? []
-    };
+        {
+            Adapter = adapter ?? Adapter,
+            Facts = facts ?? EveryFact(),
+            Diagnostics = diagnostics ?? []
+        };
 
     protected static AdapterContributionAdmissionResult Admit(
         AdapterDescriptor? descriptor = null,

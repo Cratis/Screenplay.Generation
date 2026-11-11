@@ -30,17 +30,17 @@ public class when_resolving_placements_with_different_evidence_strengths : given
         string slice,
         EvidenceStrength strength,
         AdapterIdentity adapter) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = artifact.Subject,
-        Artifact = artifact,
-        Placement = new ArtifactPlacement
         {
-            Module = "Accounts",
-            Features = ["Accounts"],
-            Slice = slice,
-            SliceKind = GenerationSliceKind.StateChange
-        },
-        Evidence = new Evidence { Adapter = adapter, Strength = strength }
-    };
+            Id = new FactId { Value = id },
+            Subject = artifact.Subject,
+            Artifact = artifact,
+            Placement = new ArtifactPlacement
+            {
+                Module = "Accounts",
+                Features = ["Accounts"],
+                Slice = slice,
+                SliceKind = GenerationSliceKind.StateChange
+            },
+            Evidence = new Evidence { Adapter = adapter, Strength = strength }
+        };
 }

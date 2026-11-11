@@ -104,16 +104,16 @@ public class when_overlaying_file_only_legacy_artifact_realizations : given.a_ge
         ArtifactKey artifact,
         SubjectId subject,
         Evidence evidence) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Evidence = evidence,
-        Definition = new ArtifactDefinition
         {
-            Key = artifact,
-            Name = "CustomerRegistered",
-            File = file,
-            Properties =
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Evidence = evidence,
+            Definition = new ArtifactDefinition
+            {
+                Key = artifact,
+                Name = "CustomerRegistered",
+                File = file,
+                Properties =
             [
                 new PropertyDefinition
                 {
@@ -121,6 +121,6 @@ public class when_overlaying_file_only_legacy_artifact_realizations : given.a_ge
                     Type = new TypeReferenceDefinition { Name = "RawCustomerCode" }
                 }
             ]
-        }
-    };
+            }
+        };
 }

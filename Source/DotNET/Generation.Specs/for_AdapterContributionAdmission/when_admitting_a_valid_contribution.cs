@@ -11,7 +11,8 @@ public class when_admitting_a_valid_contribution : given.a_contribution
 
     [Fact] void should_admit_the_complete_contribution() => _result.IsAdmitted.ShouldBeTrue();
     [Fact] void should_not_report_admission_diagnostics() => _result.Diagnostics.ShouldBeEmpty();
-    [Fact] void should_freeze_every_current_fact_family() => _result.Snapshot!.Facts.Select(fact => fact.GetType()).ShouldContainOnly(
+    [Fact]
+    void should_freeze_every_current_fact_family() => _result.Snapshot!.Facts.Select(fact => fact.GetType()).ShouldContainOnly(
         typeof(ArtifactFact),
         typeof(ArtifactPlacementFact),
         typeof(ArtifactDeclarationFact),

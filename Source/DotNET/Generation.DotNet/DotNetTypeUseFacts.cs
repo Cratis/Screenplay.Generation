@@ -85,8 +85,8 @@ public static class DotNetTypeUseFacts
         string family,
         ArtifactMemberKey member,
         string sourceMemberName) => new()
-    {
-        Value = string.Join(
+        {
+            Value = string.Join(
             ':',
             adapter,
             family,
@@ -94,7 +94,7 @@ public static class DotNetTypeUseFacts
             ((int)member.Artifact.Kind).ToString(System.Globalization.CultureInfo.InvariantCulture),
             Encode(sourceMemberName),
             Encode(member.Name))
-    };
+        };
 
     static string Encode(string value) => string.Concat(
         value.Select(character => ((int)character).ToString("X4", System.Globalization.CultureInfo.InvariantCulture)));

@@ -47,28 +47,28 @@ public class when_resolving_separator_bearing_structural_fields : given.facts
         ArtifactKey artifact,
         string module,
         IReadOnlyList<string> features) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = artifact.Subject,
-        Artifact = artifact,
-        Placement = new ArtifactPlacement
         {
-            Module = module,
-            Features = features,
-            Slice = "Open",
-            SliceKind = GenerationSliceKind.StateChange
-        },
-        Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
-    };
+            Id = new FactId { Value = id },
+            Subject = artifact.Subject,
+            Artifact = artifact,
+            Placement = new ArtifactPlacement
+            {
+                Module = module,
+                Features = features,
+                Slice = "Open",
+                SliceKind = GenerationSliceKind.StateChange
+            },
+            Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
+        };
 
     static RelationshipFact Relationship(
         string id,
         AdapterIdentity adapter,
         RelationshipKey key) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = key.Source,
-        Definition = new RelationshipDefinition { Key = key },
-        Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
-    };
+        {
+            Id = new FactId { Value = id },
+            Subject = key.Source,
+            Definition = new RelationshipDefinition { Key = key },
+            Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
+        };
 }

@@ -147,16 +147,16 @@ public class when_attaching_fixed_snapshot_derivation : given.a_generator
         SubjectId subject,
         string name,
         int order) => new()
-    {
-        Id = Id(adapter, $"member:{name}"),
-        Subject = subject,
-        Evidence = Evidence(adapter),
-        Definition = new ArtifactMemberDeclarationDefinition
         {
-            Member = new ArtifactMemberKey { Artifact = artifact, Name = name },
-            DeclarationOrder = order
-        }
-    };
+            Id = Id(adapter, $"member:{name}"),
+            Subject = subject,
+            Evidence = Evidence(adapter),
+            Definition = new ArtifactMemberDeclarationDefinition
+            {
+                Member = new ArtifactMemberKey { Artifact = artifact, Name = name },
+                DeclarationOrder = order
+            }
+        };
 
     static ArtifactMemberTypeUseFact TypeUse(
         AdapterIdentity adapter,
@@ -166,21 +166,21 @@ public class when_attaching_fixed_snapshot_derivation : given.a_generator
         SubjectId observedType,
         string suffix,
         IReadOnlyList<TypeUseShapeKind> shape) => new()
-    {
-        Id = Id(adapter, $"type-use:{suffix}"),
-        Subject = subject,
-        Evidence = Evidence(adapter),
-        Definition = new ArtifactMemberTypeUseDefinition
         {
-            Member = new ArtifactMemberKey { Artifact = artifact, Name = name },
-            Type = new TypeUseDefinition
+            Id = Id(adapter, $"type-use:{suffix}"),
+            Subject = subject,
+            Evidence = Evidence(adapter),
+            Definition = new ArtifactMemberTypeUseDefinition
             {
-                Name = observedType.Value.Split('.')[^1],
-                ObservedTypeSubject = observedType,
-                Shape = shape
+                Member = new ArtifactMemberKey { Artifact = artifact, Name = name },
+                Type = new TypeUseDefinition
+                {
+                    Name = observedType.Value.Split('.')[^1],
+                    ObservedTypeSubject = observedType,
+                    Shape = shape
+                }
             }
-        }
-    };
+        };
 
     static FactId Id(AdapterIdentity adapter, string suffix) => new() { Value = $"{adapter.Id}:{suffix}" };
 

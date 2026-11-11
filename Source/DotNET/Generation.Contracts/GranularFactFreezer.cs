@@ -14,12 +14,12 @@ static class GranularFactFreezer
         Evidence evidence,
         string path,
         AdapterContributionAdmissionContext context) => new()
-    {
-        Id = id,
-        Subject = subject,
-        Evidence = evidence,
-        Definition = FreezeArtifactDeclaration(fact.Definition, $"{path}.Definition", context)
-    };
+        {
+            Id = id,
+            Subject = subject,
+            Evidence = evidence,
+            Definition = FreezeArtifactDeclaration(fact.Definition, $"{path}.Definition", context)
+        };
 
     public static ArtifactMemberDeclarationFact Freeze(
         ArtifactMemberDeclarationFact fact,
@@ -28,12 +28,12 @@ static class GranularFactFreezer
         Evidence evidence,
         string path,
         AdapterContributionAdmissionContext context) => new()
-    {
-        Id = id,
-        Subject = subject,
-        Evidence = evidence,
-        Definition = FreezeMemberDeclaration(fact.Definition, $"{path}.Definition", context)
-    };
+        {
+            Id = id,
+            Subject = subject,
+            Evidence = evidence,
+            Definition = FreezeMemberDeclaration(fact.Definition, $"{path}.Definition", context)
+        };
 
     public static ArtifactMemberTypeUseFact Freeze(
         ArtifactMemberTypeUseFact fact,
@@ -42,12 +42,12 @@ static class GranularFactFreezer
         Evidence evidence,
         string path,
         AdapterContributionAdmissionContext context) => new()
-    {
-        Id = id,
-        Subject = subject,
-        Evidence = evidence,
-        Definition = FreezeMemberTypeUse(fact.Definition, $"{path}.Definition", context)
-    };
+        {
+            Id = id,
+            Subject = subject,
+            Evidence = evidence,
+            Definition = FreezeMemberTypeUse(fact.Definition, $"{path}.Definition", context)
+        };
 
     public static TypeUseBindingFact Freeze(
         TypeUseBindingFact fact,
@@ -56,12 +56,12 @@ static class GranularFactFreezer
         Evidence evidence,
         string path,
         AdapterContributionAdmissionContext context) => new()
-    {
-        Id = id,
-        Subject = subject,
-        Evidence = evidence,
-        Definition = FreezeBinding(fact.Definition, $"{path}.Definition", context)
-    };
+        {
+            Id = id,
+            Subject = subject,
+            Evidence = evidence,
+            Definition = FreezeBinding(fact.Definition, $"{path}.Definition", context)
+        };
 
     public static ArtifactMemberRoleFact Freeze(
         ArtifactMemberRoleFact fact,
@@ -70,12 +70,12 @@ static class GranularFactFreezer
         Evidence evidence,
         string path,
         AdapterContributionAdmissionContext context) => new()
-    {
-        Id = id,
-        Subject = subject,
-        Evidence = evidence,
-        Definition = FreezeMemberRole(fact.Definition, $"{path}.Definition", context)
-    };
+        {
+            Id = id,
+            Subject = subject,
+            Evidence = evidence,
+            Definition = FreezeMemberRole(fact.Definition, $"{path}.Definition", context)
+        };
 
     static ArtifactDeclarationDefinition FreezeArtifactDeclaration(
         ArtifactDeclarationDefinition? definition,

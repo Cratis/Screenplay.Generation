@@ -333,15 +333,15 @@ static class GenerationFactDiscriminatorValidator
         string discriminator,
         int value,
         bool isUnknown) => new()
-    {
-        Code = code,
-        Severity = GenerationDiagnosticSeverity.Warning,
-        Outcome = isUnknown ? GenerationDiagnosticOutcome.Unknown : GenerationDiagnosticOutcome.Unsupported,
-        Message = $"Fact '{fact.Id.Value}' from adapter '{fact.Evidence.Adapter.Id}' uses {(isUnknown ? "unknown" : "undefined")} {discriminator} value '{value}'; the affected fact was omitted",
-        Facts = [fact.Id],
-        Source = fact.Evidence.Source,
-        Subject = fact.Subject
-    };
+        {
+            Code = code,
+            Severity = GenerationDiagnosticSeverity.Warning,
+            Outcome = isUnknown ? GenerationDiagnosticOutcome.Unknown : GenerationDiagnosticOutcome.Unsupported,
+            Message = $"Fact '{fact.Id.Value}' from adapter '{fact.Evidence.Adapter.Id}' uses {(isUnknown ? "unknown" : "undefined")} {discriminator} value '{value}'; the affected fact was omitted",
+            Facts = [fact.Id],
+            Source = fact.Evidence.Source,
+            Subject = fact.Subject
+        };
 }
 
 sealed record GenerationFactDiscriminatorValidationResult(

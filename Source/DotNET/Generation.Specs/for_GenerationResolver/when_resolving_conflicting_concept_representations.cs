@@ -27,15 +27,15 @@ public class when_resolving_conflicting_concept_representations : given.facts
         AdapterIdentity adapter,
         SubjectId subject,
         GenerationPrimitiveKind primitive) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Definition = new ConceptRepresentationDefinition
         {
-            Concept = subject,
-            Kind = ConceptRepresentationKind.Primitive,
-            Primitive = primitive
-        },
-        Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
-    };
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Definition = new ConceptRepresentationDefinition
+            {
+                Concept = subject,
+                Kind = ConceptRepresentationKind.Primitive,
+                Primitive = primitive
+            },
+            Evidence = new Evidence { Adapter = adapter, Strength = EvidenceStrength.Exact }
+        };
 }

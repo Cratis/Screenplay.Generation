@@ -29,56 +29,56 @@ public class facts : Specification
         string id,
         AdapterIdentity adapter,
         ArtifactDefinition? definition = null) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = EventSubject,
-        Definition = definition ?? EventDefinition(),
-        Evidence = new Evidence
         {
-            Adapter = adapter,
-            Strength = EvidenceStrength.Exact,
-            Source = new SourceRange
+            Id = new FactId { Value = id },
+            Subject = EventSubject,
+            Definition = definition ?? EventDefinition(),
+            Evidence = new Evidence
             {
-                Path = "Accounts/Open/AccountOpened.cs",
-                StartLine = 10,
-                StartColumn = 1,
-                EndLine = 10,
-                EndColumn = 30
+                Adapter = adapter,
+                Strength = EvidenceStrength.Exact,
+                Source = new SourceRange
+                {
+                    Path = "Accounts/Open/AccountOpened.cs",
+                    StartLine = 10,
+                    StartColumn = 1,
+                    EndLine = 10,
+                    EndColumn = 30
+                }
             }
-        }
-    };
+        };
 
     protected static RelationshipFact Relationship(
         string id,
         AdapterIdentity adapter,
         string? sourceMember = null) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = CommandSubject,
-        Definition = new RelationshipDefinition
         {
-            Key = new RelationshipKey
+            Id = new FactId { Value = id },
+            Subject = CommandSubject,
+            Definition = new RelationshipDefinition
             {
-                Kind = RelationshipKind.Produces,
-                Source = CommandSubject,
-                Target = EventSubject
+                Key = new RelationshipKey
+                {
+                    Kind = RelationshipKind.Produces,
+                    Source = CommandSubject,
+                    Target = EventSubject
+                },
+                SourceMember = sourceMember
             },
-            SourceMember = sourceMember
-        },
-        Evidence = new Evidence
-        {
-            Adapter = adapter,
-            Strength = EvidenceStrength.Exact,
-            Source = new SourceRange
+            Evidence = new Evidence
             {
-                Path = "Accounts/Open/OpenAccount.cs",
-                StartLine = 20,
-                StartColumn = 1,
-                EndLine = 20,
-                EndColumn = 30
+                Adapter = adapter,
+                Strength = EvidenceStrength.Exact,
+                Source = new SourceRange
+                {
+                    Path = "Accounts/Open/OpenAccount.cs",
+                    StartLine = 20,
+                    StartColumn = 1,
+                    EndLine = 20,
+                    EndColumn = 30
+                }
             }
-        }
-    };
+        };
 
     protected static AdapterContribution Contribution(AdapterIdentity adapter, params GenerationFact[] contributedFacts) => new()
     {

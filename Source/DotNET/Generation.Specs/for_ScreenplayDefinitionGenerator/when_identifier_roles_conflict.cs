@@ -129,10 +129,10 @@ public class when_identifier_roles_conflict : given.a_generator
         SubjectId subject,
         ArtifactMemberKey member,
         Evidence evidence) => new()
-    {
-        Id = new FactId { Value = id },
-        Subject = subject,
-        Evidence = evidence,
-        Definition = new ArtifactMemberRoleDefinition { Member = member, Role = role }
-    };
+        {
+            Id = new FactId { Value = id },
+            Subject = subject,
+            Evidence = evidence,
+            Definition = new ArtifactMemberRoleDefinition { Member = member, Role = role }
+        };
 }
