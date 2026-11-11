@@ -9,6 +9,8 @@ public class when_admitting_applicable_and_not_applicable_probes : given.a_probe
     AdapterRunRecord _applicable = null!;
     AdapterRunRecord _notApplicable = null!;
     AdapterRunRecord _defaultEvidence = null!;
+    AdapterProbeEvidence _original = null!;
+    AdapterProbeEvidence _admitted = null!;
     ProbingAdapter _applicableAdapter = null!;
 
     void Establish()
@@ -25,6 +27,8 @@ public class when_admitting_applicable_and_not_applicable_probes : given.a_probe
             Evidence("same range other end", "b.cap", "urn:example:one", RangeIn(project, 1, 3))
         ];
         (_applicable, _applicableAdapter) = Run(Applicable(_input), project);
+        _original = _input[3];
+        _admitted = _applicable.Probe.Evidence.Single(item => item.Description == "a first" && item.ApiCapability?.Id == "a.cap");
         _notApplicable = Probe(new AdapterProbeNotApplicable { Evidence = [_input[2]] });
         _defaultEvidence = Probe(new AdapterProbeApplicable { Evidence = default });
     }
@@ -41,6 +45,14 @@ public class when_admitting_applicable_and_not_applicable_probes : given.a_probe
         "a first|b.cap|urn:example:two|1-5;" +
         "z last|b.cap|urn:example:two|3-5");
     [Fact] void should_freeze_the_evidence_into_new_instances() => _applicable.Probe.Evidence.Any(item => _input.Any(original => ReferenceEquals(original, item))).ShouldBeFalse();
+    [Fact] void should_copy_the_capability() => _admitted.ApiCapability.ShouldEqual(_original.ApiCapability);
+    [Fact] void should_not_share_the_capability_instance() => ReferenceEquals(_admitted.ApiCapability, _original.ApiCapability).ShouldBeFalse();
+    [Fact] void should_copy_the_subject() => _admitted.Subject.ShouldEqual(_original.Subject);
+    [Fact] void should_not_share_the_subject_instance() => ReferenceEquals(_admitted.Subject, _original.Subject).ShouldBeFalse();
+    [Fact] void should_copy_the_source() => _admitted.Source.ShouldEqual(_original.Source);
+    [Fact] void should_not_share_the_source_instance() => ReferenceEquals(_admitted.Source, _original.Source).ShouldBeFalse();
+    [Fact] void should_copy_the_file_identity() => _admitted.Source!.FileIdentity.ShouldEqual(_original.Source!.FileIdentity);
+    [Fact] void should_not_share_the_file_identity_instance() => ReferenceEquals(_admitted.Source!.FileIdentity, _original.Source!.FileIdentity).ShouldBeFalse();
     [Fact] void should_admit_the_not_applicable_probe_with_its_evidence() => string.Join(';', _notApplicable.Probe.Evidence.Select(Describe)).ShouldEqual("no capability|||-");
     [Fact] void should_keep_the_not_applicable_probe_kind() => _notApplicable.Probe.ShouldBeOfExactType<AdapterProbeNotApplicable>();
     [Fact] void should_not_analyze_the_not_applicable_probe() => _notApplicable.Disposition.ShouldEqual(AdapterRunDisposition.NotApplicable);
