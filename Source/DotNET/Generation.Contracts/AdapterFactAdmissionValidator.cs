@@ -33,6 +33,9 @@ static class AdapterFactAdmissionValidator
             case ArtifactMemberRoleFact role:
                 GranularFactAdmissionValidator.Validate(role, path, context);
                 break;
+            case ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact:
+                ArtifactUsageAdmissionValidator.Validate(fact, path, context);
+                break;
             case RelationshipFact relationship:
                 RelationshipFactAdmissionValidator.Validate(relationship, path, context);
                 break;

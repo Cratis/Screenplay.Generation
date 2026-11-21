@@ -455,6 +455,14 @@ var facts = DotNetConceptFacts.Emit(
 
 Do not infer concepts from names such as `Id`, from having one property, or from an arbitrary record-struct shape. If the framework nominates the concept but does not prove its primitive backing, retain the concept artifact and emit an adapter-owned `Unsupported` diagnostic instead of inventing a representation.
 
+### Join independently proved artifact usage
+
+An independently composed library adapter can emit `ArtifactUsageDeclarationFact` (exact declaration → exact `ArtifactKey`) and `MethodArtifactUsageFact` (exact containing method → executed declaration, with a proved relationship role). An entry-point adapter separately emits `EntryPointFact` (that exact method → source `ArtifactKey`). Fact subjects equal their declaration or method, respectively. Each adapter declares the matching appended `GenerationFactCapability`; existing capability numbers are unchanged.
+
+The closed built-in `cratis.screenplay.artifact-usage` rule, version `1.0.0`, derives `RelationshipFact` with `Reads` only when all three facets and both compatible exact artifact declarations agree. Use project-, overload-, and generic-qualified identities, for example `DotNetSubjectIds.ForMethod`; never join display names or treat a declaration mention as executed usage. Library methods with no entry point remain provenance. Agreeing proofs consolidate into one edge with every input ID and evidence item retained. Conflicting mappings never fan out, and missing mappings, incompatible declarations, or unsupported roles produce located, input-linked diagnostics (GEN0056–GEN0058). Derived outputs are not inputs to another rule in that run; there is no plug-in rule registry.
+
+These neutral facets are provenance, not fictitious Screenplay syntax. The resulting relationship is resolved and compiler-verified through the normal pipeline. Legacy adapters can continue emitting `RelationshipFact` directly; primitive wrappers remain the responsibility of concept adapters such as `DotNetConceptFacts`.
+
 ### Opt in to inherited members
 
 Existing `DotNetTypeShapes.PropertiesOf` and `DotNetTypeUseFacts.Emit` calls remain declared-only. For an effective surface, pair `DotNetTypeShapes.PropertiesOf(type, context, DotNetMemberSurfaceScope.Inherited)` with `DotNetTypeUseFacts.EmitWithSurface(type, artifact, context, evidence, DotNetMemberSurfaceScope.Inherited)`. Pairing preserves the legacy/granular member order; mismatched surfaces can produce GEN0050 and omit the artifact. The distinct emission method name keeps existing calls with a default role argument source-compatible.

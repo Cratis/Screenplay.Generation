@@ -57,6 +57,19 @@ internal static class GenerationFactDispositionCalculator
             return Conflicted(fact, context);
         }
 
+        if (fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
+        {
+            var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context));
+            if (diagnostics.Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict))
+            {
+                return new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.Conflicted, Diagnostics = diagnostics };
+            }
+
+            return diagnostics.Any(diagnostic => diagnostic.Outcome is GenerationDiagnosticOutcome.Unknown or GenerationDiagnosticOutcome.Unsupported)
+                ? Omitted(fact, context)
+                : new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.ProvenanceOnly, Diagnostics = diagnostics };
+        }
+
         return GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
     }
 

@@ -111,6 +111,27 @@ static class AdapterRunCanonicalizer
                 Evidence = evidence,
                 Definition = ArtifactMemberRole(role.Definition)
             },
+            ArtifactUsageDeclarationFact declaration => new ArtifactUsageDeclarationFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = declaration.Definition with { Declaration = Subject(declaration.Definition.Declaration), Artifact = ArtifactKey(declaration.Definition.Artifact) }
+            },
+            EntryPointFact entry => new EntryPointFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = entry.Definition with { Method = Subject(entry.Definition.Method), Artifact = ArtifactKey(entry.Definition.Artifact) }
+            },
+            MethodArtifactUsageFact usage => new MethodArtifactUsageFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = usage.Definition with { Method = Subject(usage.Definition.Method), Declaration = Subject(usage.Definition.Declaration) }
+            },
             RelationshipFact relationship => new RelationshipFact
             {
                 Id = id,

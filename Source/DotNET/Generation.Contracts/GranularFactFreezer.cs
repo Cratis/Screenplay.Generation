@@ -77,6 +77,42 @@ static class GranularFactFreezer
             Definition = FreezeMemberRole(fact.Definition, $"{path}.Definition", context)
         };
 
+    internal static ArtifactKey FreezeArtifactKey(
+        ArtifactKey? key,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
+        if (key is null)
+        {
+            context.Missing(path);
+            return new ArtifactKey
+            {
+                Subject = new SubjectId { Value = string.Empty },
+                Kind = ArtifactKind.Unknown
+            };
+        }
+
+        return new ArtifactKey
+        {
+            Subject = FreezeSubject(key.Subject, $"{path}.Subject", context),
+            Kind = key.Kind
+        };
+    }
+
+    internal static SubjectId FreezeSubject(
+        SubjectId? subject,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
+        if (subject is null)
+        {
+            context.Missing(path);
+            return new SubjectId { Value = string.Empty };
+        }
+
+        return new SubjectId { Value = subject.Value ?? string.Empty };
+    }
+
     static ArtifactDeclarationDefinition FreezeArtifactDeclaration(
         ArtifactDeclarationDefinition? definition,
         string path,
@@ -230,42 +266,6 @@ static class GranularFactFreezer
                 : FreezeSubject(type.ObservedTypeSubject, $"{path}.ObservedTypeSubject", context),
             Shape = FreezeShape(type.Shape, $"{path}.Shape", context)
         };
-    }
-
-    static ArtifactKey FreezeArtifactKey(
-        ArtifactKey? key,
-        string path,
-        AdapterContributionAdmissionContext context)
-    {
-        if (key is null)
-        {
-            context.Missing(path);
-            return new ArtifactKey
-            {
-                Subject = new SubjectId { Value = string.Empty },
-                Kind = ArtifactKind.Unknown
-            };
-        }
-
-        return new ArtifactKey
-        {
-            Subject = FreezeSubject(key.Subject, $"{path}.Subject", context),
-            Kind = key.Kind
-        };
-    }
-
-    static SubjectId FreezeSubject(
-        SubjectId? subject,
-        string path,
-        AdapterContributionAdmissionContext context)
-    {
-        if (subject is null)
-        {
-            context.Missing(path);
-            return new SubjectId { Value = string.Empty };
-        }
-
-        return new SubjectId { Value = subject.Value ?? string.Empty };
     }
 
     static ImmutableArray<TypeUseShapeKind> FreezeShape(

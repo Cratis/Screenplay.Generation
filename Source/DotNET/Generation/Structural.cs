@@ -46,6 +46,15 @@ static class Structural
     public static string ArtifactMemberRole(ArtifactMemberRoleDefinition definition) =>
         Node(ArtifactMemberKey(definition.Member), Integer((int)definition.Role));
 
+    public static string ArtifactUsageDeclaration(ArtifactUsageDeclarationDefinition definition) =>
+        Node(definition.Declaration.Value, ArtifactKey(definition.Artifact));
+
+    public static string MethodArtifactUsage(MethodArtifactUsageDefinition definition) =>
+        Node(definition.Method.Value, definition.Declaration.Value, Integer((int)definition.Kind));
+
+    public static string EntryPoint(EntryPointDefinition definition) =>
+        Node(definition.Method.Value, ArtifactKey(definition.Artifact));
+
     public static string Placement(ArtifactPlacement placement) =>
         Node(
             placement.Module,
@@ -135,6 +144,9 @@ static class Structural
         ArtifactMemberTypeUseFact typeUse => Node("artifact-member-type-use", ArtifactMemberTypeUse(typeUse.Definition)),
         TypeUseBindingFact binding => Node("type-use-binding", TypeUseBinding(binding.Definition)),
         ArtifactMemberRoleFact role => Node("artifact-member-role", ArtifactMemberRole(role.Definition)),
+        ArtifactUsageDeclarationFact declaration => Node("artifact-usage-declaration", ArtifactUsageDeclaration(declaration.Definition)),
+        MethodArtifactUsageFact usage => Node("method-artifact-usage", MethodArtifactUsage(usage.Definition)),
+        EntryPointFact entry => Node("entry-point", EntryPoint(entry.Definition)),
         RelationshipFact relationship => Node("relationship", Relationship(relationship.Definition)),
         ConceptRepresentationFact representation => Node("concept-representation", ConceptRepresentation(representation.Definition)),
         ConceptAttributeFact attribute => Node("concept-attribute", ConceptAttribute(attribute.Definition)),
@@ -222,6 +234,9 @@ static class Structural
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
+        ArtifactUsageDeclarationFact => (int)GenerationFactCapability.ArtifactUsageDeclaration,
+        MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
+        EntryPointFact => (int)GenerationFactCapability.EntryPoint,
         _ => int.MaxValue
     };
 

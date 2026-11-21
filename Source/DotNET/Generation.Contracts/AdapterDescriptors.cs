@@ -186,7 +186,16 @@ public enum GenerationFactCapability
     /// <summary>
     /// <see cref="ArtifactMemberRoleFact"/> facts.
     /// </summary>
-    ArtifactMemberRole = 13
+    ArtifactMemberRole = 13,
+
+    /// <summary><see cref="ArtifactUsageDeclarationFact"/> facts.</summary>
+    ArtifactUsageDeclaration = 14,
+
+    /// <summary><see cref="MethodArtifactUsageFact"/> facts.</summary>
+    MethodArtifactUsage = 15,
+
+    /// <summary><see cref="EntryPointFact"/> facts.</summary>
+    EntryPoint = 16
 }
 
 /// <summary>

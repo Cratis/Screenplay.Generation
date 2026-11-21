@@ -24,6 +24,9 @@ internal static class GenerationFactDiscriminators
             ArtifactMemberTypeUseFact or
             TypeUseBindingFact or
             ArtifactMemberRoleFact => ArtifactFamilySupported(fact),
+            ArtifactUsageDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
+            EntryPointFact entry => Supported(entry.Definition.Artifact.Kind, ArtifactKind.Unknown),
+            MethodArtifactUsageFact usage => Supported(usage.Definition.Kind, RelationshipKind.Unknown),
             RelationshipFact relationship => Supported(relationship.Definition.Key.Kind, RelationshipKind.Unknown),
             ConceptRepresentationFact or
             ConceptAttributeFact or

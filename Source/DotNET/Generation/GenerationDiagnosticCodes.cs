@@ -272,4 +272,13 @@ public static class GenerationDiagnosticCodes
     /// A type-use binding targets an artifact role that was not declared for the exact subject.
     /// </summary>
     public const string MissingTypeUseBindingTarget = "GEN0055";
+
+    /// <summary>An entry point or executed declaration lacks an exact artifact mapping.</summary>
+    public const string MissingArtifactUsageMapping = "GEN0056";
+
+    /// <summary>Incompatible exact entry-point, usage, or artifact mappings prevent a join.</summary>
+    public const string ConflictingArtifactUsageMapping = "GEN0057";
+
+    /// <summary>The built-in usage join does not support the asserted relationship role.</summary>
+    public const string UnsupportedArtifactUsageRole = "GEN0058";
 }

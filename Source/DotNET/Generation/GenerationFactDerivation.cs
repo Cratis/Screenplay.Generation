@@ -32,10 +32,24 @@ public static class GenerationFactDerivation
             .ThenBy(record => Structural.FactDefinition(record.Fact), StringComparer.Ordinal)
             .ToImmutableArray();
         var typeUseBindings = TypeUseBindingDerivation.Derive(baseFacts);
+        var artifactUsages = ArtifactUsageDerivation.Derive(baseFacts);
         var diagnostics = validationDiagnostics
             .Concat(typeUseBindings.Diagnostics)
+            .Concat(artifactUsages.Diagnostics)
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .ToImmutableArray();
+        ImmutableArray<GenerationDerivationRuleRecord> usageRules = baseFacts.Any(record => record.Fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
+            ?
+            [
+                new GenerationDerivationRuleRecord
+                {
+                    Rule = ArtifactUsageDerivation.Rule,
+                    Inputs = artifactUsages.Inputs,
+                    Outputs = [.. artifactUsages.Facts.Select(record => record.Fact.Id)],
+                    Diagnostics = artifactUsages.Diagnostics
+                }
+            ]
+            : [];
         var derivation = new GenerationDerivationSnapshot
         {
             Rules =
@@ -46,9 +60,10 @@ public static class GenerationFactDerivation
                     Inputs = typeUseBindings.Inputs,
                     Outputs = [.. typeUseBindings.Facts.Select(record => record.Fact.Id)],
                     Diagnostics = typeUseBindings.Diagnostics
-                }
+                },
+                .. usageRules
             ],
-            Facts = typeUseBindings.Facts,
+            Facts = [.. typeUseBindings.Facts, .. artifactUsages.Facts],
             Diagnostics = diagnostics
         };
 

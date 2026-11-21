@@ -602,6 +602,9 @@ static class AdapterContributionAdmissionValidator
         ArtifactMemberTypeUseFact => GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => GenerationFactCapability.ArtifactMemberRole,
+        ArtifactUsageDeclarationFact => GenerationFactCapability.ArtifactUsageDeclaration,
+        MethodArtifactUsageFact => GenerationFactCapability.MethodArtifactUsage,
+        EntryPointFact => GenerationFactCapability.EntryPoint,
         _ => GenerationFactCapability.Unknown
     };
 }
