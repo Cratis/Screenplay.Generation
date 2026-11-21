@@ -64,12 +64,17 @@ static class Structural
             Boolean(definition.IsCollection),
             Boolean(definition.IsOptional));
 
-    public static string ConceptRepresentation(ConceptRepresentationDefinition definition) =>
-        Node(
+    public static string ConceptRepresentation(ConceptRepresentationDefinition definition)
+    {
+        var legacy = Node(
             definition.Concept.Value,
             Integer((int)definition.Kind),
             NullableInteger(definition.Primitive is null ? null : (int)definition.Primitive.Value),
             Sequence(definition.EnumerationValues, value => value));
+        return definition.EnumerationNumbers is { } numbers
+            ? Node(legacy, "enumeration-numbers", Sequence(numbers, Integer))
+            : legacy;
+    }
 
     public static string ConceptAttributeKey(ConceptAttributeDefinition definition) =>
         Node(definition.Concept.Value, Integer((int)definition.Kind), definition.Name);

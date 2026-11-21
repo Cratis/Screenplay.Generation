@@ -496,7 +496,8 @@ static class AdapterContributionFreezer
             Concept = FreezeSubject(definition.Concept, $"{path}.Concept", context),
             Kind = definition.Kind,
             Primitive = definition.Primitive,
-            EnumerationValues = FreezeStrings(definition.EnumerationValues, $"{path}.EnumerationValues", context)
+            EnumerationValues = FreezeStrings(definition.EnumerationValues, $"{path}.EnumerationValues", context),
+            EnumerationNumbers = definition.EnumerationNumbers is { } numbers ? numbers.ToImmutableArray() : null
         };
     }
 

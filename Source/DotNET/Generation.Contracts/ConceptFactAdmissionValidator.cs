@@ -54,6 +54,8 @@ static class ConceptFactAdmissionValidator
                 break;
         }
 
+        ValidateEnumerationNumbers(fact, path, context);
+
         for (var index = 0; index < definition.EnumerationValues.Count; index++)
         {
             AdapterContributionAdmissionValidator.ValidateRequiredText(
@@ -126,6 +128,34 @@ static class ConceptFactAdmissionValidator
                 fact.Id,
                 fact.Subject,
                 context);
+        }
+    }
+
+    static void ValidateEnumerationNumbers(
+        ConceptRepresentationFact fact,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
+        var definition = fact.Definition;
+        if (definition.EnumerationNumbers is not { } numbers)
+        {
+            return;
+        }
+
+        var numberPath = $"{path}.Definition.EnumerationNumbers";
+        if (definition.Kind != ConceptRepresentationKind.Enumeration)
+        {
+            InvalidOperand(fact, numberPath, "Only enumeration concepts can declare enumeration numbers", context);
+        }
+
+        if (numbers.Count != definition.EnumerationValues.Count)
+        {
+            InvalidOperand(fact, numberPath, "Enumeration numbers must align with every enumeration value", context);
+        }
+
+        if (numbers.Distinct().Count() != numbers.Count)
+        {
+            InvalidOperand(fact, numberPath, "Enumeration numbers must be unique", context);
         }
     }
 

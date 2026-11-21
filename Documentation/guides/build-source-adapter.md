@@ -455,6 +455,10 @@ var facts = DotNetConceptFacts.Emit(
 
 Do not infer concepts from names such as `Id`, from having one property, or from an arbitrary record-struct shape. If the framework nominates the concept but does not prove its primitive backing, retain the concept artifact and emit an adapter-owned `Unsupported` diagnostic instead of inventing a representation.
 
+### Preserve enumeration numbers
+
+For an enumeration representation, `ConceptRepresentationDefinition.EnumerationNumbers` optionally supplies one unique int32 number per `EnumerationValues` entry, in the same declaration order. Null retains the existing positional output. Explicit numbers preserve negative, zero, sparse, and int32 boundary values as `name = number` in compiler-verified Screenplay. Numbers cannot be supplied on primitive concepts; mismatched counts and duplicate numbers are rejected rather than renumbered. Distinct explicit numbers remain distinct resolver variants, including explicit positional numbers versus an implicit representation.
+
 ## Derive source placement
 
 Source layout does not decide semantic role. First establish `ArtifactKind` and `GenerationSliceKind` from framework semantics. Then use the shared placement pipeline:

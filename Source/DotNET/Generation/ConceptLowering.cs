@@ -116,7 +116,8 @@ internal static class ConceptLowering
             Generated,
             BuildValidations(graph, definition, sink))
         {
-            File = FileFrom(definition.File)
+            File = FileFrom(definition.File),
+            ValueNumbers = representation.EnumerationNumbers
         };
         sink.Coverage.Lowered(GenerationFactSemanticKey.Artifact(definition));
         sink.Coverage.Lowered(GenerationFactSemanticKey.ConceptRepresentation(representation));
@@ -131,7 +132,7 @@ internal static class ConceptLowering
             return new(null, [], problem);
         }
 
-        if (TypeOf(representation) is not { } type)
+        if (TypeOf(representation) is not { } type || !HasValidEnumerationNumbers(representation))
         {
             return new(
                 null,
@@ -343,6 +344,12 @@ internal static class ConceptLowering
         ConceptRepresentationKind.Enumeration when representation.Primitive is null && representation.EnumerationValues.Count > 0 => "Enum",
         _ => null
     };
+
+    static bool HasValidEnumerationNumbers(ConceptRepresentationDefinition representation) =>
+        representation.EnumerationNumbers is not { } numbers ||
+        (representation.Kind == ConceptRepresentationKind.Enumeration &&
+         numbers.Count == representation.EnumerationValues.Count &&
+         numbers.Distinct().Count() == numbers.Count);
 
     sealed record ConceptCheck(string? Type, IReadOnlyList<string> Values, GenerationDiagnostic? Problem);
 }

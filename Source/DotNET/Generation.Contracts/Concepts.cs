@@ -126,6 +126,12 @@ public sealed record ConceptRepresentationDefinition
     /// Gets the enumeration values in declaration order when <see cref="Kind"/> is <see cref="ConceptRepresentationKind.Enumeration"/>.
     /// </summary>
     public IReadOnlyList<string> EnumerationValues { get; init; } = [];
+
+    /// <summary>
+    /// Gets optional, unique int32 numbers aligned with <see cref="EnumerationValues"/> in declaration order.
+    /// Null retains the legacy positional representation; explicit numbers must cover every value.
+    /// </summary>
+    public IReadOnlyList<int>? EnumerationNumbers { get; init; }
 }
 
 /// <summary>

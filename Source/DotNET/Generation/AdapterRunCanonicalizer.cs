@@ -456,7 +456,8 @@ static class AdapterRunCanonicalizer
         Concept = Subject(definition.Concept),
         Kind = definition.Kind,
         Primitive = definition.Primitive,
-        EnumerationValues = [.. definition.EnumerationValues]
+        EnumerationValues = [.. definition.EnumerationValues],
+        EnumerationNumbers = definition.EnumerationNumbers is { } numbers ? [.. numbers] : null
     };
 
     static ConceptAttributeDefinition ConceptAttribute(ConceptAttributeDefinition definition) => new()
