@@ -464,7 +464,8 @@ internal static class Program
                 }
 
                 [EndpointPolicy(Required = true)]
-                public sealed record CustomerRegistered(CustomerCode CustomerCode);
+                public record CustomerEvent { public string Origin { get; init; } = "source"; }
+                public sealed record CustomerRegistered(CustomerCode CustomerCode) : CustomerEvent;
                 public sealed record Delivery(string Name, string[] Tags);
                 public sealed class CustomerBatch : System.Collections.Generic.List<CustomerRegistered>;
                 public sealed class CustomerOptions;
@@ -1079,6 +1080,7 @@ internal static class Program
             generated.Source.Contains("message \"Customer codes cannot be blank\"", StringComparison.Ordinal) &&
             generated.Source.Contains("file Concepts/CustomerCode.cs", StringComparison.Ordinal) &&
             generated.Source.Contains("customerCode CustomerCode", StringComparison.Ordinal) &&
+            generated.Source.Contains("origin String", StringComparison.Ordinal) &&
             !generated.Source.Contains("UnresolvedCustomerCode", StringComparison.Ordinal),
             "CSC0013",
             "The deterministic source lost the concept representation, validation, implementation file, or exact type binding.");
@@ -1883,10 +1885,10 @@ internal static class Program
                             Key = eventKey,
                             Name = "CustomerRegistered",
                             File = "Customers/Register/CustomerRegistered.cs",
-                            Properties = DotNetTypeShapes.PropertiesOf(eventType!)
+                            Properties = DotNetTypeShapes.PropertiesOf(eventType!, context, DotNetMemberSurfaceScope.Inherited)
                         }
                     },
-                    .. DotNetTypeUseFacts.Emit(eventType!, eventKey, context, evidence),
+                    .. DotNetTypeUseFacts.EmitWithSurface(eventType!, eventKey, context, evidence, DotNetMemberSurfaceScope.Inherited),
                     new ArtifactPlacementFact
                     {
                         Id = new FactId { Value = "external-smoke:placement:customer-registered" },

@@ -455,6 +455,12 @@ var facts = DotNetConceptFacts.Emit(
 
 Do not infer concepts from names such as `Id`, from having one property, or from an arbitrary record-struct shape. If the framework nominates the concept but does not prove its primitive backing, retain the concept artifact and emit an adapter-owned `Unsupported` diagnostic instead of inventing a representation.
 
+### Opt in to inherited members
+
+Existing `DotNetTypeShapes.PropertiesOf` and `DotNetTypeUseFacts.Emit` calls remain declared-only. For an effective surface, pair `DotNetTypeShapes.PropertiesOf(type, context, DotNetMemberSurfaceScope.Inherited)` with `DotNetTypeUseFacts.EmitWithSurface(type, artifact, context, evidence, DotNetMemberSurfaceScope.Inherited)`. Pairing preserves the legacy/granular member order; mismatched surfaces can produce GEN0050 and omit the artifact. The distinct emission method name keeps existing calls with a default role argument source-compatible.
+
+Inherited mode walks base classes, not interfaces, derived-first. Only public readable instance non-indexer properties proven to originate in analyzed authored syntax trees are eligible; generated, non-authored, and metadata-only bases contribute no members. Constructed generic types retain substitutions. The most-derived eligible raw CLR name wins, so a private getter does not hide an eligible base property. Distinct raw names that normalize to the same member remain separate assertions for existing conflict handling. All facts use the requested artifact and caller evidence; retained properties alone receive roles and contiguous ordinals. Undefined scopes are rejected.
+
 ### Preserve enumeration numbers
 
 For an enumeration representation, `ConceptRepresentationDefinition.EnumerationNumbers` optionally supplies one unique int32 number per `EnumerationValues` entry, in the same declaration order. Null retains the existing positional output. Explicit numbers preserve negative, zero, sparse, and int32 boundary values as `name = number` in compiler-verified Screenplay. Numbers cannot be supplied on primitive concepts; mismatched counts and duplicate numbers are rejected rather than renumbered. Distinct explicit numbers remain distinct resolver variants, including explicit positional numbers versus an implicit representation.
