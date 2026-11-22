@@ -626,6 +626,39 @@ A host must always display every diagnostic, even when `IsSuccess` is `true`. Er
 
 Tests must assert required artifacts and relationships directly from `Graph` or `Source`; `IsSuccess` alone proves only that no error diagnostic was produced.
 
+## Canonical ESM admission foundation (part of #71)
+
+`Cratis.Screenplay` 6.32.0 can deserialize more ESM versions than Generation admits. Compiler support is not Generation admission, and an inapplicable surface is not a successful run.
+
+| Surface | Exact matching language/semantic pairs v1–v6 | v7 | Later or unlisted pairs |
+| --- | --- | --- | --- |
+| Reading | Admitted | Refused | Refused |
+| Reverse recovery | Admitted for existing bounded adapter behavior | Refused | Refused |
+| Reference execution | Inapplicable | Inapplicable | Inapplicable |
+| Rendering | Inapplicable | Inapplicable | Inapplicable |
+
+The legacy allowance retains the existing adapter scope and diagnostics; it does **not** claim that every legacy ESM construct can be recovered. Unknown surface values are refused. v7 reading and reverse recovery remain refused until the remaining admission work is complete ([part of #71](https://github.com/Cratis/Screenplay.Generation/issues/71)). This foundation does not implement v7 recovery, reference execution, or rendering.
+
+Hosts receiving canonical ESM bytes use the atomic reader before processing them:
+
+```csharp
+var read = EsmCanonicalReader.Read(canonicalBytes, EsmSurface.ReverseRecovery);
+if (!read.IsAdmitted)
+{
+    // Display every blocking diagnostic. Do not process or publish a recovered definition.
+    return;
+}
+
+var model = read.Model!;
+// Process only within the existing adapter's documented recovery scope.
+```
+
+`EsmCanonicalReader.Read` first uses the compiler's strict canonical deserializer, then applies `EsmAdmission.Evaluate` to the model's actual language version, semantic version, and requested surface. It does not rewrite bytes, versions, revisions, or facts, and never returns a partial model. `EsmAdmissionDecision.Disposition` and `Reason` expose the typed result without parsing a message. A refusal or inapplicable result has no model and both `IsAdmitted` and `IsSuccess` are false.
+
+Non-admitted processing emits `GEN0065` (`Error` / `Unsupported`), identifying the surface and versions and linking to the remaining admission work. Invalid canonical input emits `GEN0066` (`Error` / `Unsupported`), including malformed JSON, duplicate or unknown members, incorrect revisions, trailing data, and noncanonical bytes. Only the compiler's `InvalidSemanticContract` becomes an invalid-input diagnostic; unrelated exceptions are not hidden.
+
+Hosts must show the diagnostic and stop processing or publication. When an adapter carries the refusal through the existing contribution or adapter-run diagnostics, both `ScreenplayDefinitionGenerator.Generate` overloads preserve it and return `IsSuccess == false`; neither overload itself ingests canonical ESM. Even if a blocked generation result contains source text, the host must not publish it as a recovered definition. No adapter or source provider is automatically wired to this reader yet.
+
 ## Test the adapter
 
 Every adapter should prove:
