@@ -299,4 +299,10 @@ public static class GenerationDiagnosticCodes
 
     /// <summary>A scope selector or ownership assertion is invalid.</summary>
     public const string InvalidBackendScopeUsage = "GEN0064";
+
+    /// <summary>Generation does not admit the requested ESM version or processing surface.</summary>
+    public const string EsmProcessingNotAdmitted = "GEN0065";
+
+    /// <summary>The input does not satisfy the strict canonical ESM contract.</summary>
+    public const string InvalidCanonicalEsm = "GEN0066";
 }
