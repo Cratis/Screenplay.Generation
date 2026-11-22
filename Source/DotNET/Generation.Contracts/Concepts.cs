@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Text.Json.Serialization;
+
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>
@@ -131,6 +133,7 @@ public sealed record ConceptRepresentationDefinition
     /// Gets optional, unique int32 numbers aligned with <see cref="EnumerationValues"/> in declaration order.
     /// Null retains the legacy positional representation; explicit numbers must cover every value.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<int>? EnumerationNumbers { get; init; }
 }
 
