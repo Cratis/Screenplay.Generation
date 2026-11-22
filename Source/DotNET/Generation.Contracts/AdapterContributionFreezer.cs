@@ -34,6 +34,10 @@ static class AdapterContributionFreezer
         return new(frozenDescriptor, adapter, facts, diagnostics);
     }
 
+    internal static ImmutableArray<GenerationDiagnostic> FreezeMethodDiagnostics(IReadOnlyList<GenerationDiagnostic>? diagnostics, AdapterContributionAdmissionContext context) => FreezeDiagnostics(diagnostics, context);
+
+    internal static GenerationDiagnostic FreezeMethodDiagnostic(GenerationDiagnostic diagnostic, string path, AdapterContributionAdmissionContext context) => FreezeDiagnostic(diagnostic, path, context);
+
     internal static AdapterDescriptor FreezeDescriptor(
         AdapterDescriptor? descriptor,
         AdapterContributionAdmissionContext context)
@@ -313,7 +317,7 @@ static class AdapterContributionFreezer
             ArtifactMemberTypeUseFact typeUse => GranularFactFreezer.Freeze(typeUse, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
             TypeUseBindingFact binding => GranularFactFreezer.Freeze(binding, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
             ArtifactMemberRoleFact role => GranularFactFreezer.Freeze(role, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
-            _ => UnsupportedFact(fact, envelope.Path, context)
+            _ => MethodEligibilityFreezer.Freeze(fact, envelope, context) ?? UnsupportedFact(fact, envelope.Path, context)
         };
 
     static FactId MissingFactId(string path, AdapterContributionAdmissionContext context)
@@ -981,6 +985,8 @@ static class AdapterContributionFreezer
         MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => (int)GenerationFactCapability.EntryPoint,
         BackendScopeFact => (int)GenerationFactCapability.BackendScope,
+        MethodExecutionClassificationFact => (int)GenerationFactCapability.MethodExecutionClassification,
+        MethodFactSupportFact => (int)GenerationFactCapability.MethodFactSupport,
         _ => int.MaxValue
     };
 }

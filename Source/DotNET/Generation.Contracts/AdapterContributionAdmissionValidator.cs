@@ -15,6 +15,7 @@ static class AdapterContributionAdmissionValidator
         ValidateDescriptor(input.Descriptor, context);
         ValidateProducer(input, context);
         ValidateDuplicateFactIds(input.Facts, context);
+        MethodEligibilityAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
 
         foreach (var fact in input.Facts)
         {
@@ -146,6 +147,8 @@ static class AdapterContributionAdmissionValidator
 
         ValidateGenerationVersionRange(descriptor, context);
     }
+
+    internal static void ValidateMethodDiagnostic(string adapterId, HashSet<string> factIds, GenerationDiagnostic diagnostic, ISourceAuthorityValidator? authority, AdapterContributionAdmissionContext context) => ValidateDiagnostic(adapterId, factIds, diagnostic, 0, authority, context);
 
     static bool IsStableAbsoluteUri(string value) =>
         AdapterContributionText.IsNormalized(value, false) &&
@@ -631,6 +634,8 @@ static class AdapterContributionAdmissionValidator
         MethodArtifactUsageFact => GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => GenerationFactCapability.EntryPoint,
         BackendScopeFact => GenerationFactCapability.BackendScope,
+        MethodExecutionClassificationFact => GenerationFactCapability.MethodExecutionClassification,
+        MethodFactSupportFact => GenerationFactCapability.MethodFactSupport,
         _ => GenerationFactCapability.Unknown
     };
 }

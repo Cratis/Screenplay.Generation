@@ -42,6 +42,8 @@ static class BackendScopeFactReferences
     {
         ArtifactUsageDeclarationFact declaration => [declaration.Definition.Artifact.Scope],
         EntryPointFact entry => [entry.Definition.Artifact.Scope],
+        MethodExecutionClassificationFact classification => [classification.Definition.Scope],
+        MethodFactSupportFact support => support.Definition.Alternatives.Select(alternative => alternative.Scope),
         MethodArtifactUsageFact usage => [usage.Definition.SourceScope, usage.Definition.TargetScope],
         SpecificationScenarioFact scenario => [scenario.Definition.TargetArtifact.Scope],
         SpecificationStepFact step => [step.Definition.Artifact?.Scope],

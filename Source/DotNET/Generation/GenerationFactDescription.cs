@@ -49,6 +49,8 @@ internal static class GenerationFactDescription
         BackendScopeFact => "backend scope",
         ArtifactUsageDeclarationFact => "artifact usage declaration",
         MethodArtifactUsageFact => "method artifact usage",
+        MethodExecutionClassificationFact => "method execution classification",
+        MethodFactSupportFact => "method fact support",
         EntryPointFact => "entry point",
         RelationshipFact => "relationship",
         _ => DomainFamily(fact)

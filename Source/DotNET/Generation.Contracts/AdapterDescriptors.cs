@@ -198,7 +198,13 @@ public enum GenerationFactCapability
     EntryPoint = 16,
 
     /// <summary><see cref="BackendScopeFact"/> facts.</summary>
-    BackendScope = 17
+    BackendScope = 17,
+
+    /// <summary><see cref="MethodExecutionClassificationFact"/> facts.</summary>
+    MethodExecutionClassification = 18,
+
+    /// <summary><see cref="MethodFactSupportFact"/> facts.</summary>
+    MethodFactSupport = 19
 }
 
 /// <summary>

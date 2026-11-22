@@ -61,6 +61,18 @@ Reference one version across all directly referenced Screenplay Generation packa
 | Fixed-snapshot derivation rule and input/evidence lineage | No | Yes |
 | Exact nested .NET type-use fact emission | No | Yes |
 
+## Declare method-dependent observations
+
+On current `main`, an adapter can attach a `MethodFactSupportFact` to a semantic candidate from the same contribution. Declare the `MethodFactSupport` capability. Supply the candidate's exact fact ID and subject, with one or more independent support alternatives. Each alternative identifies the exact executable, its optional backend occurrence, its explicit lexical enclosing executables, and any diagnostics conditional on that observation. Alternatives are OR; an executable and its supplied lexical parents are AND. Do not infer ancestry from names or source ranges.
+
+A frontend declaring `MethodExecutionClassification` may contribute `MethodExecutionClassificationFact` with exact evidence. `Ordinary` has no omission reason. `FailureOnly` carries the frontend's original located warning. Executable identity includes project, signature, overload and generic identity; null scope selects only the unscoped occurrence. Classification has no name-based or single-candidate fallback.
+
+Generation selects eligible inputs **before** type binding, relationship joins, graph resolution and lowering. A failure-only executable or lexical parent blocks that alternative. An independent ordinary alternative retains the candidate. Missing classification preserves compatibility; malformed or conflicting supplied metadata fails closed. Candidates without support facets retain legacy behavior. Structural artifacts are not implicitly removed with their behaviors.
+
+Keep conditional semantic diagnostics inside the alternative. Top-level adapter, host and source-authority diagnostics are unconditional and are never suppressed by eligibility. Relevant failure-only warnings retain their original code, text, severity, subject and location, even if another independent alternative survives. The admitted snapshot retains the candidate and metadata with explicit dispositions; derived lineage includes only eligible support/classification dependencies under rule `cratis.screenplay.method-fact-eligibility` version `1.0.0`.
+
+These are source-neutral proof contracts, not C# callback recognition. Ecosystem adapters must provide exact executable/lexical ownership and retain unproved execution as unknown rather than inventing ordinary behavior.
+
 ## Establish the analysis context in the host
 
 The workspace host owns project loading and source authority. `Cratis.Screenplay.Generation.DotNet` deliberately does not reference `MSBuildWorkspace`; an MSBuild host additionally references `Microsoft.CodeAnalysis.Workspaces.MSBuild` and `Microsoft.Build.Locator`. The host supplies a `DotNetAnalysisContext` built from its project compilations and authored source sets; adapters consume that context rather than loading the application.

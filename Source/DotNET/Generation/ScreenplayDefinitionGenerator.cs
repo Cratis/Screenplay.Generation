@@ -87,11 +87,9 @@ public sealed class ScreenplayDefinitionGenerator(
         ScreenplayGenerationOptions options)
     {
         var input = contributions.ToArray();
-        var baseFacts = input.SelectMany(contribution => contribution.Facts).ToArray();
-        var derivation = GenerationFactDerivation.Derive(new AdapterRunSnapshot
-        {
-            Facts = [.. baseFacts.Select(fact => new GenerationFactRecord { Fact = fact })]
-        });
+        var effective = EffectiveGenerationInputs.FromContributions(input);
+        var baseFacts = effective.Facts;
+        var derivation = GenerationFactDerivation.Derive(effective);
         var graph = resolver.ResolveFacts(
             baseFacts.Concat(derivation.Facts.Select(record => record.Fact)),
             input.SelectMany(contribution => contribution.Diagnostics)
@@ -154,12 +152,10 @@ public sealed class ScreenplayDefinitionGenerator(
             .ThenBy(item => Structural.Evidence(item.Fact.Evidence), StringComparer.Ordinal)
             .Select(item => item.Fact)
             .ToArray();
-        var derivation = GenerationFactDerivation.Derive(new AdapterRunSnapshot
-        {
-            Facts = [.. facts.Select(fact => new GenerationFactRecord { Fact = fact })]
-        });
+        var effective = EffectiveGenerationInputs.FromFacts(facts);
+        var derivation = GenerationFactDerivation.Derive(effective);
         var derivedFacts = derivation.Facts.Select(record => record.Fact).ToArray();
-        var effectiveFacts = facts.Concat(derivedFacts).ToArray();
+        var effectiveFacts = effective.Facts.Concat(derivedFacts).ToArray();
         var graph = resolver.ResolveFacts(
             effectiveFacts,
             completed.SelectMany(contribution => contribution.Diagnostics)
@@ -189,10 +185,16 @@ public sealed class ScreenplayDefinitionGenerator(
             .Concat(derivation.Facts)
             .ToArray();
         var factRecords = GenerationFactDispositionCalculator.Calculate(
-            inputRecords,
+            inputRecords.Where(record => !effective.Dispositions.ContainsKey(record.Fact.Id)),
             graph,
             lowering.Coverage,
-            pipelineDiagnostics);
+            pipelineDiagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic))).ToArray())
+            .Concat(inputRecords.Where(record => effective.Dispositions.ContainsKey(record.Fact.Id)).Select(record => record with
+            {
+                Disposition = effective.Dispositions[record.Fact.Id],
+                Diagnostics = [.. effective.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(record.Fact.Id))]
+            }))
+            .ToArray();
         var canonicalFactRecords = AdapterRunCanonicalizer.FactRecords(
             factRecords.Where(record => record.Lineage is null));
         var canonicalDerivation = AdapterRunCanonicalizer.Derivation(derivation with

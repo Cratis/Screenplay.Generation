@@ -7,6 +7,7 @@ namespace Cratis.Screenplay.Generation;
 
 static class GenerationFactDiscriminatorValidator
 {
+    static readonly DiscriminatorRule<MethodExecutionKind> _methodExecutionKind = new(MethodExecutionKind.Unknown, GenerationDiagnosticCodes.InvalidMethodFactEligibility);
     static readonly DiscriminatorRule<EvidenceStrength> _evidenceStrength = new(EvidenceStrength.Unknown, GenerationDiagnosticCodes.UnsupportedEvidenceStrength);
     static readonly DiscriminatorRule<ArtifactKind> _artifactKind = new(ArtifactKind.Unknown, GenerationDiagnosticCodes.UnsupportedArtifactKind);
     static readonly DiscriminatorRule<GenerationSliceKind> _sliceKind = new(GenerationSliceKind.Unknown, GenerationDiagnosticCodes.UnsupportedSliceKind);
@@ -62,6 +63,9 @@ static class GenerationFactDiscriminatorValidator
                 break;
             case ArtifactUsageDeclarationFact or EntryPointFact or MethodArtifactUsageFact:
                 ValidateUsageFamily(fact, diagnostics);
+                break;
+            case MethodExecutionClassificationFact classification:
+                Validate(fact, classification.Definition.Kind, _methodExecutionKind, diagnostics);
                 break;
             case RelationshipFact relationship:
                 Validate(fact, relationship.Definition.Key.Kind, _relationshipKind, diagnostics);

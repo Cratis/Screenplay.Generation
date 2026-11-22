@@ -103,6 +103,8 @@ static class AdapterRunCanonicalizer
         {
             Definition = usage.Definition with { Method = Subject(usage.Definition.Method), Declaration = Subject(usage.Definition.Declaration), SourceScope = Scope(usage.Definition.SourceScope), TargetScope = Scope(usage.Definition.TargetScope) }
         },
+        MethodExecutionClassificationFact classification => Classification(classification),
+        MethodFactSupportFact support => Support(support),
         RelationshipFact relationship => relationship with { Definition = Relationship(relationship.Definition) },
         _ => DomainFactDefinition(fact)
     };
@@ -116,6 +118,31 @@ static class AdapterRunCanonicalizer
         SpecificationStepFact step => step with { Definition = SpecificationStep(step.Definition) },
         SpecificationValueFact value => value with { Definition = SpecificationValue(value.Definition) },
         _ => fact
+    };
+
+    static MethodExecutionClassificationFact Classification(MethodExecutionClassificationFact fact) => fact with
+    {
+        Definition = fact.Definition with
+        {
+            Method = Subject(fact.Definition.Method),
+            Scope = Scope(fact.Definition.Scope),
+            OmissionReason = fact.Definition.OmissionReason is { } reason ? Diagnostic(reason) : null
+        }
+    };
+
+    static MethodFactSupportFact Support(MethodFactSupportFact fact) => fact with
+    {
+        Definition = fact.Definition with
+        {
+            Candidate = new FactId { Value = fact.Definition.Candidate.Value },
+            Alternatives = [.. fact.Definition.Alternatives.Select(alternative => alternative with
+            {
+                Method = Subject(alternative.Method),
+                Scope = Scope(alternative.Scope),
+                EnclosingExecutables = [.. alternative.EnclosingExecutables.Select(Subject).Distinct().OrderBy(subject => subject.Value, StringComparer.Ordinal)],
+                Diagnostics = Diagnostics(alternative.Diagnostics)
+            }).GroupBy(Structural.MethodSupport, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())]
+        }
     };
 
     static GenerationFactLineage Lineage(GenerationFactLineage lineage) => new()

@@ -19,10 +19,10 @@ public sealed class GenerationResolver
             .OrderBy(_ => _.Adapter.Id, StringComparer.Ordinal)
             .ThenBy(_ => _.Adapter.Version, StringComparer.Ordinal)
             .ToArray();
-        var contributedFacts = orderedContributions.SelectMany(_ => _.Facts).ToArray();
-        var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics);
+        var effective = EffectiveGenerationInputs.FromContributions(orderedContributions);
+        var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics).Concat(effective.Diagnostics);
 
-        return ResolveFacts(contributedFacts, diagnostics);
+        return ResolveFacts(effective.Facts, diagnostics);
     }
 
     internal ResolvedApplicationGraph ResolveFacts(

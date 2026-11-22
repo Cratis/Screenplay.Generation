@@ -34,6 +34,7 @@ internal static class GenerationFactDiscriminators
         ArtifactUsageDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
         EntryPointFact entry => Supported(entry.Definition.Artifact.Kind, ArtifactKind.Unknown),
         MethodArtifactUsageFact usage => Supported(usage.Definition.Kind, RelationshipKind.Unknown),
+        MethodExecutionClassificationFact classification => Supported(classification.Definition.Kind, MethodExecutionKind.Unknown),
         RelationshipFact relationship => Supported(relationship.Definition.Key.Kind, RelationshipKind.Unknown),
         _ => true
     };

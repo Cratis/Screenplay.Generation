@@ -15,12 +15,15 @@ public static class GenerationFactDerivation
     /// </summary>
     /// <param name="snapshot">The immutable adapter run containing the admitted base facts.</param>
     /// <returns>An immutable derivation snapshot whose rules consumed only the fixed base fact array.</returns>
-    public static GenerationDerivationSnapshot Derive(AdapterRunSnapshot snapshot)
+    public static GenerationDerivationSnapshot Derive(AdapterRunSnapshot snapshot) =>
+        Derive(EffectiveGenerationInputs.FromFacts(snapshot.Facts.Select(record => record.Fact)));
+
+    internal static GenerationDerivationSnapshot Derive(EffectiveGenerationInputs effective)
     {
-        var canonicalInput = AdapterRunCanonicalizer.FactRecords(snapshot.Facts);
+        var canonicalInput = AdapterRunCanonicalizer.FactRecords(effective.Facts.Select(fact => new GenerationFactRecord { Fact = fact }));
         var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(
             canonicalInput.Select(record => record.Fact));
-        var validationDiagnostics = discriminatorValidation.Diagnostics.ToList();
+        var validationDiagnostics = discriminatorValidation.Diagnostics.Concat(effective.Diagnostics).ToList();
         var validFacts = GranularArtifactResolver.ValidFactsForDerivation(
             discriminatorValidation.Facts,
             validationDiagnostics);
@@ -62,9 +65,10 @@ public static class GenerationFactDerivation
                     Outputs = [.. typeUseBindings.Facts.Select(record => record.Fact.Id)],
                     Diagnostics = typeUseBindings.Diagnostics
                 },
-                .. usageRules
+                .. usageRules,
+                .. MethodEligibilityLineage.Rules(effective)
             ],
-            Facts = [.. typeUseBindings.Facts, .. artifactUsages.Facts],
+            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts], effective),
             Diagnostics = diagnostics
         };
 
