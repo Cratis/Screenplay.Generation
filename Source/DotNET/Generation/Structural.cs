@@ -12,7 +12,7 @@ static class Structural
     public static string ArtifactKey(ArtifactKey key) =>
         WithScopes(Node(key.Subject.Value, Integer((int)key.Kind)), key.Scope);
 
-    public static string BackendScopeKey(BackendScopeKey key) => Node(key.Store.Value, key.EventModelName);
+    public static string BackendScopeKey(BackendScopeKey key) => Node(key.Store?.Value, key.EventModelName);
 
     public static string BackendScope(BackendScopeDefinition definition) => Node(BackendScopeKey(definition.Key), definition.Name);
 
@@ -64,8 +64,9 @@ static class Structural
 
     public static string DeclarationMember(DeclarationMemberKey member) => WithScopes(Node(member.Declaration.Value, member.Name), member.Scope);
 
-    public static string MethodSupport(MethodFactSupportAlternative alternative) =>
-        WithScopes(Node(alternative.Method.Value, Sequence(alternative.EnclosingExecutables.Select(subject => subject.Value).Distinct().Order(StringComparer.Ordinal), value => value), Sequence(alternative.Diagnostics.Select(Diagnostic).Distinct().Order(StringComparer.Ordinal), value => value)), alternative.Scope);
+    public static string MethodSupport(MethodFactSupportAlternative? alternative) => alternative is null
+        ? Node("missing-alternative")
+        : WithScopes(Node(alternative.Method?.Value, Sequence((alternative.EnclosingExecutables ?? Array.Empty<SubjectId>()).Select(subject => subject?.Value).Distinct().Order(StringComparer.Ordinal), value => value), Sequence((alternative.Diagnostics ?? Array.Empty<GenerationDiagnostic>()).Select(diagnostic => diagnostic is null ? null : Diagnostic(diagnostic)).Distinct().Order(StringComparer.Ordinal), value => value)), alternative.Scope);
 
     public static string EntryPoint(EntryPointDefinition definition) =>
         Node(definition.Method.Value, ArtifactKey(definition.Artifact));
@@ -181,7 +182,7 @@ static class Structural
             Integer((int)diagnostic.Severity),
             diagnostic.Message,
             NullableInteger(diagnostic.Outcome is null ? null : (int)diagnostic.Outcome.Value),
-            Sequence(diagnostic.Facts.OrderBy(fact => fact.Value, StringComparer.Ordinal), fact => fact.Value),
+            Sequence((diagnostic.Facts.IsDefault ? Enumerable.Empty<FactId>() : diagnostic.Facts).OrderBy(fact => fact?.Value, StringComparer.Ordinal), fact => fact?.Value),
             diagnostic.Source is null ? null : Source(diagnostic.Source),
             diagnostic.Subject?.Value);
 

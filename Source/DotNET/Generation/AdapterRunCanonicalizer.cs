@@ -147,7 +147,7 @@ static class AdapterRunCanonicalizer
 
     static DeclarationMemberKey DeclarationMember(DeclarationMemberKey member) => member with { Declaration = Subject(member.Declaration), Scope = Scope(member.Scope) };
 
-    static MethodFactSupportFact Support(MethodFactSupportFact fact) => fact.Definition is not { Candidate: not null, Alternatives: not null } ? fact : fact with
+    static MethodFactSupportFact Support(MethodFactSupportFact fact) => fact.Definition is not { Candidate: not null, Alternatives: not null } || fact.Definition.Alternatives.Any(alternative => alternative is null) ? fact : fact with
     {
         Definition = fact.Definition with
         {
