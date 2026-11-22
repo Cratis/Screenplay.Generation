@@ -60,14 +60,8 @@ static class GenerationFactDiscriminatorValidator
                 ArtifactMemberRoleFact:
                 ValidateArtifactFamily(fact, diagnostics);
                 break;
-            case ArtifactUsageDeclarationFact declaration:
-                Validate(fact, declaration.Definition.Artifact.Kind, _artifactKind, diagnostics);
-                break;
-            case EntryPointFact entry:
-                Validate(fact, entry.Definition.Artifact.Kind, _artifactKind, diagnostics);
-                break;
-            case MethodArtifactUsageFact usage:
-                Validate(fact, usage.Definition.Kind, _relationshipKind, diagnostics);
+            case ArtifactUsageDeclarationFact or EntryPointFact or MethodArtifactUsageFact:
+                ValidateUsageFamily(fact, diagnostics);
                 break;
             case RelationshipFact relationship:
                 Validate(fact, relationship.Definition.Key.Kind, _relationshipKind, diagnostics);
@@ -77,6 +71,22 @@ static class GenerationFactDiscriminatorValidator
                 break;
             case SpecificationScenarioFact or SpecificationStepFact or SpecificationValueFact:
                 ValidateSpecificationFamily(fact, diagnostics);
+                break;
+        }
+    }
+
+    static void ValidateUsageFamily(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
+        switch (fact)
+        {
+            case ArtifactUsageDeclarationFact declaration:
+                Validate(fact, declaration.Definition.Artifact.Kind, _artifactKind, diagnostics);
+                break;
+            case EntryPointFact entry:
+                Validate(fact, entry.Definition.Artifact.Kind, _artifactKind, diagnostics);
+                break;
+            case MethodArtifactUsageFact usage:
+                Validate(fact, usage.Definition.Kind, _relationshipKind, diagnostics);
                 break;
         }
     }

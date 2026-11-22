@@ -13,15 +13,13 @@ static class BackendScopeOwnershipValidator
             ArtifactDeclarationFact declaration => new Candidate(declaration.Definition.Artifact, fact),
             _ => null
         }).OfType<Candidate>().ToArray();
-        foreach (var fact in facts)
+        var references = facts.SelectMany(fact => Endpoints(fact).Select(endpoint => (Fact: fact, Endpoint: endpoint)));
+        foreach (var reference in references)
         {
-            foreach (var endpoint in Endpoints(fact))
+            if (Check(reference.Fact, reference.Endpoint, artifacts) is { } diagnostic)
             {
-                if (Check(fact, endpoint, artifacts) is { } diagnostic)
-                {
-                    rejected.Add(fact.Id);
-                    yield return diagnostic;
-                }
+                rejected.Add(reference.Fact.Id);
+                yield return diagnostic;
             }
         }
 
@@ -42,6 +40,11 @@ static class BackendScopeOwnershipValidator
         ArtifactMemberTypeUseFact use when use.Definition.Type.ObservedTypeSubject is { } subject => [new Endpoint(subject, use.Definition.Type.ObservedScope)],
         TypeUseBindingFact binding => [new Endpoint(binding.Definition.Target.Subject, binding.Definition.Target.Scope, binding.Definition.Target.Kind)],
         RelationshipFact relationship => [new Endpoint(relationship.Definition.Key.Source, relationship.Definition.Key.SourceScope), new Endpoint(relationship.Definition.Key.Target, relationship.Definition.Key.TargetScope)],
+        _ => FacetEndpoints(fact)
+    };
+
+    static IEnumerable<Endpoint> FacetEndpoints(GenerationFact fact) => fact switch
+    {
         ArtifactUsageDeclarationFact declaration => [new Endpoint(declaration.Definition.Artifact.Subject, declaration.Definition.Artifact.Scope, declaration.Definition.Artifact.Kind)],
         EntryPointFact entry => [new Endpoint(entry.Definition.Artifact.Subject, entry.Definition.Artifact.Scope, entry.Definition.Artifact.Kind)],
         SpecificationScenarioFact scenario => [new Endpoint(scenario.Definition.TargetArtifact.Subject, scenario.Definition.TargetArtifact.Scope, scenario.Definition.TargetArtifact.Kind)],

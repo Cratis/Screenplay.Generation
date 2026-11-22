@@ -54,143 +54,12 @@ static class AdapterRunCanonicalizer
             .Select(group => group.First())
     ];
 
-    public static GenerationFact Fact(GenerationFact fact)
+    public static GenerationFact Fact(GenerationFact fact) => ArtifactFactDefinition(fact) with
     {
-        var id = new FactId { Value = fact.Id.Value };
-        var subject = Subject(fact.Subject);
-        var evidence = Evidence(fact.Evidence);
-        return fact switch
-        {
-            ArtifactFact artifact => new ArtifactFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = Artifact(artifact.Definition)
-            },
-            ArtifactPlacementFact placement => new ArtifactPlacementFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Artifact = ArtifactKey(placement.Artifact),
-                Placement = Placement(placement.Placement)
-            },
-            ArtifactDeclarationFact declaration => new ArtifactDeclarationFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = ArtifactDeclaration(declaration.Definition)
-            },
-            ArtifactMemberDeclarationFact member => new ArtifactMemberDeclarationFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = ArtifactMemberDeclaration(member.Definition)
-            },
-            ArtifactMemberTypeUseFact typeUse => new ArtifactMemberTypeUseFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = ArtifactMemberTypeUse(typeUse.Definition)
-            },
-            TypeUseBindingFact binding => new TypeUseBindingFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = TypeUseBinding(binding.Definition)
-            },
-            ArtifactMemberRoleFact role => new ArtifactMemberRoleFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = ArtifactMemberRole(role.Definition)
-            },
-            BackendScopeFact scope => new BackendScopeFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = scope.Definition with { Key = Scope(scope.Definition.Key)! }
-            },
-            ArtifactUsageDeclarationFact declaration => new ArtifactUsageDeclarationFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = declaration.Definition with { Declaration = Subject(declaration.Definition.Declaration), Artifact = ArtifactKey(declaration.Definition.Artifact) }
-            },
-            EntryPointFact entry => new EntryPointFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = entry.Definition with { Method = Subject(entry.Definition.Method), Artifact = ArtifactKey(entry.Definition.Artifact) }
-            },
-            MethodArtifactUsageFact usage => new MethodArtifactUsageFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = usage.Definition with { Method = Subject(usage.Definition.Method), Declaration = Subject(usage.Definition.Declaration), SourceScope = Scope(usage.Definition.SourceScope), TargetScope = Scope(usage.Definition.TargetScope) }
-            },
-            RelationshipFact relationship => new RelationshipFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = Relationship(relationship.Definition)
-            },
-            ConceptRepresentationFact representation => new ConceptRepresentationFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = ConceptRepresentation(representation.Definition)
-            },
-            ConceptAttributeFact attribute => new ConceptAttributeFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = ConceptAttribute(attribute.Definition)
-            },
-            ConceptValidationRuleFact validation => new ConceptValidationRuleFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = ConceptValidationRule(validation.Definition)
-            },
-            SpecificationScenarioFact scenario => new SpecificationScenarioFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = SpecificationScenario(scenario.Definition)
-            },
-            SpecificationStepFact step => new SpecificationStepFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = SpecificationStep(step.Definition)
-            },
-            SpecificationValueFact value => new SpecificationValueFact
-            {
-                Id = id,
-                Subject = subject,
-                Evidence = evidence,
-                Definition = SpecificationValue(value.Definition)
-            },
-            _ => fact with { Id = id, Subject = subject, Evidence = evidence }
-        };
-    }
+        Id = new FactId { Value = fact.Id.Value },
+        Subject = Subject(fact.Subject),
+        Evidence = Evidence(fact.Evidence)
+    };
 
     public static AdapterRunRecord Adapter(AdapterRunRecord record)
     {
@@ -206,6 +75,48 @@ static class AdapterRunCanonicalizer
             Disposition = record.Disposition
         };
     }
+
+    static GenerationFact ArtifactFactDefinition(GenerationFact fact) => fact switch
+    {
+        ArtifactFact artifact => artifact with { Definition = Artifact(artifact.Definition) },
+        ArtifactPlacementFact placement => placement with { Artifact = ArtifactKey(placement.Artifact), Placement = Placement(placement.Placement) },
+        ArtifactDeclarationFact declaration => declaration with { Definition = ArtifactDeclaration(declaration.Definition) },
+        ArtifactMemberDeclarationFact member => member with { Definition = ArtifactMemberDeclaration(member.Definition) },
+        ArtifactMemberTypeUseFact typeUse => typeUse with { Definition = ArtifactMemberTypeUse(typeUse.Definition) },
+        TypeUseBindingFact binding => binding with { Definition = TypeUseBinding(binding.Definition) },
+        _ => UsageFactDefinition(fact)
+    };
+
+    static GenerationFact UsageFactDefinition(GenerationFact fact) => fact switch
+    {
+        ArtifactMemberRoleFact role => role with { Definition = ArtifactMemberRole(role.Definition) },
+        BackendScopeFact scope => scope with { Definition = scope.Definition with { Key = Scope(scope.Definition.Key)! } },
+        ArtifactUsageDeclarationFact declaration => declaration with
+        {
+            Definition = declaration.Definition with { Declaration = Subject(declaration.Definition.Declaration), Artifact = ArtifactKey(declaration.Definition.Artifact) }
+        },
+        EntryPointFact entry => entry with
+        {
+            Definition = entry.Definition with { Method = Subject(entry.Definition.Method), Artifact = ArtifactKey(entry.Definition.Artifact) }
+        },
+        MethodArtifactUsageFact usage => usage with
+        {
+            Definition = usage.Definition with { Method = Subject(usage.Definition.Method), Declaration = Subject(usage.Definition.Declaration), SourceScope = Scope(usage.Definition.SourceScope), TargetScope = Scope(usage.Definition.TargetScope) }
+        },
+        RelationshipFact relationship => relationship with { Definition = Relationship(relationship.Definition) },
+        _ => DomainFactDefinition(fact)
+    };
+
+    static GenerationFact DomainFactDefinition(GenerationFact fact) => fact switch
+    {
+        ConceptRepresentationFact representation => representation with { Definition = ConceptRepresentation(representation.Definition) },
+        ConceptAttributeFact attribute => attribute with { Definition = ConceptAttribute(attribute.Definition) },
+        ConceptValidationRuleFact validation => validation with { Definition = ConceptValidationRule(validation.Definition) },
+        SpecificationScenarioFact scenario => scenario with { Definition = SpecificationScenario(scenario.Definition) },
+        SpecificationStepFact step => step with { Definition = SpecificationStep(step.Definition) },
+        SpecificationValueFact value => value with { Definition = SpecificationValue(value.Definition) },
+        _ => fact
+    };
 
     static GenerationFactLineage Lineage(GenerationFactLineage lineage) => new()
     {

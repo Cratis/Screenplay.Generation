@@ -95,8 +95,7 @@ static class BackendScopeFactResolver
             ArtifactFact artifact => artifact.Definition.Properties.Any(property => property.Type.Scope is not null && property.Type.Subject is null),
             ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Type.ObservedScope is not null && typeUse.Definition.Type.ObservedTypeSubject is null,
             SpecificationValueFact value => value.Definition.Type is { Scope: not null, Subject: null },
-            BackendScopeFact scope => scope.Evidence.Source is null || string.IsNullOrWhiteSpace(scope.Definition.Key.Store.Value) ||
-                                      (scope.Definition.Key.EventModelName is { } name && (string.IsNullOrWhiteSpace(name) || name.Any(char.IsControl))),
+            BackendScopeFact scope => InvalidDeclaration(scope),
             _ => false
         };
     }
@@ -111,4 +110,19 @@ static class BackendScopeFactResolver
         Source = LoweringSupport.FirstSource(scope.Facts.Select(fact => fact.Evidence)),
         Facts = [.. scope.Facts.Select(fact => fact.Id).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)]
     };
+
+    static bool InvalidDeclaration(BackendScopeFact scope)
+    {
+        if (scope.Evidence.Source is null || string.IsNullOrWhiteSpace(scope.Definition.Key.Store.Value))
+        {
+            return true;
+        }
+
+        if (scope.Definition.Key.EventModelName is not { } name)
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(name) || name.Any(char.IsControl);
+    }
 }

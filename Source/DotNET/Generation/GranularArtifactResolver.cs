@@ -341,11 +341,23 @@ static class GranularArtifactResolver
         TypeReferenceDefinition type,
         ArtifactMemberTypeUseFact? typeUse,
         ArtifactKey target) =>
+        ConflictingLegacyTarget(type, target) || ConflictingObservedTarget(typeUse, target);
+
+    static bool ConflictingLegacyTarget(TypeReferenceDefinition type, ArtifactKey target) =>
         (type.Subject is not null && type.Subject != target.Subject) ||
         (type.TargetArtifactKind is not null && type.TargetArtifactKind != target.Kind) ||
-        type.Scope != target.Scope ||
-        (typeUse is not null && typeUse.Definition.Type.ObservedScope != target.Scope) ||
-        (typeUse?.Definition.Type.ObservedTypeSubject is not null && typeUse.Definition.Type.ObservedTypeSubject != target.Subject);
+        type.Scope != target.Scope;
+
+    static bool ConflictingObservedTarget(ArtifactMemberTypeUseFact? typeUse, ArtifactKey target)
+    {
+        if (typeUse is null)
+        {
+            return false;
+        }
+
+        return typeUse.Definition.Type.ObservedScope != target.Scope ||
+               (typeUse.Definition.Type.ObservedTypeSubject is not null && typeUse.Definition.Type.ObservedTypeSubject != target.Subject);
+    }
 
     static bool TryIdentifierRole(MemberContext member, out bool isIdentifier)
     {

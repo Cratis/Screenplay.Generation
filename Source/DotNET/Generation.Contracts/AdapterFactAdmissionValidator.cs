@@ -33,6 +33,16 @@ static class AdapterFactAdmissionValidator
             case ArtifactMemberRoleFact role:
                 GranularFactAdmissionValidator.Validate(role, path, context);
                 break;
+            default:
+                ValidateDomainFamily(fact, path, context);
+                break;
+        }
+    }
+
+    static void ValidateDomainFamily(GenerationFact fact, string path, AdapterContributionAdmissionContext context)
+    {
+        switch (fact)
+        {
             case BackendScopeFact scope:
                 BackendScopeFactAdmissionValidator.Validate(scope, path, context);
                 break;
@@ -40,8 +50,8 @@ static class AdapterFactAdmissionValidator
                 ArtifactUsageAdmissionValidator.Validate(fact, path, context);
                 break;
             case RelationshipFact relationship:
-                BackendScopeFactAdmissionValidator.ValidateKey(relationship.Definition.Key.SourceScope, $"{path}.Definition.Key.SourceScope", fact.Id, fact.Subject, context);
-                BackendScopeFactAdmissionValidator.ValidateKey(relationship.Definition.Key.TargetScope, $"{path}.Definition.Key.TargetScope", fact.Id, fact.Subject, context);
+                BackendScopeFactAdmissionValidator.ValidateKey(relationship.Definition.Key.SourceScope, $"{path}.Definition.Key.SourceScope", (fact.Id, fact.Subject), context);
+                BackendScopeFactAdmissionValidator.ValidateKey(relationship.Definition.Key.TargetScope, $"{path}.Definition.Key.TargetScope", (fact.Id, fact.Subject), context);
                 RelationshipFactAdmissionValidator.Validate(relationship, path, context);
                 break;
             case ConceptRepresentationFact representation:
@@ -53,6 +63,16 @@ static class AdapterFactAdmissionValidator
             case ConceptValidationRuleFact validation:
                 ConceptFactAdmissionValidator.Validate(validation, path, context);
                 break;
+            default:
+                ValidateSpecificationFamily(fact, path, context);
+                break;
+        }
+    }
+
+    static void ValidateSpecificationFamily(GenerationFact fact, string path, AdapterContributionAdmissionContext context)
+    {
+        switch (fact)
+        {
             case SpecificationScenarioFact scenario:
                 SpecificationFactAdmissionValidator.Validate(scenario, path, context);
                 break;

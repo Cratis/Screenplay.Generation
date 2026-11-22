@@ -17,14 +17,7 @@ internal static class GenerationFactDescription
         ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact.Subject,
         TypeUseBindingFact binding => binding.Definition.Member.Artifact.Subject,
         ArtifactMemberRoleFact role => role.Definition.Member.Artifact.Subject,
-        RelationshipFact relationship => relationship.Definition.Key.Source,
-        ConceptRepresentationFact representation => representation.Definition.Concept,
-        ConceptAttributeFact attribute => attribute.Definition.Concept,
-        ConceptValidationRuleFact validation => validation.Definition.Concept,
-        SpecificationScenarioFact scenario => scenario.Definition.Key.Scenario,
-        SpecificationStepFact step => step.Definition.Key.Scenario.Scenario,
-        SpecificationValueFact value => value.Definition.Key.Step.Scenario.Scenario,
-        _ => fact.Subject
+        _ => DomainSubject(fact)
     };
 
     public static string Family(GenerationFact fact) => fact switch
@@ -36,11 +29,33 @@ internal static class GenerationFactDescription
         ArtifactMemberTypeUseFact => "artifact member type use",
         TypeUseBindingFact => "type-use binding",
         ArtifactMemberRoleFact => "artifact member role",
+        _ => UsageFamily(fact)
+    };
+
+    static SubjectId DomainSubject(GenerationFact fact) => fact switch
+    {
+        RelationshipFact relationship => relationship.Definition.Key.Source,
+        ConceptRepresentationFact representation => representation.Definition.Concept,
+        ConceptAttributeFact attribute => attribute.Definition.Concept,
+        ConceptValidationRuleFact validation => validation.Definition.Concept,
+        SpecificationScenarioFact scenario => scenario.Definition.Key.Scenario,
+        SpecificationStepFact step => step.Definition.Key.Scenario.Scenario,
+        SpecificationValueFact value => value.Definition.Key.Step.Scenario.Scenario,
+        _ => fact.Subject
+    };
+
+    static string UsageFamily(GenerationFact fact) => fact switch
+    {
         BackendScopeFact => "backend scope",
         ArtifactUsageDeclarationFact => "artifact usage declaration",
         MethodArtifactUsageFact => "method artifact usage",
         EntryPointFact => "entry point",
         RelationshipFact => "relationship",
+        _ => DomainFamily(fact)
+    };
+
+    static string DomainFamily(GenerationFact fact) => fact switch
+    {
         ConceptRepresentationFact => "concept representation",
         ConceptAttributeFact => "concept attribute",
         ConceptValidationRuleFact => "concept validation rule",

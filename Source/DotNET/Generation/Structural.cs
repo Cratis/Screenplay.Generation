@@ -149,20 +149,7 @@ static class Structural
         ArtifactPlacementFact placement => Node("placement", ArtifactKey(placement.Artifact), Placement(placement.Placement)),
         ArtifactDeclarationFact declaration => Node("artifact-declaration", ArtifactDeclaration(declaration.Definition)),
         ArtifactMemberDeclarationFact member => Node("artifact-member-declaration", ArtifactMemberDeclaration(member.Definition)),
-        ArtifactMemberTypeUseFact typeUse => Node("artifact-member-type-use", ArtifactMemberTypeUse(typeUse.Definition)),
-        TypeUseBindingFact binding => Node("type-use-binding", TypeUseBinding(binding.Definition)),
-        ArtifactMemberRoleFact role => Node("artifact-member-role", ArtifactMemberRole(role.Definition)),
-        ArtifactUsageDeclarationFact declaration => Node("artifact-usage-declaration", ArtifactUsageDeclaration(declaration.Definition)),
-        MethodArtifactUsageFact usage => Node("method-artifact-usage", MethodArtifactUsage(usage.Definition)),
-        EntryPointFact entry => Node("entry-point", EntryPoint(entry.Definition)),
-        RelationshipFact relationship => Node("relationship", Relationship(relationship.Definition)),
-        ConceptRepresentationFact representation => Node("concept-representation", ConceptRepresentation(representation.Definition)),
-        ConceptAttributeFact attribute => Node("concept-attribute", ConceptAttribute(attribute.Definition)),
-        ConceptValidationRuleFact validation => Node("concept-validation-rule", ConceptValidationRule(validation.Definition)),
-        SpecificationScenarioFact scenario => Node("specification-scenario", SpecificationScenario(scenario.Definition)),
-        SpecificationStepFact step => Node("specification-step", SpecificationStep(step.Definition)),
-        SpecificationValueFact value => Node("specification-value", SpecificationValue(value.Definition)),
-        _ => Node("unknown", fact.GetType().FullName ?? fact.GetType().Name)
+        _ => GranularFactDefinition(fact)
     };
 
     public static string Fact(GenerationFact fact) =>
@@ -234,19 +221,57 @@ static class Structural
         ConceptRepresentationFact => (int)GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => (int)GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => (int)GenerationFactCapability.ConceptValidationRule,
+        _ => SpecificationFamily(fact)
+    };
+
+    static int SpecificationFamily(GenerationFact fact) => fact switch
+    {
         SpecificationScenarioFact => (int)GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => (int)GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => (int)GenerationFactCapability.SpecificationValue,
+        _ => GranularFamily(fact)
+    };
+
+    static int GranularFamily(GenerationFact fact) => fact switch
+    {
         ArtifactDeclarationFact => (int)GenerationFactCapability.ArtifactDeclaration,
         ArtifactMemberDeclarationFact => (int)GenerationFactCapability.ArtifactMemberDeclaration,
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
+        _ => UsageFamily(fact)
+    };
+
+    static int UsageFamily(GenerationFact fact) => fact switch
+    {
         ArtifactUsageDeclarationFact => (int)GenerationFactCapability.ArtifactUsageDeclaration,
         MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => (int)GenerationFactCapability.EntryPoint,
         BackendScopeFact => (int)GenerationFactCapability.BackendScope,
         _ => int.MaxValue
+    };
+
+    static string GranularFactDefinition(GenerationFact fact) => fact switch
+    {
+        ArtifactMemberTypeUseFact typeUse => Node("artifact-member-type-use", ArtifactMemberTypeUse(typeUse.Definition)),
+        TypeUseBindingFact binding => Node("type-use-binding", TypeUseBinding(binding.Definition)),
+        ArtifactMemberRoleFact role => Node("artifact-member-role", ArtifactMemberRole(role.Definition)),
+        ArtifactUsageDeclarationFact declaration => Node("artifact-usage-declaration", ArtifactUsageDeclaration(declaration.Definition)),
+        MethodArtifactUsageFact usage => Node("method-artifact-usage", MethodArtifactUsage(usage.Definition)),
+        EntryPointFact entry => Node("entry-point", EntryPoint(entry.Definition)),
+        _ => DomainFactDefinition(fact)
+    };
+
+    static string DomainFactDefinition(GenerationFact fact) => fact switch
+    {
+        RelationshipFact relationship => Node("relationship", Relationship(relationship.Definition)),
+        ConceptRepresentationFact representation => Node("concept-representation", ConceptRepresentation(representation.Definition)),
+        ConceptAttributeFact attribute => Node("concept-attribute", ConceptAttribute(attribute.Definition)),
+        ConceptValidationRuleFact validation => Node("concept-validation-rule", ConceptValidationRule(validation.Definition)),
+        SpecificationScenarioFact scenario => Node("specification-scenario", SpecificationScenario(scenario.Definition)),
+        SpecificationStepFact step => Node("specification-step", SpecificationStep(step.Definition)),
+        SpecificationValueFact value => Node("specification-value", SpecificationValue(value.Definition)),
+        _ => Node("unknown", fact.GetType().FullName ?? fact.GetType().Name)
     };
 
     static string Property(PropertyDefinition property) =>

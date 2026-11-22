@@ -16,6 +16,11 @@ static class BackendScopeFactReferences
         ArtifactFact artifact => artifact.Definition.Key,
         ArtifactDeclarationFact declaration => declaration.Definition.Artifact,
         ArtifactPlacementFact placement => placement.Artifact,
+        _ => MemberOwner(fact)
+    };
+
+    static ArtifactKey? MemberOwner(GenerationFact fact) => fact switch
+    {
         ArtifactMemberDeclarationFact member => member.Definition.Member.Artifact,
         ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact,
         TypeUseBindingFact binding => binding.Definition.Member.Artifact,
@@ -30,6 +35,11 @@ static class BackendScopeFactReferences
         ArtifactMemberTypeUseFact typeUse => [typeUse.Definition.Member.Artifact.Scope, typeUse.Definition.Type.ObservedScope],
         TypeUseBindingFact binding => [binding.Definition.Member.Artifact.Scope, binding.Definition.Target.Scope],
         RelationshipFact relationship => [relationship.Definition.Key.SourceScope, relationship.Definition.Key.TargetScope],
+        _ => UsageScopes(fact)
+    };
+
+    static IEnumerable<BackendScopeKey?> UsageScopes(GenerationFact fact) => fact switch
+    {
         ArtifactUsageDeclarationFact declaration => [declaration.Definition.Artifact.Scope],
         EntryPointFact entry => [entry.Definition.Artifact.Scope],
         MethodArtifactUsageFact usage => [usage.Definition.SourceScope, usage.Definition.TargetScope],

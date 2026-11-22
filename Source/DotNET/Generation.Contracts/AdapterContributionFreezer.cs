@@ -264,6 +264,14 @@ static class AdapterContributionFreezer
                 Evidence = envelope.Evidence,
                 Definition = FreezeValue(value.Definition, $"{envelope.Path}.Definition", context)
             },
+            _ => FreezeUsageFact(fact, envelope, context)
+        };
+
+    static GenerationFact? FreezeUsageFact(
+        GenerationFact fact,
+        FactEnvelope envelope,
+        AdapterContributionAdmissionContext context) => fact switch
+        {
             BackendScopeFact scope => new BackendScopeFact
             {
                 Id = envelope.Id,
@@ -946,14 +954,29 @@ static class AdapterContributionFreezer
         ConceptRepresentationFact => (int)GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => (int)GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => (int)GenerationFactCapability.ConceptValidationRule,
+        _ => SpecificationFamily(fact)
+    };
+
+    static int SpecificationFamily(GenerationFact fact) => fact switch
+    {
         SpecificationScenarioFact => (int)GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => (int)GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => (int)GenerationFactCapability.SpecificationValue,
+        _ => GranularFamily(fact)
+    };
+
+    static int GranularFamily(GenerationFact fact) => fact switch
+    {
         ArtifactDeclarationFact => (int)GenerationFactCapability.ArtifactDeclaration,
         ArtifactMemberDeclarationFact => (int)GenerationFactCapability.ArtifactMemberDeclaration,
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
+        _ => UsageFamily(fact)
+    };
+
+    static int UsageFamily(GenerationFact fact) => fact switch
+    {
         ArtifactUsageDeclarationFact => (int)GenerationFactCapability.ArtifactUsageDeclaration,
         MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => (int)GenerationFactCapability.EntryPoint,

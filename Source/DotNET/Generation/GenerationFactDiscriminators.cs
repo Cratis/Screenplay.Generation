@@ -8,36 +8,35 @@ namespace Cratis.Screenplay.Generation;
 /// </summary>
 internal static class GenerationFactDiscriminators
 {
-    public static bool AreSupported(GenerationFact fact)
-    {
-        if (!Supported(fact.Evidence.Strength, EvidenceStrength.Unknown))
-        {
-            return false;
-        }
+    public static bool AreSupported(GenerationFact fact) =>
+        Supported(fact.Evidence.Strength, EvidenceStrength.Unknown) && FamilySupported(fact);
 
-        return fact switch
-        {
-            BackendScopeFact => true,
-            ArtifactFact or
-            ArtifactPlacementFact or
-            ArtifactDeclarationFact or
-            ArtifactMemberDeclarationFact or
-            ArtifactMemberTypeUseFact or
-            TypeUseBindingFact or
-            ArtifactMemberRoleFact => ArtifactFamilySupported(fact),
-            ArtifactUsageDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
-            EntryPointFact entry => Supported(entry.Definition.Artifact.Kind, ArtifactKind.Unknown),
-            MethodArtifactUsageFact usage => Supported(usage.Definition.Kind, RelationshipKind.Unknown),
-            RelationshipFact relationship => Supported(relationship.Definition.Key.Kind, RelationshipKind.Unknown),
-            ConceptRepresentationFact or
-            ConceptAttributeFact or
-            ConceptValidationRuleFact => ConceptFamilySupported(fact),
-            SpecificationScenarioFact or
-            SpecificationStepFact or
-            SpecificationValueFact => SpecificationFamilySupported(fact),
-            _ => true
-        };
-    }
+    static bool FamilySupported(GenerationFact fact) => fact switch
+    {
+        ArtifactFact or
+        ArtifactPlacementFact or
+        ArtifactDeclarationFact or
+        ArtifactMemberDeclarationFact or
+        ArtifactMemberTypeUseFact or
+        TypeUseBindingFact or
+        ArtifactMemberRoleFact => ArtifactFamilySupported(fact),
+        ConceptRepresentationFact or
+        ConceptAttributeFact or
+        ConceptValidationRuleFact => ConceptFamilySupported(fact),
+        SpecificationScenarioFact or
+        SpecificationStepFact or
+        SpecificationValueFact => SpecificationFamilySupported(fact),
+        _ => UsageFamilySupported(fact)
+    };
+
+    static bool UsageFamilySupported(GenerationFact fact) => fact switch
+    {
+        ArtifactUsageDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
+        EntryPointFact entry => Supported(entry.Definition.Artifact.Kind, ArtifactKind.Unknown),
+        MethodArtifactUsageFact usage => Supported(usage.Definition.Kind, RelationshipKind.Unknown),
+        RelationshipFact relationship => Supported(relationship.Definition.Key.Kind, RelationshipKind.Unknown),
+        _ => true
+    };
 
     static bool ArtifactFamilySupported(GenerationFact fact) => fact switch
     {
@@ -46,6 +45,11 @@ internal static class GenerationFactDiscriminators
             Supported(placement.Artifact.Kind, ArtifactKind.Unknown) &&
             Supported(placement.Placement.SliceKind, GenerationSliceKind.Unknown),
         ArtifactDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
+        _ => MemberFamilySupported(fact)
+    };
+
+    static bool MemberFamilySupported(GenerationFact fact) => fact switch
+    {
         ArtifactMemberDeclarationFact member => Supported(member.Definition.Member.Artifact.Kind, ArtifactKind.Unknown),
         ArtifactMemberTypeUseFact typeUse =>
             Supported(typeUse.Definition.Member.Artifact.Kind, ArtifactKind.Unknown) &&

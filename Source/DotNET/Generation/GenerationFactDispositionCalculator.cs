@@ -71,20 +71,20 @@ internal static class GenerationFactDispositionCalculator
             return Conflicted(fact, context);
         }
 
-        if (fact is BackendScopeFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
-        {
-            var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context));
-            if (diagnostics.Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict))
-            {
-                return new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.Conflicted, Diagnostics = diagnostics };
-            }
+        return NeutralDisposition(fact, context) ?? GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+    }
 
-            return diagnostics.Any(diagnostic => diagnostic.Code != GenerationDiagnosticCodes.BackendScopeNotSupported && diagnostic.Outcome is GenerationDiagnosticOutcome.Unknown or GenerationDiagnosticOutcome.Unsupported)
-                ? Omitted(fact, context)
-                : new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.ProvenanceOnly, Diagnostics = diagnostics };
+    static GenerationFactRecord? NeutralDisposition(GenerationFact fact, CalculationContext context)
+    {
+        if (fact is not (BackendScopeFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact))
+        {
+            return null;
         }
 
-        return GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+        var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context));
+        return diagnostics.Any(diagnostic => diagnostic.Code != GenerationDiagnosticCodes.BackendScopeNotSupported && diagnostic.Outcome is GenerationDiagnosticOutcome.Unknown or GenerationDiagnosticOutcome.Unsupported)
+            ? Omitted(fact, context)
+            : new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.ProvenanceOnly, Diagnostics = diagnostics };
     }
 
     static bool IsConflicted(GenerationFact fact, CalculationContext context) =>
@@ -232,13 +232,23 @@ internal static class GenerationFactDispositionCalculator
             }
         }
 
-        foreach (var diagnostic in context.Diagnostics.Where(diagnostic =>
-                     diagnostic.Outcome is not null && diagnostic.Facts.Any(link => link == fact.Id) &&
-                     (diagnostic.Code is not (GenerationDiagnosticCodes.UnknownBackendScope or GenerationDiagnosticCodes.AmbiguousBackendScopeOwnership) ||
-                      !context.ValidScopeFacts.Contains(fact.Id))))
+        foreach (var diagnostic in context.Diagnostics
+                     .Where(diagnostic => diagnostic.Outcome is not null)
+                     .Where(diagnostic => diagnostic.Facts.Any(link => link == fact.Id))
+                     .Where(diagnostic => ScopeDiagnosticApplies(fact, diagnostic, context)))
         {
             yield return diagnostic;
         }
+    }
+
+    static bool ScopeDiagnosticApplies(GenerationFact fact, GenerationDiagnostic diagnostic, CalculationContext context)
+    {
+        if (diagnostic.Code is GenerationDiagnosticCodes.UnknownBackendScope or GenerationDiagnosticCodes.AmbiguousBackendScopeOwnership)
+        {
+            return !context.ValidScopeFacts.Contains(fact.Id);
+        }
+
+        return true;
     }
 
     static GenerationFactRecord? GranularDisposition(GenerationFact fact, CalculationContext context)
