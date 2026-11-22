@@ -607,6 +607,11 @@ static class AdapterContributionAdmissionValidator
         ArtifactFact => GenerationFactCapability.Artifact,
         ArtifactPlacementFact => GenerationFactCapability.ArtifactPlacement,
         RelationshipFact => GenerationFactCapability.Relationship,
+        _ => ConceptCapability(fact)
+    };
+
+    static GenerationFactCapability ConceptCapability(GenerationFact fact) => fact switch
+    {
         ConceptRepresentationFact => GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => GenerationFactCapability.ConceptValidationRule,

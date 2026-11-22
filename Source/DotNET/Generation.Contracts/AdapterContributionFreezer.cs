@@ -984,6 +984,11 @@ static class AdapterContributionFreezer
         ArtifactFact => (int)GenerationFactCapability.Artifact,
         ArtifactPlacementFact => (int)GenerationFactCapability.ArtifactPlacement,
         RelationshipFact => (int)GenerationFactCapability.Relationship,
+        _ => ConceptFamily(fact)
+    };
+
+    static int ConceptFamily(GenerationFact fact) => fact switch
+    {
         ConceptRepresentationFact => (int)GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => (int)GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => (int)GenerationFactCapability.ConceptValidationRule,
