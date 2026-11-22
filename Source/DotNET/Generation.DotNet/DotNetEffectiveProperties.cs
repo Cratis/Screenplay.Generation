@@ -7,8 +7,20 @@ namespace Cratis.Screenplay.Generation.DotNet;
 
 static class DotNetEffectiveProperties
 {
-    public static IReadOnlyList<IPropertySymbol> Of(INamedTypeSymbol type, DotNetAnalysisContext context, DotNetMemberSurfaceScope scope)
+    public static IReadOnlyList<IPropertySymbol> Of(INamedTypeSymbol type, DotNetAnalysisContext context, DotNetMemberSurfaceScope scope) =>
+        Of(type, context, DotNetMemberOriginPolicy.AuthoredOnly, scope);
+
+    public static IReadOnlyList<IPropertySymbol> Of(
+        INamedTypeSymbol type,
+        DotNetAnalysisContext context,
+        DotNetMemberOriginPolicy originPolicy,
+        DotNetMemberSurfaceScope scope)
     {
+        if (originPolicy is not (DotNetMemberOriginPolicy.AuthoredOnly or DotNetMemberOriginPolicy.AllOrigins))
+        {
+            throw new ArgumentOutOfRangeException(nameof(originPolicy), originPolicy, "The member origin policy is not defined.");
+        }
+
         if (scope == DotNetMemberSurfaceScope.Declared)
         {
             return DotNetTypeShapes.PublicReadablePropertiesOf(type);
@@ -23,7 +35,8 @@ static class DotNetEffectiveProperties
         var properties = new List<IPropertySymbol>();
         for (var current = type; current is not null && current.SpecialType != SpecialType.System_Object; current = current.BaseType)
         {
-            properties.AddRange(DotNetTypeShapes.PublicReadablePropertiesOf(current).Where(property => IsAuthored(property, context) && names.Add(property.Name)));
+            properties.AddRange(DotNetTypeShapes.PublicReadablePropertiesOf(current).Where(property =>
+                (originPolicy == DotNetMemberOriginPolicy.AllOrigins || IsAuthored(property, context)) && names.Add(property.Name)));
         }
 
         return properties;

@@ -47,6 +47,28 @@ public static class DotNetTypeUseFacts
         Func<IPropertySymbol, ArtifactMemberRoleKind?>? roleFor = null) =>
         EmitProperties(DotNetEffectiveProperties.Of(type, context, scope), artifact, context, evidence, roleFor);
 
+    /// <summary>
+    /// Emits granular facts with an explicit inherited-member origin policy without changing artifact admission or source authority.
+    /// </summary>
+    /// <param name="type">The nominated type whose artifact owns every emitted member.</param>
+    /// <param name="artifact">The artifact role that owns the members.</param>
+    /// <param name="context">The analyzed projects establishing authored origin and exact type subjects.</param>
+    /// <param name="evidence">The caller's evidence retained on all emitted facts.</param>
+    /// <param name="originPolicy">The eligible inherited property origins; declared mode is unchanged.</param>
+    /// <param name="scope">The property surface to select.</param>
+    /// <param name="roleFor">An optional semantic role rule applied only to retained properties.</param>
+    /// <returns>The member facts in contiguous derived-first declaration order.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The origin policy or scope is undefined.</exception>
+    public static IReadOnlyList<GenerationFact> EmitWithSurface(
+        INamedTypeSymbol type,
+        ArtifactKey artifact,
+        DotNetAnalysisContext context,
+        Evidence evidence,
+        DotNetMemberOriginPolicy originPolicy,
+        DotNetMemberSurfaceScope scope,
+        Func<IPropertySymbol, ArtifactMemberRoleKind?>? roleFor = null) =>
+        EmitProperties(DotNetEffectiveProperties.Of(type, context, originPolicy, scope), artifact, context, evidence, roleFor);
+
     static List<GenerationFact> EmitProperties(
         IReadOnlyList<IPropertySymbol> properties,
         ArtifactKey artifact,

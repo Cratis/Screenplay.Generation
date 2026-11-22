@@ -479,7 +479,24 @@ These neutral facets are provenance, not fictitious Screenplay syntax. The resul
 
 Existing `DotNetTypeShapes.PropertiesOf` and `DotNetTypeUseFacts.Emit` calls remain declared-only. For an effective surface, pair `DotNetTypeShapes.PropertiesOf(type, context, DotNetMemberSurfaceScope.Inherited)` with `DotNetTypeUseFacts.EmitWithSurface(type, artifact, context, evidence, DotNetMemberSurfaceScope.Inherited)`. Pairing preserves the legacy/granular member order; mismatched surfaces can produce GEN0050 and omit the artifact. The distinct emission method name keeps existing calls with a default role argument source-compatible.
 
-Inherited mode walks base classes, not interfaces, derived-first. Only public readable instance non-indexer properties proven to originate in analyzed authored syntax trees are eligible; generated, non-authored, and metadata-only bases contribute no members. Constructed generic types retain substitutions. The most-derived eligible raw CLR name wins, so a private getter does not hide an eligible base property. Distinct raw names that normalize to the same member remain separate assertions for existing conflict handling. All facts use the requested artifact and caller evidence; retained properties alone receive roles and contiguous ordinals. Undefined scopes are rejected.
+Inherited mode walks base classes, not interfaces, derived-first. By default, only public readable instance non-indexer properties proven to originate in analyzed authored syntax trees are eligible; generated, non-authored, and metadata-only bases contribute no members. Constructed generic types retain substitutions. The most-derived eligible raw CLR name wins, so a private getter does not hide an eligible base property. Distinct raw names that normalize to the same member remain separate assertions for existing conflict handling. All facts use the requested artifact and caller evidence; retained properties alone receive roles and contiguous ordinals. Undefined scopes are rejected.
+
+An adapter whose framework also discovers properties from metadata, non-authored, or generated bases can explicitly select `DotNetMemberOriginPolicy.AllOrigins`:
+
+```csharp
+var properties = DotNetTypeShapes.PropertiesOf(
+    type, context,
+    DotNetMemberOriginPolicy.AllOrigins,
+    DotNetMemberSurfaceScope.Inherited);
+
+var facts = DotNetTypeUseFacts.EmitWithSurface(
+    type, artifact, context, evidence,
+    DotNetMemberOriginPolicy.AllOrigins,
+    DotNetMemberSurfaceScope.Inherited,
+    property => property.Name == "Id" ? ArtifactMemberRoleKind.Identifier : null);
+```
+
+Use a role callback only when source-framework semantics establish the role, not merely because a property is named `Id`. `AuthoredOnly` is the default and preserves the existing output. Both policies use identical generic substitution, shadowing, ordering, fact identity, and caller provenance rules; metadata properties without source locations sort by name. `System.Object` contributes no properties, and the protected record `EqualityContract` is never selected. The policy does not affect declared mode, artifact admission, the host's authored-tree set, or source authority. Including a base property does not authorize nominating that base as an artifact or using its generated or metadata declaration as authored evidence. The policy precedes the scope in the new overloads to keep existing default-literal role calls unambiguous. Undefined policies and scopes are rejected.
 
 ### Preserve enumeration numbers
 

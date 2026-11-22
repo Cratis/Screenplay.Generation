@@ -14,7 +14,7 @@ public enum DotNetMemberSurfaceScope
     Declared = 0,
 
     /// <summary>
-    /// Selects authored properties derived-first through the base-class chain, excluding interfaces and metadata-only declarations.
+    /// Selects properties derived-first through the base-class chain, excluding interfaces and, by default, non-authored declarations.
     /// </summary>
     Inherited = 1
 }
