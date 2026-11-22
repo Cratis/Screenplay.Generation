@@ -7,7 +7,7 @@ public class when_method_eligibility_capability_is_not_declared : given.method_e
 {
     AdapterContributionAdmissionResult _result;
 
-    void Because() => _result = Admit(descriptor: Descriptor(GenerationFactCapability.MethodArtifactUsage), contribution: Contribution(Usage(), Support()));
+    void Because() => _result = Admit(descriptor: Descriptor(GenerationFactCapability.MethodArtifactUsage), contribution: Contribution([Usage(), Support()]));
 
     [Fact] void should_reject_the_undeclared_fact_family() => _result.IsAdmitted.ShouldBeFalse();
 }

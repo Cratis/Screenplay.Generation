@@ -80,7 +80,7 @@ public class method_facts : for_GenerationFactDerivation.given.an_artifact_usage
 
     protected static AdapterContribution[] Contributions(params GenerationFact[] controls) =>
     [
-        new() { Adapter = ApplicationAdapter, Facts = CompleteFacts().Where(fact => fact.Evidence.Adapter == ApplicationAdapter).ToArray() },
+        new() { Adapter = ApplicationAdapter, Facts = [.. CompleteFacts().Where(fact => fact.Evidence.Adapter == ApplicationAdapter)] },
         new() { Adapter = ConceptAdapter, Facts = [.. CompleteFacts().Where(fact => fact.Evidence.Adapter == ConceptAdapter), .. controls.OfType<MethodFactSupportFact>()] },
         new() { Adapter = new AdapterIdentity { Id = "frontend", Version = "1.0.0" }, Facts = [.. controls.OfType<MethodExecutionClassificationFact>()] }
     ];

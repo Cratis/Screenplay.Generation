@@ -13,6 +13,6 @@ public class when_preserving_a_wrapped_named_input_type : given.input_members
         _result = Derive([.. InputFacts().Where(fact => fact is not DeclarationInputMemberTypeUseFact), SurfaceType(type: type)]);
     }
 
-    [Fact] void should_preserve_wrapper_order() => _result.Facts.Select(record => record.Fact).OfType<ArtifactMemberTypeUseFact>().Single().Definition.Type.Shape.ShouldEqual(new[] { TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named });
+    [Fact] void should_preserve_wrapper_order() => _result.Facts.Select(record => record.Fact).OfType<ArtifactMemberTypeUseFact>().Single().Definition.Type.Shape.ShouldEqual<TypeUseShapeKind>([TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named]);
     [Fact] void should_bind_the_exact_named_target_without_rule_chaining() => _result.Facts.Select(record => record.Fact).OfType<TypeUseBindingFact>().Single().Definition.Target.Subject.ShouldEqual(Document.Subject);
 }

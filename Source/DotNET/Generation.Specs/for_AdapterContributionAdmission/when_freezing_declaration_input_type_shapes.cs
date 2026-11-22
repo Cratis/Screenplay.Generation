@@ -17,5 +17,5 @@ public class when_freezing_declaration_input_type_shapes : given.declaration_inp
     }
 
     [Fact] void should_admit_independent_declaration_surface_capabilities() => _result.IsAdmitted.ShouldBeTrue();
-    [Fact] void should_freeze_full_wrapper_order() => _result.Snapshot.Facts.OfType<DeclarationInputMemberTypeUseFact>().Single().Definition.Type.Shape.ShouldEqual(new[] { TypeUseShapeKind.Collection, TypeUseShapeKind.Optional, TypeUseShapeKind.Named });
+    [Fact] void should_freeze_full_wrapper_order() => _result.Snapshot.Facts.OfType<DeclarationInputMemberTypeUseFact>().Single().Definition.Type.Shape.ShouldEqual<TypeUseShapeKind>([TypeUseShapeKind.Collection, TypeUseShapeKind.Optional, TypeUseShapeKind.Named]);
 }

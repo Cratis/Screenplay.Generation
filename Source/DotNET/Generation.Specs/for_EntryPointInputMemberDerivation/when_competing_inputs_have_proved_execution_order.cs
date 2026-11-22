@@ -16,5 +16,5 @@ public class when_competing_inputs_have_proved_execution_order : given.input_mem
     }
 
     [Fact] void should_transfer_the_earliest_execution_not_the_lexical_fact_id() => _result.Facts.Select(record => record.Fact).OfType<ArtifactMemberTypeUseFact>().Single().Definition.Type.Name.ShouldEqual("int");
-    [Fact] void should_transfer_a_name_once() => Members(_result).Count().ShouldEqual(1);
+    [Fact] void should_transfer_a_name_once() => Members(_result).Length.ShouldEqual(1);
 }
