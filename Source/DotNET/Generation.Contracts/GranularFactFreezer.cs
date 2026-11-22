@@ -95,7 +95,8 @@ static class GranularFactFreezer
         return new ArtifactKey
         {
             Subject = FreezeSubject(key.Subject, $"{path}.Subject", context),
-            Kind = key.Kind
+            Kind = key.Kind,
+            Scope = BackendScopeFreezer.Key(key.Scope, $"{path}.Scope", context)
         };
     }
 
@@ -264,7 +265,8 @@ static class GranularFactFreezer
             ObservedTypeSubject = type.ObservedTypeSubject is null
                 ? null
                 : FreezeSubject(type.ObservedTypeSubject, $"{path}.ObservedTypeSubject", context),
-            Shape = FreezeShape(type.Shape, $"{path}.Shape", context)
+            Shape = FreezeShape(type.Shape, $"{path}.Shape", context),
+            ObservedScope = BackendScopeFreezer.Key(type.ObservedScope, $"{path}.ObservedScope", context)
         };
     }
 

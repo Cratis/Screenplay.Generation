@@ -32,7 +32,9 @@ static class ArtifactUsageFreezer
         {
             Method = GranularFactFreezer.FreezeSubject(definition?.Method, $"{path}.Method", context),
             Declaration = GranularFactFreezer.FreezeSubject(definition?.Declaration, $"{path}.Declaration", context),
-            Kind = definition?.Kind ?? RelationshipKind.Unknown
+            Kind = definition?.Kind ?? RelationshipKind.Unknown,
+            SourceScope = BackendScopeFreezer.Key(definition?.SourceScope, $"{path}.SourceScope", context),
+            TargetScope = BackendScopeFreezer.Key(definition?.TargetScope, $"{path}.TargetScope", context)
         };
     }
 

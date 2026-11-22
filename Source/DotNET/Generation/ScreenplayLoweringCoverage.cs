@@ -9,6 +9,7 @@ internal static class GenerationFactSemanticKey
 {
     public static string? For(GenerationFact fact) => fact switch
     {
+        BackendScopeFact scope => Structural.SemanticKey("backend-scope", Structural.BackendScope(scope.Definition)),
         ArtifactFact artifact => Artifact(artifact.Definition),
         ArtifactPlacementFact placement => Placement(placement.Artifact, placement.Placement),
         ArtifactDeclarationFact declaration => ArtifactDeclaration(declaration.Definition),

@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Text.Json.Serialization;
+
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>
@@ -37,6 +39,14 @@ public sealed record MethodArtifactUsageDefinition
 
     /// <summary>Gets the proved relationship role. The built-in join supports Reads only.</summary>
     public required RelationshipKind Kind { get; init; }
+
+    /// <summary>Gets the exact entry-point occurrence selector; null selects an unscoped occurrence.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BackendScopeKey? SourceScope { get; init; }
+
+    /// <summary>Gets the exact declaration target occurrence selector, independently of the source.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BackendScopeKey? TargetScope { get; init; }
 }
 
 /// <summary>

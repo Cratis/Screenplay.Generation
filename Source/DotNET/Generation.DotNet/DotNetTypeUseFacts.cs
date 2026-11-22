@@ -111,17 +111,22 @@ public static class DotNetTypeUseFacts
         string adapter,
         string family,
         ArtifactMemberKey member,
-        string sourceMemberName) => new()
-        {
-            Value = string.Join(
+        string sourceMemberName)
+    {
+        var legacy = string.Join(
             ':',
             adapter,
             family,
             Encode(member.Artifact.Subject.Value),
             ((int)member.Artifact.Kind).ToString(System.Globalization.CultureInfo.InvariantCulture),
             Encode(sourceMemberName),
-            Encode(member.Name))
+            Encode(member.Name));
+        var scope = member.Artifact.Scope;
+        return new FactId
+        {
+            Value = scope is null ? legacy : $"{legacy}:scope:{Encode(scope.Store.Value)}:{(scope.EventModelName is { } name ? $"1:{Encode(name)}" : "0")}"
         };
+    }
 
     static string Encode(string value) => string.Concat(
         value.Select(character => ((int)character).ToString("X4", System.Globalization.CultureInfo.InvariantCulture)));

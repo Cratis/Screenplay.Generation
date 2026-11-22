@@ -17,6 +17,7 @@ internal static class GenerationFactDiscriminators
 
         return fact switch
         {
+            BackendScopeFact => true,
             ArtifactFact or
             ArtifactPlacementFact or
             ArtifactDeclarationFact or

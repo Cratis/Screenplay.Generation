@@ -54,6 +54,7 @@ public class a_contribution : Specification
         GenerationFactCapability.ArtifactUsageDeclaration,
         GenerationFactCapability.MethodArtifactUsage,
         GenerationFactCapability.EntryPoint,
+        GenerationFactCapability.BackendScope,
         GenerationFactCapability.Artifact
     ];
 

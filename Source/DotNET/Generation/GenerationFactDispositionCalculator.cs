@@ -37,7 +37,8 @@ internal static class GenerationFactDispositionCalculator
                 .Count() > 1)
             .Select(group => group.Key)
             .ToHashSet(StringComparer.Ordinal);
-        var context = new CalculationContext(graph, coverage, diagnostics);
+        var validScopeFacts = BackendScopeFactResolver.ValidFacts(admitted, []).Select(fact => fact.Id).ToHashSet();
+        var context = new CalculationContext(graph, coverage, diagnostics, validScopeFacts);
 
         return
         [
@@ -46,6 +47,19 @@ internal static class GenerationFactDispositionCalculator
     }
 
     static GenerationFactRecord Calculate(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
+    {
+        var record = CalculateStructural(fact, hasConflictingIdentity, context);
+        if (record.Disposition != GenerationFactDisposition.Lowered || BackendScopeFactReferences.Of(fact).Count == 0)
+        {
+            return record;
+        }
+
+        var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context)
+            .Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.BackendScopeNotSupported));
+        return diagnostics.IsEmpty ? record : record with { Disposition = GenerationFactDisposition.PartiallyLowered, Diagnostics = diagnostics };
+    }
+
+    static GenerationFactRecord CalculateStructural(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
     {
         if (!GenerationFactDiscriminators.AreSupported(fact))
         {
@@ -57,7 +71,7 @@ internal static class GenerationFactDispositionCalculator
             return Conflicted(fact, context);
         }
 
-        if (fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
+        if (fact is BackendScopeFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
         {
             var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context));
             if (diagnostics.Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict))
@@ -65,7 +79,7 @@ internal static class GenerationFactDispositionCalculator
                 return new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.Conflicted, Diagnostics = diagnostics };
             }
 
-            return diagnostics.Any(diagnostic => diagnostic.Outcome is GenerationDiagnosticOutcome.Unknown or GenerationDiagnosticOutcome.Unsupported)
+            return diagnostics.Any(diagnostic => diagnostic.Code != GenerationDiagnosticCodes.BackendScopeNotSupported && diagnostic.Outcome is GenerationDiagnosticOutcome.Unknown or GenerationDiagnosticOutcome.Unsupported)
                 ? Omitted(fact, context)
                 : new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.ProvenanceOnly, Diagnostics = diagnostics };
         }
@@ -219,7 +233,9 @@ internal static class GenerationFactDispositionCalculator
         }
 
         foreach (var diagnostic in context.Diagnostics.Where(diagnostic =>
-                     diagnostic.Outcome is not null && diagnostic.Facts.Any(link => link == fact.Id)))
+                     diagnostic.Outcome is not null && diagnostic.Facts.Any(link => link == fact.Id) &&
+                     (diagnostic.Code is not (GenerationDiagnosticCodes.UnknownBackendScope or GenerationDiagnosticCodes.AmbiguousBackendScopeOwnership) ||
+                      !context.ValidScopeFacts.Contains(fact.Id))))
         {
             yield return diagnostic;
         }
@@ -307,5 +323,6 @@ internal static class GenerationFactDispositionCalculator
     sealed record CalculationContext(
         ResolvedApplicationGraph Graph,
         ScreenplayLoweringCoverage Coverage,
-        IReadOnlyList<GenerationDiagnostic> Diagnostics);
+        IReadOnlyList<GenerationDiagnostic> Diagnostics,
+        IReadOnlySet<FactId> ValidScopeFacts);
 }

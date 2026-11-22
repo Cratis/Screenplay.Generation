@@ -54,6 +54,7 @@ static class GranularFactAdmissionValidator
             fact.Id,
             fact.Subject,
             context);
+        BackendScopeFactAdmissionValidator.ValidateObserved(fact.Definition.Type.ObservedScope, fact.Definition.Type.ObservedTypeSubject, $"{typePath}.ObservedScope", fact, context);
         if (fact.Definition.Type.ObservedTypeSubject is not null)
         {
             AdapterContributionAdmissionValidator.ValidateSubject(

@@ -21,6 +21,8 @@ static class ArtifactUsageAdmissionValidator
                 ValidateOwner(fact, usage.Definition.Method, $"{path}.Definition.Method", context);
                 AdapterContributionAdmissionValidator.ValidateSubject(usage.Definition.Declaration, $"{path}.Definition.Declaration", fact.Id, context);
                 context.Enum(usage.Definition.Kind, RelationshipKind.Unknown, $"{path}.Definition.Kind", fact.Id, fact.Subject);
+                BackendScopeFactAdmissionValidator.ValidateKey(usage.Definition.SourceScope, $"{path}.Definition.SourceScope", fact.Id, fact.Subject, context);
+                BackendScopeFactAdmissionValidator.ValidateKey(usage.Definition.TargetScope, $"{path}.Definition.TargetScope", fact.Id, fact.Subject, context);
                 break;
         }
     }

@@ -264,6 +264,13 @@ static class AdapterContributionFreezer
                 Evidence = envelope.Evidence,
                 Definition = FreezeValue(value.Definition, $"{envelope.Path}.Definition", context)
             },
+            BackendScopeFact scope => new BackendScopeFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = BackendScopeFreezer.Definition(scope.Definition, $"{envelope.Path}.Definition", context)
+            },
             ArtifactUsageDeclarationFact declaration => new ArtifactUsageDeclarationFact
             {
                 Id = envelope.Id,
@@ -398,6 +405,7 @@ static class AdapterContributionFreezer
             Name = type.Name ?? string.Empty,
             Subject = type.Subject is null ? null : FreezeSubject(type.Subject, $"{path}.Subject", context),
             TargetArtifactKind = type.TargetArtifactKind,
+            Scope = BackendScopeFreezer.Key(type.Scope, $"{path}.Scope", context),
             IsCollection = type.IsCollection,
             IsOptional = type.IsOptional
         };
@@ -421,7 +429,8 @@ static class AdapterContributionFreezer
         return new ArtifactKey
         {
             Subject = FreezeSubject(key.Subject, $"{path}.Subject", context),
-            Kind = key.Kind
+            Kind = key.Kind,
+            Scope = BackendScopeFreezer.Key(key.Scope, $"{path}.Scope", context)
         };
     }
 
@@ -488,7 +497,9 @@ static class AdapterContributionFreezer
                 Kind = key.Kind,
                 Source = FreezeSubject(key.Source, $"{path}.Key.Source", context),
                 Target = FreezeSubject(key.Target, $"{path}.Key.Target", context),
-                Discriminator = key.Discriminator
+                Discriminator = key.Discriminator,
+                SourceScope = BackendScopeFreezer.Key(key.SourceScope, $"{path}.Key.SourceScope", context),
+                TargetScope = BackendScopeFreezer.Key(key.TargetScope, $"{path}.Key.TargetScope", context)
             },
             SourceMember = definition.SourceMember,
             TargetMember = definition.TargetMember,
@@ -946,6 +957,7 @@ static class AdapterContributionFreezer
         ArtifactUsageDeclarationFact => (int)GenerationFactCapability.ArtifactUsageDeclaration,
         MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => (int)GenerationFactCapability.EntryPoint,
+        BackendScopeFact => (int)GenerationFactCapability.BackendScope,
         _ => int.MaxValue
     };
 }

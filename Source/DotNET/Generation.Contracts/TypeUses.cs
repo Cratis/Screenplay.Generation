@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Text.Json.Serialization;
+
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>
@@ -46,6 +48,10 @@ public sealed record TypeUseDefinition
     /// Gets the exact source-level type subject observed at the use site, when available.
     /// </summary>
     public SubjectId? ObservedTypeSubject { get; init; }
+
+    /// <summary>Gets the exact observed target scope; a non-null scope requires an observed subject.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BackendScopeKey? ObservedScope { get; init; }
 
     /// <summary>
     /// Gets the exact optionality and collection shape from outermost wrapper to named type.

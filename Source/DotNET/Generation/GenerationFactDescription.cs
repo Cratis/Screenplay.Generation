@@ -36,6 +36,7 @@ internal static class GenerationFactDescription
         ArtifactMemberTypeUseFact => "artifact member type use",
         TypeUseBindingFact => "type-use binding",
         ArtifactMemberRoleFact => "artifact member role",
+        BackendScopeFact => "backend scope",
         ArtifactUsageDeclarationFact => "artifact usage declaration",
         MethodArtifactUsageFact => "method artifact usage",
         EntryPointFact => "entry point",

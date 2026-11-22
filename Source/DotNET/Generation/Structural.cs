@@ -10,7 +10,14 @@ static class Structural
     public static string SemanticKey(string family, params string?[] parts) => Node([family, .. parts]);
 
     public static string ArtifactKey(ArtifactKey key) =>
-        Node(key.Subject.Value, Integer((int)key.Kind));
+        WithScopes(Node(key.Subject.Value, Integer((int)key.Kind)), key.Scope);
+
+    public static string BackendScopeKey(BackendScopeKey key) => Node(key.Store.Value, key.EventModelName);
+
+    public static string BackendScope(BackendScopeDefinition definition) => Node(BackendScopeKey(definition.Key), definition.Name);
+
+    public static string WithScopes(string legacy, params BackendScopeKey?[] scopes) =>
+        scopes.All(scope => scope is null) ? legacy : Node(legacy, "backend-scopes", Sequence(scopes, scope => scope is null ? null : BackendScopeKey(scope)));
 
     public static string Artifact(ArtifactDefinition definition) =>
         Node(
@@ -34,11 +41,11 @@ static class Structural
     public static string ArtifactMemberTypeUse(ArtifactMemberTypeUseDefinition definition) =>
         Node(ArtifactMemberKey(definition.Member), TypeUse(definition.Type));
 
-    public static string TypeUse(TypeUseDefinition definition) =>
-        Node(
-            definition.Name,
-            definition.ObservedTypeSubject?.Value,
-            Sequence(definition.Shape, node => Integer((int)node)));
+    public static string TypeUse(TypeUseDefinition definition)
+    {
+        var legacy = Node(definition.Name, definition.ObservedTypeSubject?.Value, Sequence(definition.Shape, node => Integer((int)node)));
+        return WithScopes(legacy, definition.ObservedScope);
+    }
 
     public static string TypeUseBinding(TypeUseBindingDefinition definition) =>
         Node(ArtifactMemberKey(definition.Member), ArtifactKey(definition.Target));
@@ -50,7 +57,7 @@ static class Structural
         Node(definition.Declaration.Value, ArtifactKey(definition.Artifact));
 
     public static string MethodArtifactUsage(MethodArtifactUsageDefinition definition) =>
-        Node(definition.Method.Value, definition.Declaration.Value, Integer((int)definition.Kind));
+        WithScopes(Node(definition.Method.Value, definition.Declaration.Value, Integer((int)definition.Kind)), definition.SourceScope, definition.TargetScope);
 
     public static string EntryPoint(EntryPointDefinition definition) =>
         Node(definition.Method.Value, ArtifactKey(definition.Artifact));
@@ -63,7 +70,7 @@ static class Structural
             Integer((int)placement.SliceKind));
 
     public static string RelationshipKey(RelationshipKey key) =>
-        Node(Integer((int)key.Kind), key.Source.Value, key.Target.Value, key.Discriminator);
+        WithScopes(Node(Integer((int)key.Kind), key.Source.Value, key.Target.Value, key.Discriminator), key.SourceScope, key.TargetScope);
 
     public static string Relationship(RelationshipDefinition definition) =>
         Node(
@@ -137,6 +144,7 @@ static class Structural
 
     public static string FactDefinition(GenerationFact fact) => fact switch
     {
+        BackendScopeFact scope => Node("backend-scope", BackendScope(scope.Definition)),
         ArtifactFact artifact => Node("artifact", Artifact(artifact.Definition)),
         ArtifactPlacementFact placement => Node("placement", ArtifactKey(placement.Artifact), Placement(placement.Placement)),
         ArtifactDeclarationFact declaration => Node("artifact-declaration", ArtifactDeclaration(declaration.Definition)),
@@ -237,19 +245,23 @@ static class Structural
         ArtifactUsageDeclarationFact => (int)GenerationFactCapability.ArtifactUsageDeclaration,
         MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => (int)GenerationFactCapability.EntryPoint,
+        BackendScopeFact => (int)GenerationFactCapability.BackendScope,
         _ => int.MaxValue
     };
 
     static string Property(PropertyDefinition property) =>
         Node(property.Name, TypeReference(property.Type), Boolean(property.IsIdentifier));
 
-    static string TypeReference(TypeReferenceDefinition type) =>
-        Node(
+    static string TypeReference(TypeReferenceDefinition type)
+    {
+        var legacy = Node(
             type.Name,
             type.Subject?.Value,
             NullableInteger(type.TargetArtifactKind is null ? null : (int)type.TargetArtifactKind.Value),
             Boolean(type.IsCollection),
             Boolean(type.IsOptional));
+        return WithScopes(legacy, type.Scope);
+    }
 
     static string Identity(AdapterIdentity identity) => Node(identity.Id, identity.Version);
 

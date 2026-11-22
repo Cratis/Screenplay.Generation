@@ -1,0 +1,112 @@
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+namespace Cratis.Screenplay.Generation;
+
+static class BackendScopeOwnershipValidator
+{
+    public static IEnumerable<GenerationDiagnostic> Validate(GenerationFact[] facts, HashSet<FactId> rejected)
+    {
+        var artifacts = facts.Select(fact => fact switch
+        {
+            ArtifactFact artifact => new Candidate(artifact.Definition.Key, fact),
+            ArtifactDeclarationFact declaration => new Candidate(declaration.Definition.Artifact, fact),
+            _ => null
+        }).OfType<Candidate>().ToArray();
+        foreach (var fact in facts)
+        {
+            foreach (var endpoint in Endpoints(fact))
+            {
+                if (Check(fact, endpoint, artifacts) is { } diagnostic)
+                {
+                    rejected.Add(fact.Id);
+                    yield return diagnostic;
+                }
+            }
+        }
+
+        foreach (var usage in facts.OfType<MethodArtifactUsageFact>())
+        {
+            foreach (var diagnostic in ValidateUsage(usage, facts))
+            {
+                rejected.Add(usage.Id);
+                yield return diagnostic;
+            }
+        }
+    }
+
+    static IEnumerable<Endpoint> Endpoints(GenerationFact fact) => fact switch
+    {
+        ArtifactFact artifact => artifact.Definition.Properties.Where(property => property.Type.Subject is not null)
+            .Select(property => new Endpoint(property.Type.Subject!, property.Type.Scope, property.Type.TargetArtifactKind)),
+        ArtifactMemberTypeUseFact use when use.Definition.Type.ObservedTypeSubject is { } subject => [new Endpoint(subject, use.Definition.Type.ObservedScope)],
+        TypeUseBindingFact binding => [new Endpoint(binding.Definition.Target.Subject, binding.Definition.Target.Scope, binding.Definition.Target.Kind)],
+        RelationshipFact relationship => [new Endpoint(relationship.Definition.Key.Source, relationship.Definition.Key.SourceScope), new Endpoint(relationship.Definition.Key.Target, relationship.Definition.Key.TargetScope)],
+        ArtifactUsageDeclarationFact declaration => [new Endpoint(declaration.Definition.Artifact.Subject, declaration.Definition.Artifact.Scope, declaration.Definition.Artifact.Kind)],
+        EntryPointFact entry => [new Endpoint(entry.Definition.Artifact.Subject, entry.Definition.Artifact.Scope, entry.Definition.Artifact.Kind)],
+        SpecificationScenarioFact scenario => [new Endpoint(scenario.Definition.TargetArtifact.Subject, scenario.Definition.TargetArtifact.Scope, scenario.Definition.TargetArtifact.Kind)],
+        SpecificationStepFact step when step.Definition.Artifact is { } artifact => [new Endpoint(artifact.Subject, artifact.Scope, artifact.Kind)],
+        SpecificationValueFact value when value.Definition.Type?.Subject is { } subject => [new Endpoint(subject, value.Definition.Type.Scope, value.Definition.Type.TargetArtifactKind)],
+        _ => []
+    };
+
+    static IEnumerable<GenerationDiagnostic> ValidateUsage(MethodArtifactUsageFact usage, GenerationFact[] facts)
+    {
+        var definition = usage.Definition;
+        var sources = facts.OfType<EntryPointFact>().Where(entry => entry.Definition.Method == definition.Method)
+            .Select(entry => new Candidate(entry.Definition.Artifact, entry)).ToArray();
+        if (sources.Length == 0)
+        {
+            yield break;
+        }
+
+        if (CheckSelection(usage, definition.SourceScope, sources) is { } sourceFailure)
+        {
+            yield return sourceFailure;
+        }
+
+        var targets = facts.OfType<ArtifactUsageDeclarationFact>().Where(declaration => declaration.Definition.Declaration == definition.Declaration)
+            .Select(declaration => new Candidate(declaration.Definition.Artifact, declaration)).ToArray();
+        if (CheckSelection(usage, definition.TargetScope, targets) is { } targetFailure)
+        {
+            yield return targetFailure;
+        }
+    }
+
+    static GenerationDiagnostic? Check(GenerationFact fact, Endpoint endpoint, Candidate[] artifacts)
+    {
+        var candidates = artifacts.Where(candidate => candidate.Key.Subject == endpoint.Subject &&
+                                                       (endpoint.Kind is null || candidate.Key.Kind == endpoint.Kind)).ToArray();
+        return CheckSelection(fact, endpoint.Scope, candidates);
+    }
+
+    static GenerationDiagnostic? CheckSelection(GenerationFact fact, BackendScopeKey? selector, Candidate[] candidates)
+    {
+        if (candidates.Any(candidate => candidate.Key.Scope == selector))
+        {
+            return null;
+        }
+
+        if (selector is null && !candidates.Any(candidate => candidate.Key.Scope is not null))
+        {
+            return null;
+        }
+
+        var ambiguous = selector is null && candidates.Select(candidate => candidate.Key.Scope).Distinct().Count() > 1;
+        var inputs = candidates.Select(candidate => candidate.Fact).Append(fact).DistinctBy(input => input.Id)
+            .OrderBy(input => input.Id.Value, StringComparer.Ordinal).ToArray();
+        return new GenerationDiagnostic
+        {
+            Code = ambiguous ? GenerationDiagnosticCodes.AmbiguousBackendScopeOwnership : GenerationDiagnosticCodes.UnknownBackendScope,
+            Severity = GenerationDiagnosticSeverity.Error,
+            Outcome = ambiguous ? GenerationDiagnosticOutcome.Conflict : GenerationDiagnosticOutcome.Unknown,
+            Message = ambiguous ? "An unqualified reference has several exact backend occurrences; no scope was selected" : "The exact referenced backend occurrence is not declared; null selects only an unscoped occurrence",
+            Subject = fact.Subject,
+            Source = LoweringSupport.FirstSource(inputs.Select(input => input.Evidence)),
+            Facts = [.. inputs.Select(input => input.Id)]
+        };
+    }
+
+    sealed record Endpoint(SubjectId Subject, BackendScopeKey? Scope, ArtifactKind? Kind = null);
+    sealed record Candidate(ArtifactKey Key, GenerationFact Fact);
+}

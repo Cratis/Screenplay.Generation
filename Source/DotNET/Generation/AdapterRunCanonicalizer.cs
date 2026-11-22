@@ -111,6 +111,13 @@ static class AdapterRunCanonicalizer
                 Evidence = evidence,
                 Definition = ArtifactMemberRole(role.Definition)
             },
+            BackendScopeFact scope => new BackendScopeFact
+            {
+                Id = id,
+                Subject = subject,
+                Evidence = evidence,
+                Definition = scope.Definition with { Key = Scope(scope.Definition.Key)! }
+            },
             ArtifactUsageDeclarationFact declaration => new ArtifactUsageDeclarationFact
             {
                 Id = id,
@@ -130,7 +137,7 @@ static class AdapterRunCanonicalizer
                 Id = id,
                 Subject = subject,
                 Evidence = evidence,
-                Definition = usage.Definition with { Method = Subject(usage.Definition.Method), Declaration = Subject(usage.Definition.Declaration) }
+                Definition = usage.Definition with { Method = Subject(usage.Definition.Method), Declaration = Subject(usage.Definition.Declaration), SourceScope = Scope(usage.Definition.SourceScope), TargetScope = Scope(usage.Definition.TargetScope) }
             },
             RelationshipFact relationship => new RelationshipFact
             {
@@ -374,10 +381,13 @@ static class AdapterRunCanonicalizer
 
     static SubjectId Subject(SubjectId subject) => new() { Value = subject.Value };
 
+    static BackendScopeKey? Scope(BackendScopeKey? key) => key is null ? null : new BackendScopeKey { Store = Subject(key.Store), EventModelName = key.EventModelName };
+
     static ArtifactKey ArtifactKey(ArtifactKey key) => new()
     {
         Subject = Subject(key.Subject),
-        Kind = key.Kind
+        Kind = key.Kind,
+        Scope = Scope(key.Scope)
     };
 
     static TypeReferenceDefinition TypeReference(TypeReferenceDefinition type) => new()
@@ -385,6 +395,7 @@ static class AdapterRunCanonicalizer
         Name = type.Name,
         Subject = type.Subject is null ? null : Subject(type.Subject),
         TargetArtifactKind = type.TargetArtifactKind,
+        Scope = Scope(type.Scope),
         IsCollection = type.IsCollection,
         IsOptional = type.IsOptional
     };
@@ -433,6 +444,7 @@ static class AdapterRunCanonicalizer
         {
             Name = definition.Type.Name,
             ObservedTypeSubject = definition.Type.ObservedTypeSubject is null ? null : Subject(definition.Type.ObservedTypeSubject),
+            ObservedScope = Scope(definition.Type.ObservedScope),
             Shape = [.. definition.Type.Shape]
         }
     };
@@ -464,7 +476,9 @@ static class AdapterRunCanonicalizer
             Kind = definition.Key.Kind,
             Source = Subject(definition.Key.Source),
             Target = Subject(definition.Key.Target),
-            Discriminator = definition.Key.Discriminator
+            Discriminator = definition.Key.Discriminator,
+            SourceScope = Scope(definition.Key.SourceScope),
+            TargetScope = Scope(definition.Key.TargetScope)
         },
         SourceMember = definition.SourceMember,
         TargetMember = definition.TargetMember,

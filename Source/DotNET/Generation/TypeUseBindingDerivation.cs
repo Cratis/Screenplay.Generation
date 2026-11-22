@@ -18,7 +18,7 @@ static class TypeUseBindingDerivation
         var facts = baseFacts.Select(record => record.Fact).ToArray();
         var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts));
         var consideredInputs = facts
-            .Where(fact => fact is ArtifactFact or
+            .Where(fact => fact is BackendScopeFact or ArtifactFact or
                            ArtifactDeclarationFact or
                            ArtifactMemberDeclarationFact or
                            ArtifactMemberTypeUseFact)
@@ -37,7 +37,7 @@ static class TypeUseBindingDerivation
             var outcome = DeriveBinding([.. group], index);
             if (outcome.Record is { } record)
             {
-                derived.Add(record);
+                derived.Add(BackendScopeFactResolver.AttachScopeLineage(record, facts));
             }
 
             if (outcome.Diagnostic is { } diagnostic)
@@ -177,6 +177,7 @@ static class TypeUseBindingDerivation
 
         var targetDeclarations = index.Artifacts
             .Where(declaration => declaration.Key.Subject == observedType &&
+                                  declaration.Key.Scope == context.TypeUses[0].Definition.Type.ObservedScope &&
                                   (legacyTargets.Length == 0 || declaration.Key == legacyTargets[0]))
             .ToArray();
         if (targetDeclarations.Length == 0)
@@ -222,7 +223,8 @@ static class TypeUseBindingDerivation
                     .Select(property => new ArtifactKey
                     {
                         Subject = observedType,
-                        Kind = property.Type.TargetArtifactKind!.Value
+                        Kind = property.Type.TargetArtifactKind!.Value,
+                        Scope = property.Type.Scope
                     })
                 : [])
             .Distinct()
@@ -353,9 +355,9 @@ static class TypeUseBindingDerivation
             fact.Evidence.Explanation);
     }
 
-    static FactId DerivedId(ArtifactMemberKey member, ArtifactKey target) => new()
+    static FactId DerivedId(ArtifactMemberKey member, ArtifactKey target)
     {
-        Value = string.Join(
+        var legacy = string.Join(
             ':',
             "generation",
             "derive",
@@ -365,8 +367,10 @@ static class TypeUseBindingDerivation
             ((int)member.Artifact.Kind).ToString(System.Globalization.CultureInfo.InvariantCulture),
             Escape(member.Name),
             Escape(target.Subject.Value),
-            ((int)target.Kind).ToString(System.Globalization.CultureInfo.InvariantCulture))
-    };
+            ((int)target.Kind).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        var scopes = Structural.WithScopes(string.Empty, member.Artifact.Scope, target.Scope);
+        return new FactId { Value = scopes.Length == 0 ? legacy : $"{legacy}:scope:{Escape(scopes)}" };
+    }
 
     static string Escape(string value) => string.Concat(
         value.Select(character => ((int)character).ToString("X4", System.Globalization.CultureInfo.InvariantCulture)));

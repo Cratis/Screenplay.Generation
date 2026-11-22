@@ -195,7 +195,10 @@ public enum GenerationFactCapability
     MethodArtifactUsage = 15,
 
     /// <summary><see cref="EntryPointFact"/> facts.</summary>
-    EntryPoint = 16
+    EntryPoint = 16,
+
+    /// <summary><see cref="BackendScopeFact"/> facts.</summary>
+    BackendScope = 17
 }
 
 /// <summary>

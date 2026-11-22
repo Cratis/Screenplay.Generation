@@ -24,6 +24,7 @@ public static class GenerationFactDerivation
         var validFacts = GranularArtifactResolver.ValidFactsForDerivation(
             discriminatorValidation.Facts,
             validationDiagnostics);
+        validFacts = BackendScopeFactResolver.ValidFacts([.. validFacts], validationDiagnostics);
         var baseFacts = validFacts
             .Select(fact => new GenerationFactRecord { Fact = fact })
             .OrderBy(record => record.Fact.Id.Value, StringComparer.Ordinal)

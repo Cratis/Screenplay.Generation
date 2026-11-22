@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using ScopeStructure = Cratis.Screenplay.Generation.Structural;
 
 namespace Cratis.Screenplay.Generation;
 
@@ -16,7 +17,7 @@ static class Canonical
             definition.Properties.Select(_ => Join(
                 _.Name,
                 _.Type.Name,
-                _.Type.Subject?.Value,
+                ScopeStructure.WithScopes(_.Type.Subject?.Value ?? string.Empty, _.Type.Scope),
                 Invariant(_.Type.TargetArtifactKind is null ? null : (int)_.Type.TargetArtifactKind.Value),
                 _.Type.IsCollection.ToString(),
                 _.Type.IsOptional.ToString(),
@@ -30,7 +31,7 @@ static class Canonical
             properties);
     }
 
-    public static string ArtifactKey(ArtifactKey key) => Join(key.Subject.Value, key.Kind.ToString());
+    public static string ArtifactKey(ArtifactKey key) => ScopeStructure.WithScopes(Join(key.Subject.Value, key.Kind.ToString()), key.Scope);
 
     public static string ConceptRepresentation(ConceptRepresentationDefinition definition) =>
         Join(
@@ -73,7 +74,7 @@ static class Canonical
             definition.IsOptional.ToString());
 
     public static string RelationshipKey(RelationshipKey key) =>
-        Join(key.Kind.ToString(), key.Source.Value, key.Target.Value, key.Discriminator);
+        ScopeStructure.WithScopes(Join(key.Kind.ToString(), key.Source.Value, key.Target.Value, key.Discriminator), key.SourceScope, key.TargetScope);
 
     public static string SpecificationScenarioKey(SpecificationScenarioKey key) =>
         Structural(key.Scenario.Value);
@@ -150,14 +151,21 @@ static class Canonical
             identity?.Path);
     }
 
-    static string? TypeReference(TypeReferenceDefinition? type) => type is null
-        ? null
-        : Structural(
+    static string? TypeReference(TypeReferenceDefinition? type)
+    {
+        if (type is null)
+        {
+            return null;
+        }
+
+        var legacy = Structural(
             type.Name,
             type.Subject?.Value,
             Invariant(type.TargetArtifactKind is null ? null : (int)type.TargetArtifactKind.Value),
             type.IsCollection.ToString(),
             type.IsOptional.ToString());
+        return ScopeStructure.WithScopes(legacy, type.Scope);
+    }
 
     static string Encode(string? value) => value is null
         ? "-1:"

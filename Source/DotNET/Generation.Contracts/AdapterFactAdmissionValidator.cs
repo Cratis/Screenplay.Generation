@@ -33,10 +33,15 @@ static class AdapterFactAdmissionValidator
             case ArtifactMemberRoleFact role:
                 GranularFactAdmissionValidator.Validate(role, path, context);
                 break;
+            case BackendScopeFact scope:
+                BackendScopeFactAdmissionValidator.Validate(scope, path, context);
+                break;
             case ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact:
                 ArtifactUsageAdmissionValidator.Validate(fact, path, context);
                 break;
             case RelationshipFact relationship:
+                BackendScopeFactAdmissionValidator.ValidateKey(relationship.Definition.Key.SourceScope, $"{path}.Definition.Key.SourceScope", fact.Id, fact.Subject, context);
+                BackendScopeFactAdmissionValidator.ValidateKey(relationship.Definition.Key.TargetScope, $"{path}.Definition.Key.TargetScope", fact.Id, fact.Subject, context);
                 RelationshipFactAdmissionValidator.Validate(relationship, path, context);
                 break;
             case ConceptRepresentationFact representation:

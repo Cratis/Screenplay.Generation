@@ -17,7 +17,7 @@ static class ArtifactUsageDerivation
         var index = new UsageIndex(facts);
         var edges = new List<UsageEdge>();
         foreach (var group in facts.OfType<MethodArtifactUsageFact>()
-                     .GroupBy(fact => Structural.SemanticKey("usage", fact.Definition.Method.Value, fact.Definition.Declaration.Value), StringComparer.Ordinal)
+                     .GroupBy(fact => Structural.WithScopes(Structural.SemanticKey("usage", fact.Definition.Method.Value, fact.Definition.Declaration.Value), fact.Definition.SourceScope, fact.Definition.TargetScope), StringComparer.Ordinal)
                      .OrderBy(group => group.Key, StringComparer.Ordinal))
         {
             Join([.. group], index, edges, diagnostics);
@@ -25,7 +25,7 @@ static class ArtifactUsageDerivation
 
         var records = edges.GroupBy(edge => Structural.RelationshipKey(edge.Key), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
-            .Select(group => Record(group.First().Key, group.SelectMany(edge => edge.Inputs)))
+            .Select(group => BackendScopeFactResolver.AttachScopeLineage(Record(group.First().Key, group.SelectMany(edge => edge.Inputs)), facts))
             .ToImmutableArray();
         return new ArtifactUsageDerivationResult(
             [.. facts.Where(IsInput).Select(fact => fact.Id).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
@@ -36,13 +36,13 @@ static class ArtifactUsageDerivation
     static void Join(MethodArtifactUsageFact[] usages, UsageIndex index, List<UsageEdge> edges, List<GenerationDiagnostic> diagnostics)
     {
         var usage = usages[0].Definition;
-        var entries = index.Facts.OfType<EntryPointFact>().Where(fact => fact.Definition.Method == usage.Method).ToArray();
+        var entries = index.Facts.OfType<EntryPointFact>().Where(fact => fact.Definition.Method == usage.Method && fact.Definition.Artifact.Scope == usage.SourceScope).ToArray();
         if (entries.Length == 0)
         {
             return;
         }
 
-        var declarations = index.Facts.OfType<ArtifactUsageDeclarationFact>().Where(fact => fact.Definition.Declaration == usage.Declaration).ToArray();
+        var declarations = index.Facts.OfType<ArtifactUsageDeclarationFact>().Where(fact => fact.Definition.Declaration == usage.Declaration && fact.Definition.Artifact.Scope == usage.TargetScope).ToArray();
         var inputs = usages.Cast<GenerationFact>().Concat(entries).Concat(declarations).ToArray();
         if (MappingsConflict(usages, entries, declarations))
         {
@@ -88,7 +88,7 @@ static class ArtifactUsageDerivation
             return;
         }
 
-        edges.Add(new UsageEdge(new RelationshipKey { Kind = endpoints.Kind, Source = endpoints.Source.Subject, Target = endpoints.Target.Subject }, inputs));
+        edges.Add(new UsageEdge(new RelationshipKey { Kind = endpoints.Kind, Source = endpoints.Source.Subject, Target = endpoints.Target.Subject, SourceScope = endpoints.Source.Scope, TargetScope = endpoints.Target.Scope }, inputs));
     }
 
     static bool ValidOwner(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
@@ -109,7 +109,7 @@ static class ArtifactUsageDerivation
         return false;
     }
 
-    static bool IsInput(GenerationFact fact) => fact is ArtifactFact or ArtifactDeclarationFact or ArtifactUsageDeclarationFact or EntryPointFact or MethodArtifactUsageFact;
+    static bool IsInput(GenerationFact fact) => fact is BackendScopeFact or ArtifactFact or ArtifactDeclarationFact or ArtifactUsageDeclarationFact or EntryPointFact or MethodArtifactUsageFact;
 
     static bool HasConflict(GenerationFact[] declarations)
     {
