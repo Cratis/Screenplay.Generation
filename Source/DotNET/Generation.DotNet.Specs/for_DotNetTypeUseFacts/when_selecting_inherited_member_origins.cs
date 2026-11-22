@@ -36,9 +36,9 @@ public class when_selecting_inherited_member_origins : given.a_mixed_origin_surf
     [Fact] void should_exclude_record_equality_contracts() => _members.Any(_ => _.Definition.Member.Name == "equalityContract").ShouldBeFalse();
     [Fact] void should_exclude_object_members() => DotNetTypeShapes.PropertiesOf(TypeNamed(Context.Projects[0].Compilation, "System.Object"), Context, DotNetMemberOriginPolicy.AllOrigins, DotNetMemberSurfaceScope.Inherited).ShouldBeEmpty();
     [Fact] void should_not_change_authored_tree_authority() => Context.Projects[0].AuthoredSyntaxTrees.Select(_ => _.FilePath).ShouldEqual("Authored.cs");
-    [Fact] void should_not_make_a_generated_base_authoritative() => DotNetSource.HasAuthoredDeclaration(Type.BaseType!.BaseType!, Context.Projects[0].AuthoredSyntaxTrees).ShouldBeFalse();
-    [Fact] void should_not_make_a_non_authored_base_authoritative() => DotNetSource.HasAuthoredDeclaration(Type.BaseType!, Context.Projects[0].AuthoredSyntaxTrees).ShouldBeFalse();
-    [Fact] void should_not_make_a_metadata_base_authoritative() => DotNetSource.HasAuthoredDeclaration(Type.BaseType!.BaseType!.BaseType!, Context.Projects[0].AuthoredSyntaxTrees).ShouldBeFalse();
+    [Fact] void should_not_make_a_generated_base_authoritative() => DotNetSource.HasAuthoredDeclaration(Type.BaseType.BaseType, Context.Projects[0].AuthoredSyntaxTrees).ShouldBeFalse();
+    [Fact] void should_not_make_a_non_authored_base_authoritative() => DotNetSource.HasAuthoredDeclaration(Type.BaseType, Context.Projects[0].AuthoredSyntaxTrees).ShouldBeFalse();
+    [Fact] void should_not_make_a_metadata_base_authoritative() => DotNetSource.HasAuthoredDeclaration(Type.BaseType.BaseType.BaseType, Context.Projects[0].AuthoredSyntaxTrees).ShouldBeFalse();
 
     static string Serialize(GenerationFact fact) => System.Text.Json.JsonSerializer.Serialize(fact, fact.GetType());
 
