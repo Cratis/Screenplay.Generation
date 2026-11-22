@@ -96,8 +96,24 @@ public static class DotNetTypeShapes
     /// <returns>The properties in derived-first declaration order.</returns>
     /// <exception cref="ArgumentOutOfRangeException">The scope is undefined.</exception>
     public static IReadOnlyList<PropertyDefinition> PropertiesOf(INamedTypeSymbol type, DotNetAnalysisContext context, DotNetMemberSurfaceScope scope) =>
+        PropertiesOf(type, context, DotNetMemberOriginPolicy.AuthoredOnly, scope);
+
+    /// <summary>
+    /// Gets properties from the selected surface with an explicit inherited-member origin policy.
+    /// </summary>
+    /// <param name="type">The nominated type.</param>
+    /// <param name="context">The analyzed projects establishing authored origin and exact type subjects.</param>
+    /// <param name="originPolicy">The eligible inherited property origins; declared mode is unchanged.</param>
+    /// <param name="scope">The property surface to select.</param>
+    /// <returns>The properties in derived-first declaration order, without changing artifact admission or source authority.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The origin policy or scope is undefined.</exception>
+    public static IReadOnlyList<PropertyDefinition> PropertiesOf(
+        INamedTypeSymbol type,
+        DotNetAnalysisContext context,
+        DotNetMemberOriginPolicy originPolicy,
+        DotNetMemberSurfaceScope scope) =>
     [
-        .. DotNetEffectiveProperties.Of(type, context, scope).Select(property => new PropertyDefinition
+        .. DotNetEffectiveProperties.Of(type, context, originPolicy, scope).Select(property => new PropertyDefinition
         {
             Name = PropertyName(property.Name),
             Type = TypeReferenceFor(property.Type, context)
