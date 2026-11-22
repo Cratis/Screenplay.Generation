@@ -25,25 +25,34 @@ public class backend_scopes : Specification
 
     protected static BackendScopeFact Scope(BackendScopeKey key, string id) => new()
     {
-        Id = Id(id), Subject = key.Store, Evidence = Evidence(),
+        Id = Id(id),
+        Subject = key.Store,
+        Evidence = Evidence(),
         Definition = new BackendScopeDefinition { Key = key, Name = "Customer store" }
     };
 
     protected static ArtifactFact Artifact(ArtifactKey key, string id, string name) => new()
     {
-        Id = Id(id), Subject = key.Subject, Evidence = Evidence(),
+        Id = Id(id),
+        Subject = key.Subject,
+        Evidence = Evidence(),
         Definition = new ArtifactDefinition { Key = key, Name = name, Properties = [new PropertyDefinition { Name = "name", Type = new TypeReferenceDefinition { Name = "String" } }] }
     };
 
     protected static ArtifactPlacementFact Placement(ArtifactKey key, string id, string slice = "Register") => new()
     {
-        Id = Id(id), Subject = key.Subject, Evidence = Evidence(), Artifact = key,
+        Id = Id(id),
+        Subject = key.Subject,
+        Evidence = Evidence(),
+        Artifact = key,
         Placement = new ArtifactPlacement { Module = "Customers", Slice = slice, SliceKind = key.Kind == ArtifactKind.ReadModel ? GenerationSliceKind.StateView : GenerationSliceKind.StateChange }
     };
 
     protected static RelationshipFact Reads(ArtifactKey source, ArtifactKey target, string id) => new()
     {
-        Id = Id(id), Subject = source.Subject, Evidence = Evidence(),
+        Id = Id(id),
+        Subject = source.Subject,
+        Evidence = Evidence(),
         Definition = new RelationshipDefinition
         {
             Key = new RelationshipKey { Kind = RelationshipKind.Reads, Source = source.Subject, Target = target.Subject, SourceScope = source.Scope, TargetScope = target.Scope }
@@ -74,8 +83,13 @@ public class backend_scopes : Specification
         var descriptor = admitted.Snapshot!.Descriptor;
         var record = new AdapterRunRecord
         {
-            Considered = true, Probed = true, Executed = true, Descriptor = descriptor,
-            Probe = new AdapterProbeApplicable(), Execution = new AdapterExecutionCompleted { Contribution = admitted.Snapshot }, Disposition = AdapterRunDisposition.Admitted
+            Considered = true,
+            Probed = true,
+            Executed = true,
+            Descriptor = descriptor,
+            Probe = new AdapterProbeApplicable(),
+            Execution = new AdapterExecutionCompleted { Contribution = admitted.Snapshot },
+            Disposition = AdapterRunDisposition.Admitted
         };
         var snapshot = new AdapterRunSnapshot
         {

@@ -35,7 +35,9 @@ public class when_joining_exact_backend_occurrence_selectors : given.an_artifact
 
     static BackendScopeFact Scope(BackendScopeKey key, string id) => new()
     {
-        Id = new FactId { Value = $"application:{id}" }, Subject = key.Store, Evidence = UsageEvidence(),
+        Id = new FactId { Value = $"application:{id}" },
+        Subject = key.Store,
+        Evidence = UsageEvidence(),
         Definition = new BackendScopeDefinition { Key = key }
     };
 }

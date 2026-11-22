@@ -33,7 +33,9 @@ public class a_granular_artifact_usage : an_artifact_usage
 
     static ArtifactFact Legacy(string id, ArtifactKey key, string name, PropertyDefinition[] properties) => new()
     {
-        Id = new FactId { Value = $"application:{name}-{id}" }, Subject = key.Subject, Evidence = UsageEvidence(),
+        Id = new FactId { Value = $"application:{name}-{id}" },
+        Subject = key.Subject,
+        Evidence = UsageEvidence(),
         Definition = new ArtifactDefinition { Key = key, Name = name, Properties = properties }
     };
 }

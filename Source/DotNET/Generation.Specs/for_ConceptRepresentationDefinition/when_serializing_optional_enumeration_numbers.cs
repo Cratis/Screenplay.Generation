@@ -22,6 +22,6 @@ public class when_serializing_optional_enumeration_numbers : Specification
         _numbered = JsonSerializer.Serialize(definition with { EnumerationNumbers = [-1, 4] });
     }
 
-    [Fact] void should_preserve_the_legacy_json_bytes() => _legacy.ShouldEqual("""{"Concept":{"Value":"dotnet://Orders/Status"},"Kind":1,"Primitive":null,"EnumerationValues":["Pending","Complete"]}""");
-    [Fact] void should_preserve_explicit_numbers_in_declaration_order() => _numbered.ShouldEqual("""{"Concept":{"Value":"dotnet://Orders/Status"},"Kind":1,"Primitive":null,"EnumerationValues":["Pending","Complete"],"EnumerationNumbers":[-1,4]}""");
+    [Fact] void should_preserve_the_legacy_json_bytes() => _legacy.ShouldEqual(/*lang=json*/ """{"Concept":{"Value":"dotnet://Orders/Status"},"Kind":1,"Primitive":null,"EnumerationValues":["Pending","Complete"]}""");
+    [Fact] void should_preserve_explicit_numbers_in_declaration_order() => _numbered.ShouldEqual(/*lang=json*/ """{"Concept":{"Value":"dotnet://Orders/Status"},"Kind":1,"Primitive":null,"EnumerationValues":["Pending","Complete"],"EnumerationNumbers":[-1,4]}""");
 }

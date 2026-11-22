@@ -33,7 +33,9 @@ static class BackendScopeFactResolver
                 Severity = GenerationDiagnosticSeverity.Error,
                 Outcome = GenerationDiagnosticOutcome.Unknown,
                 Message = "Backend scope ownership is invalid: concepts and queries remain global, and scoped type selectors require an exact observed subject",
-                Facts = [fact.Id], Subject = fact.Subject, Source = fact.Evidence.Source
+                Facts = [fact.Id],
+                Subject = fact.Subject,
+                Source = fact.Evidence.Source
             };
         }
 
