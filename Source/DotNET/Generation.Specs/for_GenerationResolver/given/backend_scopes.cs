@@ -80,7 +80,7 @@ public class backend_scopes : Specification
     {
         var admitted = Admit(facts);
         admitted.Diagnostics.ShouldBeEmpty();
-        var descriptor = admitted.Snapshot!.Descriptor;
+        var descriptor = admitted.Snapshot.Descriptor;
         var record = new AdapterRunRecord
         {
             Considered = true,
