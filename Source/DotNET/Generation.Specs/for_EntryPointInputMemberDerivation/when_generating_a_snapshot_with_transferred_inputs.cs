@@ -10,7 +10,7 @@ public class when_generating_a_snapshot_with_transferred_inputs : given.input_me
 
     void Because()
     {
-        var facts = InputFacts(Placement(Transfer().Definition.Artifact), Placement(Document));
+        var facts = InputFacts(Placement(Transfer().Definition.Artifact), Placement(Document), Returns());
         var generator = new ScreenplayDefinitionGenerator();
         var options = new ScreenplayGenerationOptions { Domain = "Application" };
         _forward = generator.Generate(Run(facts), options);
@@ -23,6 +23,22 @@ public class when_generating_a_snapshot_with_transferred_inputs : given.input_me
     [Fact] void should_keep_neutral_members_as_provenance() => _forward.AdapterRun.Facts.Single(record => record.Fact.Id == Surface().Id).Disposition.ShouldEqual(GenerationFactDisposition.ProvenanceOnly);
     [Fact] void should_be_independent_of_fact_enumeration() => Projection(_forward.AdapterRun).ShouldEqual(Projection(_reverse.AdapterRun));
     [Fact] void should_print_the_same_source() => _forward.Source.ShouldEqual(_reverse.Source);
+
+    static RelationshipFact Returns() => new()
+    {
+        Id = new FactId { Value = "query-returns-document" },
+        Subject = Transfer().Definition.Artifact.Subject,
+        Evidence = UsageEvidence(ApplicationAdapter),
+        Definition = new RelationshipDefinition
+        {
+            Key = new RelationshipKey
+            {
+                Kind = RelationshipKind.Returns,
+                Source = Transfer().Definition.Artifact.Subject,
+                Target = Document.Subject
+            }
+        }
+    };
 
     static ArtifactPlacementFact Placement(ArtifactKey artifact) => new()
     {
