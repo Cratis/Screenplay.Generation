@@ -13,8 +13,7 @@ static class BackendScopeOwnershipValidator
             ArtifactDeclarationFact declaration => new Candidate(declaration.Definition.Artifact, fact),
             _ => null
         }).OfType<Candidate>().ToArray();
-        var references = facts.SelectMany(fact => Endpoints(fact).Select(endpoint => (Fact: fact, Endpoint: endpoint)));
-        foreach (var reference in references)
+        foreach (var reference in facts.SelectMany(fact => Endpoints(fact).Select(endpoint => (Fact: fact, Endpoint: endpoint))))
         {
             if (Check(reference.Fact, reference.Endpoint, artifacts) is { } diagnostic)
             {

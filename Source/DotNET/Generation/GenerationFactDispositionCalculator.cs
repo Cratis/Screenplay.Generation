@@ -232,10 +232,10 @@ internal static class GenerationFactDispositionCalculator
             }
         }
 
-        foreach (var diagnostic in context.Diagnostics
-                     .Where(diagnostic => diagnostic.Outcome is not null)
-                     .Where(diagnostic => diagnostic.Facts.Any(link => link == fact.Id))
-                     .Where(diagnostic => ScopeDiagnosticApplies(fact, diagnostic, context)))
+        foreach (var diagnostic in context.Diagnostics.Where(diagnostic =>
+                     diagnostic.Outcome is not null &&
+                     diagnostic.Facts.Any(link => link == fact.Id) &&
+                     ScopeDiagnosticApplies(fact, diagnostic, context)))
         {
             yield return diagnostic;
         }
@@ -243,7 +243,8 @@ internal static class GenerationFactDispositionCalculator
 
     static bool ScopeDiagnosticApplies(GenerationFact fact, GenerationDiagnostic diagnostic, CalculationContext context)
     {
-        if (diagnostic.Code is GenerationDiagnosticCodes.UnknownBackendScope or GenerationDiagnosticCodes.AmbiguousBackendScopeOwnership)
+        if (string.Equals(diagnostic.Code, GenerationDiagnosticCodes.UnknownBackendScope, StringComparison.Ordinal) ||
+            string.Equals(diagnostic.Code, GenerationDiagnosticCodes.AmbiguousBackendScopeOwnership, StringComparison.Ordinal))
         {
             return !context.ValidScopeFacts.Contains(fact.Id);
         }
