@@ -1802,7 +1802,7 @@ internal static class Program
             """, path: "/workspace/Usage.cs");
         var compilation = CSharpCompilation.Create("Usage", [tree], TrustedPlatformReferences(), new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         Require(!compilation.GetDiagnostics().Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), "CSC0063", "The usage fixture does not compile.");
-        var project = new DotNetProjectCompilation { Name = "Usage", Compilation = compilation, AuthoredSyntaxTrees = compilation.SyntaxTrees.ToHashSet() };
+        var project = new DotNetProjectCompilation { Name = "Usage", Compilation = compilation, SourceRoot = "/workspace", AuthoredSyntaxTrees = compilation.SyntaxTrees.ToHashSet() };
         var context = new DotNetAnalysisContext([project]);
         var registrations = new[]
         {
@@ -1816,7 +1816,7 @@ internal static class Program
         Require(generated.IsSuccess && generated.Source == reversed.Source && generated.Diagnostics.Count == 0, "CSC0064", "Independent usage proofs did not lower deterministically.");
         Require(generated.Source.Contains("reads Customer", StringComparison.Ordinal) && generated.Source.Contains("origin String", StringComparison.Ordinal) && generated.Source.Contains("negative = -7", StringComparison.Ordinal) && generated.Source.Contains("sparse = 42", StringComparison.Ordinal), "CSC0065", "The current packages lost inherited members, explicit enum numbers, or the joined read.");
         var edge = generated.AdapterRun!.Derivation!.Facts.Single(record => record.Fact is RelationshipFact);
-        Require(edge.Lineage!.Producer.Id == "cratis.screenplay.artifact-usage" && edge.Lineage.Inputs.Length == 5 && edge.Disposition == GenerationFactDisposition.Lowered, "CSC0066", "The usage join lost its complete lineage or final disposition.");
+        Require(edge.Lineage!.Producer.Id == "cratis.screenplay.artifact-usage" && edge.Lineage.Inputs.Length == 9 && edge.Disposition == GenerationFactDisposition.Lowered, "CSC0066", "The usage join lost its complete lineage or final disposition.");
         Require(generated.AdapterRun.Facts.Where(record => record.Fact is EntryPointFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact).All(record => record.Disposition == GenerationFactDisposition.ProvenanceOnly), "CSC0067", "Usage provenance was reported as fictitious syntax.");
         ExerciseBackendScopePackages(context);
     }
