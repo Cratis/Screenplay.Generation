@@ -2002,10 +2002,10 @@ internal static class Program
                             Key = eventKey,
                             Name = "CustomerRegistered",
                             File = "Customers/Register/CustomerRegistered.cs",
-                            Properties = DotNetTypeShapes.PropertiesOf(eventType!, context, DotNetMemberSurfaceScope.Inherited)
+                            Properties = DotNetTypeShapes.PropertiesOf(eventType!)
                         }
                     },
-                    .. DotNetTypeUseFacts.EmitWithSurface(eventType!, eventKey, context, evidence, DotNetMemberSurfaceScope.Inherited),
+                    .. DotNetTypeUseFacts.Emit(eventType!, eventKey, context, evidence),
                     new ArtifactPlacementFact
                     {
                         Id = new FactId { Value = "external-smoke:placement:customer-registered" },

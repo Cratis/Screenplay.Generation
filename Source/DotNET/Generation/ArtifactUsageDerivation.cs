@@ -23,7 +23,10 @@ static class ArtifactUsageDerivation
             Join([.. group], index, edges, diagnostics);
         }
 
-        var records = edges.GroupBy(edge => Structural.RelationshipKey(edge.Key), StringComparer.Ordinal)
+        var blockedEntries = ConflictedEntries(facts, diagnostics);
+        LinkSuppressedInputs(edges, blockedEntries, diagnostics);
+        var records = edges.Where(edge => !IsBlocked(edge, blockedEntries))
+            .GroupBy(edge => Structural.RelationshipKey(edge.Key), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => BackendScopeFactResolver.AttachScopeLineage(Record(group.First().Key, group.SelectMany(edge => edge.Inputs)), facts))
             .ToImmutableArray();
@@ -33,16 +36,47 @@ static class ArtifactUsageDerivation
             [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]);
     }
 
+    static HashSet<string> ConflictedEntries(GenerationFact[] facts, List<GenerationDiagnostic> diagnostics)
+    {
+        var inputs = diagnostics.Where(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict)
+            .SelectMany(diagnostic => diagnostic.Facts).ToHashSet();
+        return facts.OfType<EntryPointFact>().Where(entry => inputs.Contains(entry.Id))
+            .Select(entry => MappingKey(entry.Definition.Method, entry.Definition.Artifact.Scope)).ToHashSet(StringComparer.Ordinal);
+    }
+
+    static bool IsBlocked(UsageEdge edge, HashSet<string> blockedEntries) =>
+        edge.Inputs.OfType<EntryPointFact>().Any(entry => blockedEntries.Contains(MappingKey(entry.Definition.Method, entry.Definition.Artifact.Scope)));
+
+    static void LinkSuppressedInputs(List<UsageEdge> edges, HashSet<string> blockedEntries, List<GenerationDiagnostic> diagnostics)
+    {
+        var suppressed = edges.Where(edge => IsBlocked(edge, blockedEntries)).ToArray();
+        for (var index = 0; index < diagnostics.Count; index++)
+        {
+            var diagnostic = diagnostics[index];
+            if (diagnostic.Outcome != GenerationDiagnosticOutcome.Conflict)
+            {
+                continue;
+            }
+
+            var inputs = suppressed.Where(edge => edge.Inputs.OfType<EntryPointFact>().Any(entry => diagnostic.Facts.Contains(entry.Id)))
+                .SelectMany(edge => edge.Inputs).Select(fact => fact.Id);
+            diagnostics[index] = diagnostic with { Facts = [.. diagnostic.Facts.Concat(inputs).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)] };
+        }
+    }
+
+    static string MappingKey(SubjectId subject, BackendScopeKey? scope) =>
+        Structural.WithScopes(Structural.SemanticKey("usage-mapping", subject.Value), scope);
+
     static void Join(MethodArtifactUsageFact[] usages, UsageIndex index, List<UsageEdge> edges, List<GenerationDiagnostic> diagnostics)
     {
         var usage = usages[0].Definition;
-        var entries = index.Facts.OfType<EntryPointFact>().Where(fact => fact.Definition.Method == usage.Method && fact.Definition.Artifact.Scope == usage.SourceScope).ToArray();
+        var entries = index.Entries(usage);
         if (entries.Length == 0)
         {
             return;
         }
 
-        var declarations = index.Facts.OfType<ArtifactUsageDeclarationFact>().Where(fact => fact.Definition.Declaration == usage.Declaration && fact.Definition.Artifact.Scope == usage.TargetScope).ToArray();
+        var declarations = index.UsageDeclarations(usage);
         var inputs = usages.Cast<GenerationFact>().Concat(entries).Concat(declarations).ToArray();
         if (MappingsConflict(usages, entries, declarations))
         {
@@ -182,17 +216,33 @@ static class ArtifactUsageDerivation
 
     sealed record UsageEdge(RelationshipKey Key, GenerationFact[] Inputs);
 
-    sealed record UsageIndex(GenerationFact[] Facts)
+    sealed class UsageIndex
     {
+        readonly Dictionary<string, EntryPointFact[]> _entries;
+        readonly Dictionary<string, ArtifactUsageDeclarationFact[]> _usages;
+        readonly Dictionary<ArtifactKey, GenerationFact[]> _artifacts;
+
+        public UsageIndex(GenerationFact[] facts)
+        {
+            _entries = facts.OfType<EntryPointFact>()
+                .GroupBy(entry => MappingKey(entry.Definition.Method, entry.Definition.Artifact.Scope), StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+            _usages = facts.OfType<ArtifactUsageDeclarationFact>()
+                .GroupBy(declaration => MappingKey(declaration.Definition.Declaration, declaration.Definition.Artifact.Scope), StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+            _artifacts = facts.Where(fact => fact is ArtifactFact or ArtifactDeclarationFact)
+                .GroupBy(fact => fact is ArtifactFact artifact ? artifact.Definition.Key : ((ArtifactDeclarationFact)fact).Definition.Artifact)
+                .ToDictionary(group => group.Key, group => group.ToArray());
+        }
+
+        public EntryPointFact[] Entries(MethodArtifactUsageDefinition usage) =>
+            _entries.TryGetValue(MappingKey(usage.Method, usage.SourceScope), out var entries) ? entries : [];
+
+        public ArtifactUsageDeclarationFact[] UsageDeclarations(MethodArtifactUsageDefinition usage) =>
+            _usages.TryGetValue(MappingKey(usage.Declaration, usage.TargetScope), out var declarations) ? declarations : [];
+
         public GenerationFact[] Declarations(ArtifactKey key) =>
-        [
-            .. Facts.Where(fact => fact switch
-            {
-                ArtifactFact artifact => artifact.Definition.Key == key,
-                ArtifactDeclarationFact declaration => declaration.Definition.Artifact == key,
-                _ => false
-            })
-        ];
+            _artifacts.TryGetValue(key, out var declarations) ? declarations : [];
     }
 }
 
