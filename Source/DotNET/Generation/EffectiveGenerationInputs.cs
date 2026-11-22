@@ -9,9 +9,15 @@ sealed record EffectiveGenerationInputs(
     ImmutableArray<GenerationFact> OriginalFacts,
     ImmutableArray<GenerationFact> Facts,
     ImmutableArray<GenerationDiagnostic> Diagnostics,
-    ImmutableDictionary<FactId, GenerationFactDisposition> Dispositions,
+    ImmutableDictionary<GenerationFactInstance, GenerationFactDisposition> Dispositions,
     ImmutableDictionary<FactId, ImmutableArray<GenerationFact>> EligibilityInputs)
 {
+    public IEnumerable<GenerationFact> OmittedFacts => OriginalFacts.Where(HasDisposition);
+
+    public bool HasDisposition(GenerationFact fact) => Dispositions.ContainsKey(GenerationFactInstance.Of(fact));
+
+    public GenerationFactDisposition DispositionOf(GenerationFact fact) => Dispositions[GenerationFactInstance.Of(fact)];
+
     public static EffectiveGenerationInputs FromFacts(IEnumerable<GenerationFact> facts) => MethodFactEligibility.Select([.. facts]);
 
     public static EffectiveGenerationInputs FromContributions(IEnumerable<AdapterContribution> contributions)

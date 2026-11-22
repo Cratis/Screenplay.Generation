@@ -22,12 +22,13 @@ public sealed class GenerationResolver
         var effective = EffectiveGenerationInputs.FromContributions(orderedContributions);
         var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics).Concat(effective.Diagnostics);
 
-        return ResolveFacts(effective.Facts, diagnostics);
+        return ResolveFacts(effective.Facts, diagnostics, effective.OmittedFacts);
     }
 
     internal ResolvedApplicationGraph ResolveFacts(
         IEnumerable<GenerationFact> contributedFacts,
-        IEnumerable<GenerationDiagnostic> contributedDiagnostics)
+        IEnumerable<GenerationDiagnostic> contributedDiagnostics,
+        IEnumerable<GenerationFact>? eligibilityOmittedFacts = null)
     {
         var diagnostics = contributedDiagnostics.ToList();
         var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(contributedFacts);
@@ -36,7 +37,7 @@ public sealed class GenerationResolver
         var backendScopes = BackendScopeFactResolver.Resolve(facts);
         facts = BackendScopeFactResolver.ValidFacts(facts, diagnostics);
 
-        diagnostics.AddRange(ConflictingFactIdentityDiagnostics(facts));
+        diagnostics.AddRange(ConflictingFactIdentityDiagnostics(WithCollidingOmittedFacts(facts, eligibilityOmittedFacts)));
 
         var effectiveArtifactFacts = GranularArtifactResolver.Resolve(
             facts,
@@ -399,6 +400,14 @@ public sealed class GenerationResolver
                 Source = FirstSource(_.Facts.Select(fact => fact.Evidence)),
                 Subject = _.Facts.OrderBy(fact => fact.Subject.Value, StringComparer.Ordinal).First().Subject
             });
+
+    static IEnumerable<GenerationFact> WithCollidingOmittedFacts(IEnumerable<GenerationFact> facts, IEnumerable<GenerationFact>? omittedFacts)
+    {
+        var effective = facts.ToArray();
+        var omitted = omittedFacts?.ToArray() ?? Array.Empty<GenerationFact>();
+        var colliding = effective.Concat(omitted).GroupBy(fact => fact.Id.Value, StringComparer.Ordinal).Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
+        return effective.Concat(omitted.Where(fact => colliding.Contains(fact.Id.Value)));
+    }
 
     static string FactDefinition(GenerationFact fact) => Structural.FactDefinition(fact);
 

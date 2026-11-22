@@ -12,10 +12,12 @@ static class MethodFactEligibility
 
     public static bool HasCandidate(MethodFactSupportFact support, IEnumerable<GenerationFact> facts)
     {
-        var candidates = facts.Where(fact => fact.Id == support.Definition?.Candidate).ToArray();
-        return candidates.Length == 1 && candidates[0] is not (MethodExecutionClassificationFact or MethodFactSupportFact) &&
-            candidates[0].Subject == support.Subject && candidates[0].Evidence.Adapter == support.Evidence.Adapter;
+        var candidates = facts.Where(fact => fact.Id == support.Definition?.Candidate && fact.Evidence.Adapter == support.Evidence.Adapter).ToArray();
+        return candidates.Length == 1 && IsCandidateOf(candidates[0], support);
     }
+
+    static bool IsCandidateOf(GenerationFact fact, MethodFactSupportFact support) =>
+        fact is not (MethodExecutionClassificationFact or MethodFactSupportFact) && GenerationFactInstance.Of(fact) == GenerationFactInstance.CandidateOf(support);
 
     static bool ValidClassification(MethodExecutionClassificationFact fact)
     {
@@ -76,7 +78,7 @@ static class MethodFactEligibility
     {
         readonly List<GenerationDiagnostic> _diagnostics = [];
         readonly Dictionary<string, Classification> _classifications = [];
-        readonly ImmutableDictionary<FactId, GenerationFactDisposition>.Builder _dispositions = ImmutableDictionary.CreateBuilder<FactId, GenerationFactDisposition>();
+        readonly ImmutableDictionary<GenerationFactInstance, GenerationFactDisposition>.Builder _dispositions = ImmutableDictionary.CreateBuilder<GenerationFactInstance, GenerationFactDisposition>();
         readonly ImmutableDictionary<FactId, ImmutableArray<GenerationFact>>.Builder _inputs = ImmutableDictionary.CreateBuilder<FactId, ImmutableArray<GenerationFact>>();
         readonly ILookup<FactId, GenerationFact> _candidates = facts.ToLookup(fact => fact.Id);
         readonly HashSet<BackendScopeKey> _scopes = [.. facts.OfType<BackendScopeFact>().Select(fact => fact.Definition.Key)];
@@ -84,12 +86,12 @@ static class MethodFactEligibility
         public EffectiveGenerationInputs Select()
         {
             Classify();
-            foreach (var group in facts.OfType<MethodFactSupportFact>().GroupBy(fact => fact.Definition?.Candidate))
+            foreach (var group in facts.OfType<MethodFactSupportFact>().GroupBy(GenerationFactInstance.CandidateOf))
             {
                 SelectCandidate([.. group]);
             }
 
-            var effective = facts.Where(fact => !_dispositions.ContainsKey(fact.Id)).ToImmutableArray();
+            var effective = facts.Where(fact => !_dispositions.ContainsKey(GenerationFactInstance.Of(fact))).ToImmutableArray();
             return new(facts, effective, [.. _diagnostics.GroupBy(Canonical.Diagnostic, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())], _dispositions.ToImmutable(), _inputs.ToImmutable());
         }
 
@@ -118,7 +120,7 @@ static class MethodFactEligibility
                 var disposition = ClassificationDisposition(classification);
                 foreach (var fact in assertions)
                 {
-                    _dispositions[fact.Id] = disposition;
+                    _dispositions[GenerationFactInstance.Of(fact)] = disposition;
                 }
             }
         }
@@ -129,7 +131,7 @@ static class MethodFactEligibility
             var candidate = support.Definition?.Candidate;
             foreach (var fact in supports)
             {
-                _dispositions[fact.Id] = GenerationFactDisposition.ProvenanceOnly;
+                _dispositions[GenerationFactInstance.Of(fact)] = GenerationFactDisposition.ProvenanceOnly;
             }
 
             if (!ValidSupport(supports))
@@ -148,8 +150,8 @@ static class MethodFactEligibility
             if (eligible.Length == 0)
             {
                 var conflicted = alternatives.SelectMany(alternative => alternative.Classifications).Any(classification => classification.Conflicted);
-                _dispositions[candidate!] = conflicted ? GenerationFactDisposition.Conflicted : GenerationFactDisposition.OmittedWithDiagnostic;
-                _dispositions[support.Id] = conflicted ? GenerationFactDisposition.Conflicted : GenerationFactDisposition.ProvenanceOnly;
+                _dispositions[GenerationFactInstance.CandidateOf(support)] = conflicted ? GenerationFactDisposition.Conflicted : GenerationFactDisposition.OmittedWithDiagnostic;
+                _dispositions[GenerationFactInstance.Of(support)] = conflicted ? GenerationFactDisposition.Conflicted : GenerationFactDisposition.ProvenanceOnly;
                 return;
             }
 
@@ -188,10 +190,10 @@ static class MethodFactEligibility
             _diagnostics.Add(Diagnostic(supports, GenerationDiagnosticOutcome.Unknown));
             foreach (var support in supports)
             {
-                _dispositions[support.Id] = GenerationFactDisposition.OmittedWithDiagnostic;
-                if (support.Definition?.Candidate is { } candidate && _candidates[candidate].Any())
+                _dispositions[GenerationFactInstance.Of(support)] = GenerationFactDisposition.OmittedWithDiagnostic;
+                if (support.Definition?.Candidate is { } candidate && _candidates[candidate].Any(fact => IsCandidateOf(fact, support)))
                 {
-                    _dispositions[candidate] = GenerationFactDisposition.OmittedWithDiagnostic;
+                    _dispositions[GenerationFactInstance.CandidateOf(support)] = GenerationFactDisposition.OmittedWithDiagnostic;
                 }
             }
         }

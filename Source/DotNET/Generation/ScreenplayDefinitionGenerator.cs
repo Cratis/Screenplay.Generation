@@ -93,7 +93,8 @@ public sealed class ScreenplayDefinitionGenerator(
         var graph = resolver.ResolveFacts(
             baseFacts.Concat(derivation.Facts.Select(record => record.Fact)),
             input.SelectMany(contribution => contribution.Diagnostics)
-                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)));
+                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
+            effective.OmittedFacts);
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -143,7 +144,8 @@ public sealed class ScreenplayDefinitionGenerator(
         var graph = resolver.ResolveFacts(
             effectiveFacts,
             completed.SelectMany(contribution => contribution.Diagnostics)
-                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)));
+                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
+            effective.OmittedFacts);
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -169,13 +171,13 @@ public sealed class ScreenplayDefinitionGenerator(
             .Concat(derivation.Facts)
             .ToArray();
         var factRecords = GenerationFactDispositionCalculator.Calculate(
-            inputRecords.Where(record => !effective.Dispositions.ContainsKey(record.Fact.Id)),
+            inputRecords.Where(record => !effective.HasDisposition(record.Fact)),
             graph,
             lowering.Coverage,
             [.. pipelineDiagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic)))])
-            .Concat(inputRecords.Where(record => effective.Dispositions.ContainsKey(record.Fact.Id)).Select(record => record with
+            .Concat(inputRecords.Where(record => effective.HasDisposition(record.Fact)).Select(record => record with
             {
-                Disposition = effective.Dispositions[record.Fact.Id],
+                Disposition = effective.DispositionOf(record.Fact),
                 Diagnostics = [.. effective.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(record.Fact.Id))]
             }))
             .ToArray();

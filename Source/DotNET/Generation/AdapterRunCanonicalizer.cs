@@ -135,7 +135,7 @@ static class AdapterRunCanonicalizer
         _ => fact
     };
 
-    static MethodExecutionClassificationFact Classification(MethodExecutionClassificationFact fact) => fact with
+    static MethodExecutionClassificationFact Classification(MethodExecutionClassificationFact fact) => fact.Definition is null ? fact : fact with
     {
         Definition = fact.Definition with
         {
@@ -147,7 +147,7 @@ static class AdapterRunCanonicalizer
 
     static DeclarationMemberKey DeclarationMember(DeclarationMemberKey member) => member with { Declaration = Subject(member.Declaration), Scope = Scope(member.Scope) };
 
-    static MethodFactSupportFact Support(MethodFactSupportFact fact) => fact with
+    static MethodFactSupportFact Support(MethodFactSupportFact fact) => fact.Definition is not { Candidate: not null, Alternatives: not null } ? fact : fact with
     {
         Definition = fact.Definition with
         {
