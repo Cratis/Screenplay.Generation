@@ -404,7 +404,7 @@ public sealed class GenerationResolver
     static IEnumerable<GenerationFact> WithCollidingOmittedFacts(IEnumerable<GenerationFact> facts, IEnumerable<GenerationFact>? omittedFacts)
     {
         var effective = facts.ToArray();
-        var omitted = omittedFacts?.ToArray() ?? Array.Empty<GenerationFact>();
+        var omitted = omittedFacts?.ToArray() ?? [];
         var colliding = effective.Concat(omitted).GroupBy(fact => fact.Id.Value, StringComparer.Ordinal).Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
         return effective.Concat(omitted.Where(fact => colliding.Contains(fact.Id.Value)));
     }

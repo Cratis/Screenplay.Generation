@@ -66,7 +66,7 @@ static class Structural
 
     public static string MethodSupport(MethodFactSupportAlternative? alternative) => alternative is null
         ? Node("missing-alternative")
-        : WithScopes(Node(alternative.Method?.Value, Sequence((alternative.EnclosingExecutables ?? Array.Empty<SubjectId>()).Select(subject => subject?.Value).Distinct().Order(StringComparer.Ordinal), value => value), Sequence((alternative.Diagnostics ?? Array.Empty<GenerationDiagnostic>()).Select(diagnostic => diagnostic is null ? null : Diagnostic(diagnostic)).Distinct().Order(StringComparer.Ordinal), value => value)), alternative.Scope);
+        : WithScopes(Node(alternative.Method?.Value, Sequence((alternative.EnclosingExecutables ?? []).Select(subject => subject?.Value).Distinct().Order(StringComparer.Ordinal), value => value), Sequence((alternative.Diagnostics ?? []).Select(diagnostic => diagnostic is null ? null : Diagnostic(diagnostic)).Distinct().Order(StringComparer.Ordinal), value => value)), alternative.Scope);
 
     public static string EntryPoint(EntryPointDefinition definition) =>
         Node(definition.Method.Value, ArtifactKey(definition.Artifact));
@@ -287,7 +287,7 @@ static class Structural
         DeclarationInputMemberDeclarationFact declaration => Node("declaration-input-member", DeclarationMember(declaration.Definition.Member), Integer(declaration.Definition.DeclarationOrder)),
         DeclarationInputMemberTypeUseFact typeUse => Node("declaration-input-type", DeclarationMember(typeUse.Definition.Member), TypeUse(typeUse.Definition.Type)),
         EntryPointInputTransferFact transfer => Node("entry-input-transfer", transfer.Definition.Method.Value, ArtifactKey(transfer.Definition.Artifact), Integer((int)transfer.Definition.Kind)),
-        MethodFactSupportFact support => Node("method-support", support.Definition?.Candidate?.Value, Sequence((support.Definition?.Alternatives ?? Array.Empty<MethodFactSupportAlternative>()).Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value)),
+        MethodFactSupportFact support => Node("method-support", support.Definition?.Candidate?.Value, Sequence((support.Definition?.Alternatives ?? []).Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value)),
         _ => DomainFactDefinition(fact)
     };
 
