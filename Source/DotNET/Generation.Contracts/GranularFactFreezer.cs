@@ -114,6 +114,28 @@ static class GranularFactFreezer
         return new SubjectId { Value = subject.Value ?? string.Empty };
     }
 
+    internal static TypeUseDefinition FreezeTypeUse(
+        TypeUseDefinition? type,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
+        if (type is null)
+        {
+            context.Missing(path);
+            return new TypeUseDefinition { Name = string.Empty, Shape = [] };
+        }
+
+        return new TypeUseDefinition
+        {
+            Name = type.Name ?? string.Empty,
+            ObservedTypeSubject = type.ObservedTypeSubject is null
+                ? null
+                : FreezeSubject(type.ObservedTypeSubject, $"{path}.ObservedTypeSubject", context),
+            Shape = FreezeShape(type.Shape, $"{path}.Shape", context),
+            ObservedScope = BackendScopeFreezer.Key(type.ObservedScope, $"{path}.ObservedScope", context)
+        };
+    }
+
     static ArtifactDeclarationDefinition FreezeArtifactDeclaration(
         ArtifactDeclarationDefinition? definition,
         string path,
@@ -245,28 +267,6 @@ static class GranularFactFreezer
         {
             Artifact = FreezeArtifactKey(member.Artifact, $"{path}.Artifact", context),
             Name = member.Name ?? string.Empty
-        };
-    }
-
-    static TypeUseDefinition FreezeTypeUse(
-        TypeUseDefinition? type,
-        string path,
-        AdapterContributionAdmissionContext context)
-    {
-        if (type is null)
-        {
-            context.Missing(path);
-            return new TypeUseDefinition { Name = string.Empty, Shape = [] };
-        }
-
-        return new TypeUseDefinition
-        {
-            Name = type.Name ?? string.Empty,
-            ObservedTypeSubject = type.ObservedTypeSubject is null
-                ? null
-                : FreezeSubject(type.ObservedTypeSubject, $"{path}.ObservedTypeSubject", context),
-            Shape = FreezeShape(type.Shape, $"{path}.Shape", context),
-            ObservedScope = BackendScopeFreezer.Key(type.ObservedScope, $"{path}.ObservedScope", context)
         };
     }
 

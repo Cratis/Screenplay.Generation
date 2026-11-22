@@ -37,9 +37,21 @@ public static class GenerationFactDerivation
             .ToImmutableArray();
         var typeUseBindings = TypeUseBindingDerivation.Derive(baseFacts);
         var artifactUsages = ArtifactUsageDerivation.Derive(baseFacts);
+        var inputMembers = EntryPointInputMemberDerivation.Derive(baseFacts);
+        ImmutableArray<GenerationDerivationRuleRecord> inputMemberRules = inputMembers.Inputs.IsEmpty ? [] :
+        [
+            new GenerationDerivationRuleRecord
+            {
+                Rule = EntryPointInputMemberDerivation.Rule,
+                Inputs = inputMembers.Inputs,
+                Outputs = [.. inputMembers.Facts.Select(record => record.Fact.Id)],
+                Diagnostics = inputMembers.Diagnostics
+            }
+        ];
         var diagnostics = validationDiagnostics
             .Concat(typeUseBindings.Diagnostics)
             .Concat(artifactUsages.Diagnostics)
+            .Concat(inputMembers.Diagnostics)
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .ToImmutableArray();
         ImmutableArray<GenerationDerivationRuleRecord> usageRules = baseFacts.Any(record => record.Fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
@@ -66,9 +78,10 @@ public static class GenerationFactDerivation
                     Diagnostics = typeUseBindings.Diagnostics
                 },
                 .. usageRules,
+                .. inputMemberRules,
                 .. MethodEligibilityLineage.Rules(effective)
             ],
-            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts], effective),
+            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts], effective),
             Diagnostics = diagnostics
         };
 

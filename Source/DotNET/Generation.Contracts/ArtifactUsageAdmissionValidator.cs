@@ -18,6 +18,11 @@ static class ArtifactUsageAdmissionValidator
                 AdapterContributionAdmissionValidator.ValidateArtifactKey(entry.Definition.Artifact, $"{path}.Definition.Artifact", fact.Id, context);
                 break;
             case MethodArtifactUsageFact usage:
+                if (usage.Definition.ExecutionOrder < 0)
+                {
+                    context.Add(AdapterContributionAdmissionDiagnosticCode.InvalidDeclarationOrder, $"{path}.Definition.ExecutionOrder", "Execution order must not be negative", fact.Id, fact.Subject);
+                }
+
                 ValidateOwner(fact, usage.Definition.Method, $"{path}.Definition.Method", context);
                 AdapterContributionAdmissionValidator.ValidateSubject(usage.Definition.Declaration, $"{path}.Definition.Declaration", fact.Id, context);
                 context.Enum(usage.Definition.Kind, RelationshipKind.Unknown, $"{path}.Definition.Kind", fact.Id, fact.Subject);

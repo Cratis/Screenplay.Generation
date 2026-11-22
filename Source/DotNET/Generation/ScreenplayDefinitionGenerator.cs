@@ -188,7 +188,7 @@ public sealed class ScreenplayDefinitionGenerator(
             inputRecords.Where(record => !effective.Dispositions.ContainsKey(record.Fact.Id)),
             graph,
             lowering.Coverage,
-            pipelineDiagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic))).ToArray())
+            [.. pipelineDiagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic)))])
             .Concat(inputRecords.Where(record => effective.Dispositions.ContainsKey(record.Fact.Id)).Select(record => record with
             {
                 Disposition = effective.Dispositions[record.Fact.Id],

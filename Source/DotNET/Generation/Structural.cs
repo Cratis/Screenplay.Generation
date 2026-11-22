@@ -56,8 +56,13 @@ static class Structural
     public static string ArtifactUsageDeclaration(ArtifactUsageDeclarationDefinition definition) =>
         Node(definition.Declaration.Value, ArtifactKey(definition.Artifact));
 
-    public static string MethodArtifactUsage(MethodArtifactUsageDefinition definition) =>
-        WithScopes(Node(definition.Method.Value, definition.Declaration.Value, Integer((int)definition.Kind)), definition.SourceScope, definition.TargetScope);
+    public static string MethodArtifactUsage(MethodArtifactUsageDefinition definition)
+    {
+        var legacy = WithScopes(Node(definition.Method.Value, definition.Declaration.Value, Integer((int)definition.Kind)), definition.SourceScope, definition.TargetScope);
+        return definition.ExecutionOrder is { } order ? Node(legacy, Integer(order)) : legacy;
+    }
+
+    public static string DeclarationMember(DeclarationMemberKey member) => WithScopes(Node(member.Declaration.Value, member.Name), member.Scope);
 
     public static string MethodSupport(MethodFactSupportAlternative alternative) =>
         WithScopes(Node(alternative.Method.Value, Sequence(alternative.EnclosingExecutables.Select(subject => subject.Value).Distinct().Order(StringComparer.Ordinal), value => value), Sequence(alternative.Diagnostics.Select(Diagnostic).Distinct().Order(StringComparer.Ordinal), value => value)), alternative.Scope);
@@ -253,6 +258,9 @@ static class Structural
         BackendScopeFact => (int)GenerationFactCapability.BackendScope,
         MethodExecutionClassificationFact => (int)GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => (int)GenerationFactCapability.MethodFactSupport,
+        DeclarationInputMemberDeclarationFact => (int)GenerationFactCapability.DeclarationInputMemberDeclaration,
+        DeclarationInputMemberTypeUseFact => (int)GenerationFactCapability.DeclarationInputMemberTypeUse,
+        EntryPointInputTransferFact => (int)GenerationFactCapability.EntryPointInputTransfer,
         _ => int.MaxValue
     };
 
@@ -265,6 +273,9 @@ static class Structural
         MethodArtifactUsageFact usage => Node("method-artifact-usage", MethodArtifactUsage(usage.Definition)),
         EntryPointFact entry => Node("entry-point", EntryPoint(entry.Definition)),
         MethodExecutionClassificationFact classification => WithScopes(Node("method-execution", classification.Definition.Method.Value, Integer((int)classification.Definition.Kind), classification.Definition.OmissionReason is { } reason ? Diagnostic(reason) : null), classification.Definition.Scope),
+        DeclarationInputMemberDeclarationFact declaration => Node("declaration-input-member", DeclarationMember(declaration.Definition.Member), Integer(declaration.Definition.DeclarationOrder)),
+        DeclarationInputMemberTypeUseFact typeUse => Node("declaration-input-type", DeclarationMember(typeUse.Definition.Member), TypeUse(typeUse.Definition.Type)),
+        EntryPointInputTransferFact transfer => Node("entry-input-transfer", transfer.Definition.Method.Value, ArtifactKey(transfer.Definition.Artifact), Integer((int)transfer.Definition.Kind)),
         MethodFactSupportFact support => Node("method-support", support.Definition.Candidate.Value, Sequence(support.Definition.Alternatives.Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value)),
         _ => DomainFactDefinition(fact)
     };

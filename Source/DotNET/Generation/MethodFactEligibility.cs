@@ -25,7 +25,7 @@ static class MethodFactEligibility
             return false;
         }
 
-        return definition!.Kind switch
+        return definition.Kind switch
         {
             MethodExecutionKind.Ordinary => definition.OmissionReason is null,
             MethodExecutionKind.FailureOnly => definition.OmissionReason is { Severity: GenerationDiagnosticSeverity.Warning, Source: not null } reason && ValidDiagnostic(reason),
@@ -75,11 +75,11 @@ static class MethodFactEligibility
     sealed class Selection(ImmutableArray<GenerationFact> facts, HashSet<MethodFactSupportFact> invalidSupports)
     {
         readonly List<GenerationDiagnostic> _diagnostics = [];
-        readonly Dictionary<string, Classification> _classifications = new(StringComparer.Ordinal);
+        readonly Dictionary<string, Classification> _classifications = [];
         readonly ImmutableDictionary<FactId, GenerationFactDisposition>.Builder _dispositions = ImmutableDictionary.CreateBuilder<FactId, GenerationFactDisposition>();
         readonly ImmutableDictionary<FactId, ImmutableArray<GenerationFact>>.Builder _inputs = ImmutableDictionary.CreateBuilder<FactId, ImmutableArray<GenerationFact>>();
         readonly ILookup<FactId, GenerationFact> _candidates = facts.ToLookup(fact => fact.Id);
-        readonly HashSet<BackendScopeKey> _scopes = facts.OfType<BackendScopeFact>().Select(fact => fact.Definition.Key).ToHashSet();
+        readonly HashSet<BackendScopeKey> _scopes = [.. facts.OfType<BackendScopeFact>().Select(fact => fact.Definition.Key)];
 
         public EffectiveGenerationInputs Select()
         {
@@ -91,6 +91,16 @@ static class MethodFactEligibility
 
             var effective = facts.Where(fact => !_dispositions.ContainsKey(fact.Id)).ToImmutableArray();
             return new(facts, effective, [.. _diagnostics.GroupBy(Canonical.Diagnostic, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())], _dispositions.ToImmutable(), _inputs.ToImmutable());
+        }
+
+        static GenerationFactDisposition ClassificationDisposition(Classification classification)
+        {
+            if (classification.Conflicted)
+            {
+                return GenerationFactDisposition.Conflicted;
+            }
+
+            return classification.Kind == MethodExecutionKind.Unknown ? GenerationFactDisposition.OmittedWithDiagnostic : GenerationFactDisposition.ProvenanceOnly;
         }
 
         void Classify()
@@ -158,16 +168,6 @@ static class MethodFactEligibility
             }
 
             return new(assertions[0].Definition.Kind, false, assertions);
-        }
-
-        static GenerationFactDisposition ClassificationDisposition(Classification classification)
-        {
-            if (classification.Conflicted)
-            {
-                return GenerationFactDisposition.Conflicted;
-            }
-
-            return classification.Kind == MethodExecutionKind.Unknown ? GenerationFactDisposition.OmittedWithDiagnostic : GenerationFactDisposition.ProvenanceOnly;
         }
 
         bool ValidSupport(MethodFactSupportFact[] supports)

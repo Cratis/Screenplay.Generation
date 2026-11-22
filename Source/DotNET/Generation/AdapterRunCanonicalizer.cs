@@ -105,6 +105,16 @@ static class AdapterRunCanonicalizer
         },
         MethodExecutionClassificationFact classification => Classification(classification),
         MethodFactSupportFact support => Support(support),
+        DeclarationInputMemberDeclarationFact declaration => declaration with { Definition = declaration.Definition with { Member = DeclarationMember(declaration.Definition.Member) } },
+        DeclarationInputMemberTypeUseFact typeUse => typeUse with
+        {
+            Definition = typeUse.Definition with
+            {
+                Member = DeclarationMember(typeUse.Definition.Member),
+                Type = typeUse.Definition.Type with { ObservedTypeSubject = typeUse.Definition.Type.ObservedTypeSubject is { } subject ? Subject(subject) : null, ObservedScope = Scope(typeUse.Definition.Type.ObservedScope), Shape = [.. typeUse.Definition.Type.Shape] }
+            }
+        },
+        EntryPointInputTransferFact transfer => transfer with { Definition = transfer.Definition with { Method = Subject(transfer.Definition.Method), Artifact = ArtifactKey(transfer.Definition.Artifact) } },
         RelationshipFact relationship => relationship with { Definition = Relationship(relationship.Definition) },
         _ => DomainFactDefinition(fact)
     };
@@ -129,6 +139,8 @@ static class AdapterRunCanonicalizer
             OmissionReason = fact.Definition.OmissionReason is { } reason ? Diagnostic(reason) : null
         }
     };
+
+    static DeclarationMemberKey DeclarationMember(DeclarationMemberKey member) => member with { Declaration = Subject(member.Declaration), Scope = Scope(member.Scope) };
 
     static MethodFactSupportFact Support(MethodFactSupportFact fact) => fact with
     {

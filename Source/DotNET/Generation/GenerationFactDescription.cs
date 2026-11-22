@@ -51,6 +51,9 @@ internal static class GenerationFactDescription
         MethodArtifactUsageFact => "method artifact usage",
         MethodExecutionClassificationFact => "method execution classification",
         MethodFactSupportFact => "method fact support",
+        DeclarationInputMemberDeclarationFact => "declaration input member",
+        DeclarationInputMemberTypeUseFact => "declaration input member type",
+        EntryPointInputTransferFact => "entry input transfer",
         EntryPointFact => "entry point",
         RelationshipFact => "relationship",
         _ => DomainFamily(fact)

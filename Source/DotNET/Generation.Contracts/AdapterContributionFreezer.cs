@@ -290,6 +290,27 @@ static class AdapterContributionFreezer
                 Evidence = envelope.Evidence,
                 Definition = ArtifactUsageFreezer.Declaration(declaration.Definition, $"{envelope.Path}.Definition", context)
             },
+            DeclarationInputMemberDeclarationFact declaration => new DeclarationInputMemberDeclarationFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = DeclarationInputMemberFreezer.Declaration(declaration.Definition, $"{envelope.Path}.Definition", context)
+            },
+            DeclarationInputMemberTypeUseFact typeUse => new DeclarationInputMemberTypeUseFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = DeclarationInputMemberFreezer.TypeUse(typeUse.Definition, $"{envelope.Path}.Definition", context)
+            },
+            EntryPointInputTransferFact transfer => new EntryPointInputTransferFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = DeclarationInputMemberFreezer.Transfer(transfer.Definition, $"{envelope.Path}.Definition", context)
+            },
             MethodArtifactUsageFact usage => new MethodArtifactUsageFact
             {
                 Id = envelope.Id,
@@ -987,6 +1008,9 @@ static class AdapterContributionFreezer
         BackendScopeFact => (int)GenerationFactCapability.BackendScope,
         MethodExecutionClassificationFact => (int)GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => (int)GenerationFactCapability.MethodFactSupport,
+        DeclarationInputMemberDeclarationFact => (int)GenerationFactCapability.DeclarationInputMemberDeclaration,
+        DeclarationInputMemberTypeUseFact => (int)GenerationFactCapability.DeclarationInputMemberTypeUse,
+        EntryPointInputTransferFact => (int)GenerationFactCapability.EntryPointInputTransfer,
         _ => int.MaxValue
     };
 }

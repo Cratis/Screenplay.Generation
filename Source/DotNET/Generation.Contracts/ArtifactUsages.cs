@@ -40,6 +40,10 @@ public sealed record MethodArtifactUsageDefinition
     /// <summary>Gets the proved relationship role. The built-in join supports Reads only.</summary>
     public required RelationshipKind Kind { get; init; }
 
+    /// <summary>Gets nonnegative semantic execution order when proved by the observer; null means unknown.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ExecutionOrder { get; init; }
+
     /// <summary>Gets the exact entry-point occurrence selector; null selects an unscoped occurrence.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public BackendScopeKey? SourceScope { get; init; }

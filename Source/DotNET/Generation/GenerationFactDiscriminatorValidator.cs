@@ -64,6 +64,13 @@ static class GenerationFactDiscriminatorValidator
             case ArtifactUsageDeclarationFact or EntryPointFact or MethodArtifactUsageFact:
                 ValidateUsageFamily(fact, diagnostics);
                 break;
+            case DeclarationInputMemberTypeUseFact typeUse:
+                ValidateTypeUseShape(fact, typeUse.Definition.Type.Shape, diagnostics);
+                break;
+            case EntryPointInputTransferFact transfer:
+                Validate(fact, transfer.Definition.Artifact.Kind, _artifactKind, diagnostics);
+                Validate(fact, transfer.Definition.Kind, _relationshipKind, diagnostics);
+                break;
             case MethodExecutionClassificationFact classification:
                 Validate(fact, classification.Definition.Kind, _methodExecutionKind, diagnostics);
                 break;

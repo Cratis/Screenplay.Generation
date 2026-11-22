@@ -636,6 +636,9 @@ static class AdapterContributionAdmissionValidator
         BackendScopeFact => GenerationFactCapability.BackendScope,
         MethodExecutionClassificationFact => GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => GenerationFactCapability.MethodFactSupport,
+        DeclarationInputMemberDeclarationFact => GenerationFactCapability.DeclarationInputMemberDeclaration,
+        DeclarationInputMemberTypeUseFact => GenerationFactCapability.DeclarationInputMemberTypeUse,
+        EntryPointInputTransferFact => GenerationFactCapability.EntryPointInputTransfer,
         _ => GenerationFactCapability.Unknown
     };
 }

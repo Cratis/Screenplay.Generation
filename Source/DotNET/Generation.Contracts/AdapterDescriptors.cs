@@ -204,7 +204,16 @@ public enum GenerationFactCapability
     MethodExecutionClassification = 18,
 
     /// <summary><see cref="MethodFactSupportFact"/> facts.</summary>
-    MethodFactSupport = 19
+    MethodFactSupport = 19,
+
+    /// <summary><see cref="DeclarationInputMemberDeclarationFact"/> facts.</summary>
+    DeclarationInputMemberDeclaration = 20,
+
+    /// <summary><see cref="DeclarationInputMemberTypeUseFact"/> facts.</summary>
+    DeclarationInputMemberTypeUse = 21,
+
+    /// <summary><see cref="EntryPointInputTransferFact"/> facts.</summary>
+    EntryPointInputTransfer = 22
 }
 
 /// <summary>

@@ -73,6 +73,12 @@ Keep conditional semantic diagnostics inside the alternative. Top-level adapter,
 
 These are source-neutral proof contracts, not C# callback recognition. Ecosystem adapters must provide exact executable/lexical ownership and retain unproved execution as unknown rather than inventing ordinary behavior.
 
+## Transfer declaration-owned inputs
+
+A reusable library can contribute `DeclarationInputMemberDeclarationFact` and `DeclarationInputMemberTypeUseFact` without inventing an artifact role. An application adapter opts an exact query endpoint into transfer with `EntryPointInputTransferFact`, its exact `EntryPointFact`, and ordered `MethodArtifactUsageFact` observations. Direct endpoint members win; proved execution order then source member order determines additions. Full substituted type and named-binding proof are retained in one fixed-snapshot derivation pass. Plain `Reads` facts remain relationship-only.
+
+See [Derive query inputs from declaration surfaces](query-input-member-derivation.md) for capabilities, ownership, precedence, omissions, eligibility and lineage.
+
 ## Establish the analysis context in the host
 
 The workspace host owns project loading and source authority. `Cratis.Screenplay.Generation.DotNet` deliberately does not reference `MSBuildWorkspace`; an MSBuild host additionally references `Microsoft.CodeAnalysis.Workspaces.MSBuild` and `Microsoft.Build.Locator`. The host supplies a `DotNetAnalysisContext` built from its project compilations and authored source sets; adapters consume that context rather than loading the application.

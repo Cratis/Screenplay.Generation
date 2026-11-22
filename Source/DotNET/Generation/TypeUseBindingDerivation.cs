@@ -52,6 +52,25 @@ static class TypeUseBindingDerivation
             [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]);
     }
 
+    internal static (ArtifactKey? Target, GenerationFact[] Inputs, GenerationDiagnostic? Diagnostic) BindTransferredType(
+        ArtifactMemberTypeUseFact typeUse,
+        ImmutableArray<GenerationFactRecord> baseFacts)
+    {
+        var context = new BindingContext(typeUse.Definition.Member, [typeUse]);
+        if (typeUse.Definition.Type.ObservedTypeSubject is not { } observedType)
+        {
+            return (null, [], null);
+        }
+
+        var facts = baseFacts.Select(record => record.Fact).ToArray();
+        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts));
+        var owners = index.Artifacts.Where(declaration => declaration.Key == context.Member.Artifact).ToArray();
+        var target = ResolveTarget(context, observedType, owners, index);
+        return target.Failure is { } failure
+            ? (null, [], failure)
+            : (target.Value[0].Key, CanonicalInputs(target.Value.Select(declaration => declaration.Fact)), null);
+    }
+
     static BindingOutcome DeriveBinding(ArtifactMemberTypeUseFact[] typeUses, DeclarationIndex index)
     {
         var context = new BindingContext(typeUses[0].Definition.Member, typeUses);
