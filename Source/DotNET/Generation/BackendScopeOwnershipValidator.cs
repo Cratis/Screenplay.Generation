@@ -23,9 +23,15 @@ static class BackendScopeOwnershipValidator
             }
         }
 
+        var entries = facts.OfType<EntryPointFact>().ToLookup(
+            entry => entry.Definition.Method,
+            entry => new Candidate(entry.Definition.Artifact, entry));
+        var declarations = facts.OfType<ArtifactUsageDeclarationFact>().ToLookup(
+            declaration => declaration.Definition.Declaration,
+            declaration => new Candidate(declaration.Definition.Artifact, declaration));
         foreach (var usage in facts.OfType<MethodArtifactUsageFact>())
         {
-            foreach (var diagnostic in ValidateUsage(usage, facts))
+            foreach (var diagnostic in ValidateUsage(usage, entries[usage.Definition.Method].ToArray(), declarations[usage.Definition.Declaration].ToArray()))
             {
                 rejected.Add(usage.Id);
                 yield return diagnostic;
@@ -53,11 +59,9 @@ static class BackendScopeOwnershipValidator
         _ => []
     };
 
-    static IEnumerable<GenerationDiagnostic> ValidateUsage(MethodArtifactUsageFact usage, GenerationFact[] facts)
+    static IEnumerable<GenerationDiagnostic> ValidateUsage(MethodArtifactUsageFact usage, Candidate[] sources, Candidate[] targets)
     {
         var definition = usage.Definition;
-        var sources = facts.OfType<EntryPointFact>().Where(entry => entry.Definition.Method == definition.Method)
-            .Select(entry => new Candidate(entry.Definition.Artifact, entry)).ToArray();
         if (sources.Length == 0)
         {
             yield break;
@@ -68,8 +72,6 @@ static class BackendScopeOwnershipValidator
             yield return sourceFailure;
         }
 
-        var targets = facts.OfType<ArtifactUsageDeclarationFact>().Where(declaration => declaration.Definition.Declaration == definition.Declaration)
-            .Select(declaration => new Candidate(declaration.Definition.Artifact, declaration)).ToArray();
         if (CheckSelection(usage, definition.TargetScope, targets) is { } targetFailure)
         {
             yield return targetFailure;

@@ -23,9 +23,7 @@ static class ArtifactUsageDerivation
             Join([.. group], index, edges, diagnostics);
         }
 
-        var blockedEntries = ConflictedEntries(facts, diagnostics);
-        LinkSuppressedInputs(edges, blockedEntries, diagnostics);
-        var records = edges.Where(edge => !IsBlocked(edge, blockedEntries))
+        var records = edges
             .GroupBy(edge => Structural.RelationshipKey(edge.Key), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => BackendScopeFactResolver.AttachScopeLineage(Record(group.First().Key, group.SelectMany(edge => edge.Inputs)), facts))
@@ -34,34 +32,6 @@ static class ArtifactUsageDerivation
             [.. facts.Where(IsInput).Select(fact => fact.Id).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
             records,
             [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]);
-    }
-
-    static HashSet<string> ConflictedEntries(GenerationFact[] facts, List<GenerationDiagnostic> diagnostics)
-    {
-        var inputs = diagnostics.Where(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict)
-            .SelectMany(diagnostic => diagnostic.Facts).ToHashSet();
-        return facts.OfType<EntryPointFact>().Where(entry => inputs.Contains(entry.Id))
-            .Select(entry => MappingKey(entry.Definition.Method, entry.Definition.Artifact.Scope)).ToHashSet(StringComparer.Ordinal);
-    }
-
-    static bool IsBlocked(UsageEdge edge, HashSet<string> blockedEntries) =>
-        edge.Inputs.OfType<EntryPointFact>().Any(entry => blockedEntries.Contains(MappingKey(entry.Definition.Method, entry.Definition.Artifact.Scope)));
-
-    static void LinkSuppressedInputs(List<UsageEdge> edges, HashSet<string> blockedEntries, List<GenerationDiagnostic> diagnostics)
-    {
-        var suppressed = edges.Where(edge => IsBlocked(edge, blockedEntries)).ToArray();
-        for (var index = 0; index < diagnostics.Count; index++)
-        {
-            var diagnostic = diagnostics[index];
-            if (diagnostic.Outcome != GenerationDiagnosticOutcome.Conflict)
-            {
-                continue;
-            }
-
-            var inputs = suppressed.Where(edge => edge.Inputs.OfType<EntryPointFact>().Any(entry => diagnostic.Facts.Contains(entry.Id)))
-                .SelectMany(edge => edge.Inputs).Select(fact => fact.Id);
-            diagnostics[index] = diagnostic with { Facts = [.. diagnostic.Facts.Concat(inputs).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)] };
-        }
     }
 
     static string MappingKey(SubjectId subject, BackendScopeKey? scope) =>
@@ -116,7 +86,7 @@ static class ArtifactUsageDerivation
             return;
         }
 
-        if (HasConflict(sourceFacts) || HasConflict(targetFacts))
+        if (HasConflict(index.EffectiveDeclarations(endpoints.Source)) || HasConflict(index.EffectiveDeclarations(endpoints.Target)))
         {
             diagnostics.Add(Diagnostic(GenerationDiagnosticOutcome.Conflict, inputs, "An artifact usage endpoint has incompatible declarations"));
             return;
@@ -143,24 +113,12 @@ static class ArtifactUsageDerivation
         return false;
     }
 
-    static bool IsInput(GenerationFact fact) => fact is BackendScopeFact or ArtifactFact or ArtifactDeclarationFact or ArtifactUsageDeclarationFact or EntryPointFact or MethodArtifactUsageFact;
+    static bool IsInput(GenerationFact fact) => fact is BackendScopeFact or ArtifactFact or ArtifactDeclarationFact or
+        ArtifactMemberDeclarationFact or ArtifactMemberTypeUseFact or TypeUseBindingFact or ArtifactMemberRoleFact or
+        ArtifactUsageDeclarationFact or EntryPointFact or MethodArtifactUsageFact;
 
-    static bool HasConflict(GenerationFact[] declarations)
-    {
-        var facets = declarations.Select(fact => fact switch
-        {
-            ArtifactFact artifact => Structural.ArtifactDeclaration(new ArtifactDeclarationDefinition
-            {
-                Artifact = artifact.Definition.Key,
-                Name = artifact.Definition.Name,
-                Description = artifact.Definition.Description
-            }),
-            ArtifactDeclarationFact declaration => Structural.ArtifactDeclaration(declaration.Definition),
-            _ => string.Empty
-        });
-        return facets.Distinct(StringComparer.Ordinal).Count() > 1 ||
-               declarations.OfType<ArtifactFact>().Select(fact => Structural.Artifact(fact.Definition)).Distinct(StringComparer.Ordinal).Count() > 1;
-    }
+    static bool HasConflict(ArtifactFact[] declarations) =>
+        declarations.Select(fact => Structural.Artifact(fact.Definition)).Distinct(StringComparer.Ordinal).Count() > 1;
 
     static GenerationFactRecord Record(RelationshipKey key, IEnumerable<GenerationFact> facts)
     {
@@ -221,6 +179,7 @@ static class ArtifactUsageDerivation
         readonly Dictionary<string, EntryPointFact[]> _entries;
         readonly Dictionary<string, ArtifactUsageDeclarationFact[]> _usages;
         readonly Dictionary<ArtifactKey, GenerationFact[]> _artifacts;
+        readonly Dictionary<ArtifactKey, ArtifactFact[]> _effectiveArtifacts;
 
         public UsageIndex(GenerationFact[] facts)
         {
@@ -233,7 +192,17 @@ static class ArtifactUsageDerivation
             _artifacts = facts.Where(fact => fact is ArtifactFact or ArtifactDeclarationFact)
                 .GroupBy(fact => fact is ArtifactFact artifact ? artifact.Definition.Key : ((ArtifactDeclarationFact)fact).Definition.Artifact)
                 .ToDictionary(group => group.Key, group => group.ToArray());
+            _effectiveArtifacts = GranularArtifactResolver.Resolve(facts, [], [])
+                .GroupBy(fact => fact.Definition.Key)
+                .ToDictionary(group => group.Key, group => group.ToArray());
+            var baseFacts = facts.ToLookup(fact => fact.Id);
+            foreach (var (key, effective) in _effectiveArtifacts)
+            {
+                _artifacts[key] = Inputs(_artifacts.GetValueOrDefault(key, []).Concat(effective.SelectMany(fact => baseFacts[fact.Id])));
+            }
         }
+
+        public ArtifactFact[] EffectiveDeclarations(ArtifactKey key) => _effectiveArtifacts.GetValueOrDefault(key, []);
 
         public EntryPointFact[] Entries(MethodArtifactUsageDefinition usage) =>
             _entries.TryGetValue(MappingKey(usage.Method, usage.SourceScope), out var entries) ? entries : [];
@@ -241,8 +210,7 @@ static class ArtifactUsageDerivation
         public ArtifactUsageDeclarationFact[] UsageDeclarations(MethodArtifactUsageDefinition usage) =>
             _usages.TryGetValue(MappingKey(usage.Declaration, usage.TargetScope), out var declarations) ? declarations : [];
 
-        public GenerationFact[] Declarations(ArtifactKey key) =>
-            _artifacts.TryGetValue(key, out var declarations) ? declarations : [];
+        public GenerationFact[] Declarations(ArtifactKey key) => _artifacts.GetValueOrDefault(key, []);
     }
 }
 
