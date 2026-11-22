@@ -256,6 +256,11 @@ static class Structural
         MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => (int)GenerationFactCapability.EntryPoint,
         BackendScopeFact => (int)GenerationFactCapability.BackendScope,
+        _ => ObservationFamily(fact)
+    };
+
+    static int ObservationFamily(GenerationFact fact) => fact switch
+    {
         MethodExecutionClassificationFact => (int)GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => (int)GenerationFactCapability.MethodFactSupport,
         DeclarationInputMemberDeclarationFact => (int)GenerationFactCapability.DeclarationInputMemberDeclaration,
@@ -272,6 +277,11 @@ static class Structural
         ArtifactUsageDeclarationFact declaration => Node("artifact-usage-declaration", ArtifactUsageDeclaration(declaration.Definition)),
         MethodArtifactUsageFact usage => Node("method-artifact-usage", MethodArtifactUsage(usage.Definition)),
         EntryPointFact entry => Node("entry-point", EntryPoint(entry.Definition)),
+        _ => ObservationFactDefinition(fact)
+    };
+
+    static string ObservationFactDefinition(GenerationFact fact) => fact switch
+    {
         MethodExecutionClassificationFact classification => WithScopes(Node("method-execution", classification.Definition.Method.Value, Integer((int)classification.Definition.Kind), classification.Definition.OmissionReason is { } reason ? Diagnostic(reason) : null), classification.Definition.Scope),
         DeclarationInputMemberDeclarationFact declaration => Node("declaration-input-member", DeclarationMember(declaration.Definition.Member), Integer(declaration.Definition.DeclarationOrder)),
         DeclarationInputMemberTypeUseFact typeUse => Node("declaration-input-type", DeclarationMember(typeUse.Definition.Member), TypeUse(typeUse.Definition.Type)),

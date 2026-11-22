@@ -49,6 +49,11 @@ internal static class GenerationFactDescription
         BackendScopeFact => "backend scope",
         ArtifactUsageDeclarationFact => "artifact usage declaration",
         MethodArtifactUsageFact => "method artifact usage",
+        _ => ObservationFamily(fact)
+    };
+
+    static string ObservationFamily(GenerationFact fact) => fact switch
+    {
         MethodExecutionClassificationFact => "method execution classification",
         MethodFactSupportFact => "method fact support",
         DeclarationInputMemberDeclarationFact => "declaration input member",

@@ -148,7 +148,10 @@ static class AdapterContributionAdmissionValidator
         ValidateGenerationVersionRange(descriptor, context);
     }
 
-    internal static void ValidateMethodDiagnostic(string adapterId, HashSet<string> factIds, GenerationDiagnostic diagnostic, ISourceAuthorityValidator? authority, AdapterContributionAdmissionContext context) => ValidateDiagnostic(adapterId, factIds, diagnostic, 0, authority, context);
+    internal static void ValidateMethodDiagnostic(
+        (string AdapterId, HashSet<string> FactIds, ISourceAuthorityValidator? Authority) owner,
+        GenerationDiagnostic diagnostic,
+        AdapterContributionAdmissionContext context) => ValidateDiagnostic(owner.AdapterId, owner.FactIds, diagnostic, 0, owner.Authority, context);
 
     static bool IsStableAbsoluteUri(string value) =>
         AdapterContributionText.IsNormalized(value, false) &&
@@ -634,6 +637,11 @@ static class AdapterContributionAdmissionValidator
         MethodArtifactUsageFact => GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => GenerationFactCapability.EntryPoint,
         BackendScopeFact => GenerationFactCapability.BackendScope,
+        _ => ObservationCapability(fact)
+    };
+
+    static GenerationFactCapability ObservationCapability(GenerationFact fact) => fact switch
+    {
         MethodExecutionClassificationFact => GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => GenerationFactCapability.MethodFactSupport,
         DeclarationInputMemberDeclarationFact => GenerationFactCapability.DeclarationInputMemberDeclaration,

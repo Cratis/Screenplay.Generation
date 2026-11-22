@@ -64,6 +64,25 @@ static class GenerationFactDiscriminatorValidator
             case ArtifactUsageDeclarationFact or EntryPointFact or MethodArtifactUsageFact:
                 ValidateUsageFamily(fact, diagnostics);
                 break;
+            case RelationshipFact relationship:
+                Validate(fact, relationship.Definition.Key.Kind, _relationshipKind, diagnostics);
+                break;
+            case ConceptRepresentationFact or ConceptAttributeFact or ConceptValidationRuleFact:
+                ValidateConceptFamily(fact, diagnostics);
+                break;
+            case SpecificationScenarioFact or SpecificationStepFact or SpecificationValueFact:
+                ValidateSpecificationFamily(fact, diagnostics);
+                break;
+            default:
+                ValidateObservationFamily(fact, diagnostics);
+                break;
+        }
+    }
+
+    static void ValidateObservationFamily(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
+        switch (fact)
+        {
             case DeclarationInputMemberTypeUseFact typeUse:
                 ValidateTypeUseShape(fact, typeUse.Definition.Type.Shape, diagnostics);
                 break;
@@ -73,15 +92,6 @@ static class GenerationFactDiscriminatorValidator
                 break;
             case MethodExecutionClassificationFact classification:
                 Validate(fact, classification.Definition.Kind, _methodExecutionKind, diagnostics);
-                break;
-            case RelationshipFact relationship:
-                Validate(fact, relationship.Definition.Key.Kind, _relationshipKind, diagnostics);
-                break;
-            case ConceptRepresentationFact or ConceptAttributeFact or ConceptValidationRuleFact:
-                ValidateConceptFamily(fact, diagnostics);
-                break;
-            case SpecificationScenarioFact or SpecificationStepFact or SpecificationValueFact:
-                ValidateSpecificationFamily(fact, diagnostics);
                 break;
         }
     }

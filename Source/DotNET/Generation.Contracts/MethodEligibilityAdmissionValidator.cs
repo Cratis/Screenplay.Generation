@@ -18,7 +18,7 @@ static class MethodEligibilityAdmissionValidator
                     Classification(classification, context);
                     if (classification.Definition.OmissionReason is { } reason)
                     {
-                        AdapterContributionAdmissionValidator.ValidateMethodDiagnostic(adapter, ids, reason, authority, context);
+                        AdapterContributionAdmissionValidator.ValidateMethodDiagnostic((adapter, ids, authority), reason, context);
                     }
 
                     break;
@@ -26,7 +26,7 @@ static class MethodEligibilityAdmissionValidator
                     Support(support, [.. candidates[support.Definition.Candidate]], supports[support.Definition.Candidate].Count(), context);
                     foreach (var diagnostic in support.Definition.Alternatives.SelectMany(alternative => alternative.Diagnostics))
                     {
-                        AdapterContributionAdmissionValidator.ValidateMethodDiagnostic(adapter, ids, diagnostic, authority, context);
+                        AdapterContributionAdmissionValidator.ValidateMethodDiagnostic((adapter, ids, authority), diagnostic, context);
                     }
 
                     break;
@@ -52,7 +52,7 @@ static class MethodEligibilityAdmissionValidator
         }
 
         var reason = definition.OmissionReason;
-        if (definition.Kind == MethodExecutionKind.FailureOnly && (reason?.Source is null || reason.Severity != GenerationDiagnosticSeverity.Warning))
+        if (definition.Kind == MethodExecutionKind.FailureOnly && !IsLocatedWarning(reason))
         {
             Invalid(fact, path, "Failure-only classification requires the producer's located warning", context);
         }
@@ -66,14 +66,7 @@ static class MethodEligibilityAdmissionValidator
     static void Support(MethodFactSupportFact fact, GenerationFact[] candidates, int count, AdapterContributionAdmissionContext context)
     {
         var path = $"Contribution.Facts[{fact.Id}].Definition";
-        if (candidates.Length != 1 || candidates[0] is MethodFactSupportFact or MethodExecutionClassificationFact)
-        {
-            Invalid(fact, path, "Support must target one same-contribution semantic candidate", context);
-        }
-        else if (candidates[0].Subject != fact.Subject || candidates[0].Evidence.Adapter != fact.Evidence.Adapter)
-        {
-            Invalid(fact, path, "Support must share its candidate's subject and producer", context);
-        }
+        Candidate(fact, candidates, path, context);
 
         if (count != 1 || fact.Definition.Alternatives.Count == 0)
         {
@@ -89,6 +82,20 @@ static class MethodEligibilityAdmissionValidator
             }
 
             BackendScopeFactAdmissionValidator.ValidateKey(alternative.Scope, $"{path}.Alternatives.Scope", (fact.Id, fact.Subject), context);
+        }
+    }
+
+    static bool IsLocatedWarning(GenerationDiagnostic? reason) => reason?.Source is not null && reason.Severity == GenerationDiagnosticSeverity.Warning;
+
+    static void Candidate(MethodFactSupportFact fact, GenerationFact[] candidates, string path, AdapterContributionAdmissionContext context)
+    {
+        if (candidates.Length != 1 || candidates[0] is MethodFactSupportFact or MethodExecutionClassificationFact)
+        {
+            Invalid(fact, path, "Support must target one same-contribution semantic candidate", context);
+        }
+        else if (candidates[0].Subject != fact.Subject || candidates[0].Evidence.Adapter != fact.Evidence.Adapter)
+        {
+            Invalid(fact, path, "Support must share its candidate's subject and producer", context);
         }
     }
 

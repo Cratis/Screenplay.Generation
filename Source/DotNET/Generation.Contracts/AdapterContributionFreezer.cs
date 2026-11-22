@@ -290,6 +290,14 @@ static class AdapterContributionFreezer
                 Evidence = envelope.Evidence,
                 Definition = ArtifactUsageFreezer.Declaration(declaration.Definition, $"{envelope.Path}.Definition", context)
             },
+            _ => FreezeInputMemberFact(fact, envelope, context)
+        };
+
+    static GenerationFact? FreezeInputMemberFact(
+        GenerationFact fact,
+        FactEnvelope envelope,
+        AdapterContributionAdmissionContext context) => fact switch
+        {
             DeclarationInputMemberDeclarationFact declaration => new DeclarationInputMemberDeclarationFact
             {
                 Id = envelope.Id,
@@ -1006,6 +1014,11 @@ static class AdapterContributionFreezer
         MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => (int)GenerationFactCapability.EntryPoint,
         BackendScopeFact => (int)GenerationFactCapability.BackendScope,
+        _ => ObservationFamily(fact)
+    };
+
+    static int ObservationFamily(GenerationFact fact) => fact switch
+    {
         MethodExecutionClassificationFact => (int)GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => (int)GenerationFactCapability.MethodFactSupport,
         DeclarationInputMemberDeclarationFact => (int)GenerationFactCapability.DeclarationInputMemberDeclaration,

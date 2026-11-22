@@ -103,6 +103,11 @@ static class AdapterRunCanonicalizer
         {
             Definition = usage.Definition with { Method = Subject(usage.Definition.Method), Declaration = Subject(usage.Definition.Declaration), SourceScope = Scope(usage.Definition.SourceScope), TargetScope = Scope(usage.Definition.TargetScope) }
         },
+        _ => ObservationFactDefinition(fact)
+    };
+
+    static GenerationFact ObservationFactDefinition(GenerationFact fact) => fact switch
+    {
         MethodExecutionClassificationFact classification => Classification(classification),
         MethodFactSupportFact support => Support(support),
         DeclarationInputMemberDeclarationFact declaration => declaration with { Definition = declaration.Definition with { Member = DeclarationMember(declaration.Definition.Member) } },

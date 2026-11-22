@@ -134,24 +134,8 @@ public sealed class ScreenplayDefinitionGenerator(
         ScreenplayGenerationOptions options)
     {
         var canonicalAdapters = CanonicalAdapters(snapshot.Adapters);
-        var completed = canonicalAdapters
-            .Select(record => record.Execution)
-            .OfType<AdapterExecutionCompleted>()
-            .Select(execution => execution.Contribution)
-            .OrderBy(contribution => contribution.Descriptor.Identity.Id, StringComparer.Ordinal)
-            .ThenBy(contribution => contribution.Descriptor.Identity.Version, StringComparer.Ordinal)
-            .ToArray();
-        var facts = completed
-            .SelectMany(contribution => contribution.Facts.Select(fact => new ProducedFact(contribution.Descriptor.Identity, fact)))
-            .OrderBy(item => item.Producer.Id, StringComparer.Ordinal)
-            .ThenBy(item => item.Producer.Version, StringComparer.Ordinal)
-            .ThenBy(item => item.Fact.Id.Value, StringComparer.Ordinal)
-            .ThenBy(item => item.Fact.Subject.Value, StringComparer.Ordinal)
-            .ThenBy(item => Structural.FactFamily(item.Fact))
-            .ThenBy(item => Structural.FactDefinition(item.Fact), StringComparer.Ordinal)
-            .ThenBy(item => Structural.Evidence(item.Fact.Evidence), StringComparer.Ordinal)
-            .Select(item => item.Fact)
-            .ToArray();
+        var completed = CompletedContributions(canonicalAdapters);
+        var facts = AdmittedFacts(completed);
         var effective = EffectiveGenerationInputs.FromFacts(facts);
         var derivation = GenerationFactDerivation.Derive(effective);
         var derivedFacts = derivation.Facts.Select(record => record.Fact).ToArray();
@@ -224,6 +208,28 @@ public sealed class ScreenplayDefinitionGenerator(
             AdapterRun = adapterRun
         };
     }
+
+    static AdapterContributionSnapshot[] CompletedContributions(IEnumerable<AdapterRunRecord> adapters) =>
+    [
+        .. adapters.Select(record => record.Execution)
+            .OfType<AdapterExecutionCompleted>()
+            .Select(execution => execution.Contribution)
+            .OrderBy(contribution => contribution.Descriptor.Identity.Id, StringComparer.Ordinal)
+            .ThenBy(contribution => contribution.Descriptor.Identity.Version, StringComparer.Ordinal)
+    ];
+
+    static GenerationFact[] AdmittedFacts(IEnumerable<AdapterContributionSnapshot> completed) =>
+    [
+        .. completed.SelectMany(contribution => contribution.Facts.Select(fact => new ProducedFact(contribution.Descriptor.Identity, fact)))
+            .OrderBy(item => item.Producer.Id, StringComparer.Ordinal)
+            .ThenBy(item => item.Producer.Version, StringComparer.Ordinal)
+            .ThenBy(item => item.Fact.Id.Value, StringComparer.Ordinal)
+            .ThenBy(item => item.Fact.Subject.Value, StringComparer.Ordinal)
+            .ThenBy(item => Structural.FactFamily(item.Fact))
+            .ThenBy(item => Structural.FactDefinition(item.Fact), StringComparer.Ordinal)
+            .ThenBy(item => Structural.Evidence(item.Fact.Evidence), StringComparer.Ordinal)
+            .Select(item => item.Fact)
+    ];
 
     static ImmutableArray<AdapterRunRecord> CanonicalAdapters(IEnumerable<AdapterRunRecord> adapters) =>
     [
