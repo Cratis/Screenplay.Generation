@@ -14,12 +14,12 @@ public class a_granular_artifact_usage : an_artifact_usage
             Legacy("populated", key, name, conflict ? [Property("id"), Property("legacy")] : [Property("id")]),
             new ArtifactMemberDeclarationFact
             {
-                Id = Id("application", $"{name}-member"), Subject = key.Subject, Evidence = At(Application),
+                Id = new FactId { Value = $"application:{name}-member" }, Subject = key.Subject, Evidence = UsageEvidence(),
                 Definition = new ArtifactMemberDeclarationDefinition { Member = member, DeclarationOrder = 0 }
             },
             new ArtifactMemberTypeUseFact
             {
-                Id = Id("application", $"{name}-type"), Subject = key.Subject, Evidence = At(Application),
+                Id = new FactId { Value = $"application:{name}-type" }, Subject = key.Subject, Evidence = UsageEvidence(),
                 Definition = new ArtifactMemberTypeUseDefinition
                 {
                     Member = member,
@@ -33,7 +33,7 @@ public class a_granular_artifact_usage : an_artifact_usage
 
     static ArtifactFact Legacy(string id, ArtifactKey key, string name, PropertyDefinition[] properties) => new()
     {
-        Id = Id("application", $"{name}-{id}"), Subject = key.Subject, Evidence = At(Application),
+        Id = new FactId { Value = $"application:{name}-{id}" }, Subject = key.Subject, Evidence = UsageEvidence(),
         Definition = new ArtifactDefinition { Key = key, Name = name, Properties = properties }
     };
 }

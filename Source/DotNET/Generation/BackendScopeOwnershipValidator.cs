@@ -31,7 +31,7 @@ static class BackendScopeOwnershipValidator
             declaration => new Candidate(declaration.Definition.Artifact, declaration));
         foreach (var usage in facts.OfType<MethodArtifactUsageFact>())
         {
-            foreach (var diagnostic in ValidateUsage(usage, entries[usage.Definition.Method].ToArray(), declarations[usage.Definition.Declaration].ToArray()))
+            foreach (var diagnostic in ValidateUsage(usage, [.. entries[usage.Definition.Method]], [.. declarations[usage.Definition.Declaration]]))
             {
                 rejected.Add(usage.Id);
                 yield return diagnostic;

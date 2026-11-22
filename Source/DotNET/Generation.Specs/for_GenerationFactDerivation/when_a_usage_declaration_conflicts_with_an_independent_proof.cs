@@ -12,25 +12,27 @@ public class when_a_usage_declaration_conflicts_with_an_independent_proof : give
     {
         var declaration = new SubjectId { Value = "dotnet://CustomerLibrary/Queries.ZindCustomer" };
         var other = Document with { Subject = new SubjectId { Value = "dotnet://CustomerLibrary/Models.OtherCustomer" } };
-        var facts = CompleteFacts().Concat<GenerationFact>([
+        GenerationFact[] facts =
+        [
+            .. CompleteFacts(),
             new ArtifactUsageDeclarationFact
             {
-                Id = Id("library", "conflict-first"), Subject = declaration, Evidence = At(Library),
+                Id = new FactId { Value = "library:conflict-first" }, Subject = declaration, Evidence = UsageEvidence(ConceptAdapter),
                 Definition = new ArtifactUsageDeclarationDefinition { Declaration = declaration, Artifact = Document }
             },
             new ArtifactUsageDeclarationFact
             {
-                Id = Id("library", "conflict-second"), Subject = declaration, Evidence = At(Library),
+                Id = new FactId { Value = "library:conflict-second" }, Subject = declaration, Evidence = UsageEvidence(ConceptAdapter),
                 Definition = new ArtifactUsageDeclarationDefinition { Declaration = declaration, Artifact = other }
             },
             new MethodArtifactUsageFact
             {
-                Id = Id("application", "conflicting-usage"), Subject = Method, Evidence = At(Application),
-                Definition = new MethodArtifactUsageDefinition { Method = Method, Declaration = declaration }
+                Id = new FactId { Value = "application:conflicting-usage" }, Subject = Method, Evidence = UsageEvidence(),
+                Definition = new MethodArtifactUsageDefinition { Method = Method, Declaration = declaration, Kind = RelationshipKind.Reads }
             }
-        ]).ToArray();
+        ];
         _forward = Derive(facts);
-        _reverse = Derive(facts.Reverse());
+        _reverse = Derive([.. facts.Reverse()]);
     }
 
     [Fact] void should_preserve_the_independently_proved_reads_edge() => ((RelationshipFact)_forward.Facts.Single().Fact).Definition.Key.Target.ShouldEqual(Document.Subject);
