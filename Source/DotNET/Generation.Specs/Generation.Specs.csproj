@@ -11,6 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Cratis.Screenplay.CanonicalCorpus" />
         <ProjectReference Include="../Generation.Contracts/Generation.Contracts.csproj" />
         <ProjectReference Include="../Generation/Generation.csproj" />
     </ItemGroup>
