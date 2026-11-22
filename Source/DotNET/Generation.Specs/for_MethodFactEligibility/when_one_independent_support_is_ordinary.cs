@@ -9,8 +9,9 @@ public class when_one_independent_support_is_ordinary : given.method_facts
 
     void Because() => _result = Derive([.. CompleteFacts(), Support(Alternative(), Alternative(Parent)), Classification(MethodExecutionKind.FailureOnly), Classification(MethodExecutionKind.Ordinary, Parent, "parent")]);
 
+    [Fact] void should_keep_one_evidence_entry_for_each_input() => _result.Facts.Single().Lineage.Evidence.Length.ShouldEqual(_result.Facts.Single().Lineage.Inputs.Length);
     [Fact] void should_keep_the_candidate() => _result.Facts.Length.ShouldEqual(1);
-    [Fact] void should_keep_the_original_failure_warning_as_provenance() => _result.Diagnostics.Single().ShouldEqual(Reason());
+    [Fact] void should_keep_the_original_failure_warning_as_provenance() => Projection(_result.Diagnostics.Single()).ShouldEqual(Projection(Reason()));
     [Fact] void should_retain_the_support_facet_in_lineage() => _result.Facts.Single().Lineage.Inputs.Contains(Support().Id).ShouldBeTrue();
     [Fact] void should_retain_the_ordinary_classification_in_lineage() => _result.Facts.Single().Lineage.Inputs.Contains(Classification(MethodExecutionKind.Ordinary, Parent, "parent").Id).ShouldBeTrue();
     [Fact] void should_not_retain_the_excluded_classification_in_output_lineage() => _result.Facts.Single().Lineage.Inputs.Contains(Classification(MethodExecutionKind.FailureOnly).Id).ShouldBeFalse();

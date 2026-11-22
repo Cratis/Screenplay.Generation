@@ -14,15 +14,35 @@ static class MethodEligibilityLineage
             ? [new() { Rule = Rule, Inputs = [.. effective.OriginalFacts.Where(fact => fact is MethodExecutionClassificationFact or MethodFactSupportFact).Select(fact => fact.Id).Concat(effective.OriginalFacts.OfType<MethodFactSupportFact>().Select(fact => fact.Definition?.Candidate).OfType<FactId>()).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)], Outputs = [], Diagnostics = effective.Diagnostics }]
             : [];
 
-    public static ImmutableArray<GenerationFactRecord> Apply(IEnumerable<GenerationFactRecord> records, EffectiveGenerationInputs effective)
+    public static ImmutableArray<GenerationFactRecord> Apply(IEnumerable<GenerationFactRecord> records, EffectiveGenerationInputs effective) =>
+        effective.EligibilityInputs.IsEmpty ? [.. records] : [.. records.Select(record => AddDependencies(record, effective))];
+
+    static GenerationFactRecord AddDependencies(GenerationFactRecord record, EffectiveGenerationInputs effective)
     {
-        return [.. records.Select(record => record.Lineage is null ? record : record with
+        if (record.Lineage is not { } lineage)
         {
-            Lineage = record.Lineage with
+            return record;
+        }
+
+        var additions = lineage.Inputs.SelectMany(input => effective.EligibilityInputs.GetValueOrDefault(input, []))
+            .Where(fact => !lineage.Inputs.Contains(fact.Id))
+            .OrderBy(Structural.Fact, StringComparer.Ordinal)
+            .DistinctBy(fact => fact.Id).ToArray();
+        if (additions.Length == 0)
+        {
+            return record;
+        }
+
+        var dependencies = lineage.Inputs.Zip(lineage.Evidence, (id, evidence) => (Id: id, Evidence: evidence))
+            .Concat(additions.Select(fact => (fact.Id, fact.Evidence)))
+            .OrderBy(dependency => dependency.Id.Value, StringComparer.Ordinal).ToArray();
+        return record with
+        {
+            Lineage = lineage with
             {
-                Inputs = [.. record.Lineage.Inputs.Concat(record.Lineage.Inputs.SelectMany(input => effective.EligibilityInputs.GetValueOrDefault(input, []).Select(fact => fact.Id))).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
-                Evidence = [.. record.Lineage.Evidence.Concat(record.Lineage.Inputs.SelectMany(input => effective.EligibilityInputs.GetValueOrDefault(input, [])).Select(fact => fact.Evidence)).Distinct().OrderBy(Structural.Evidence, StringComparer.Ordinal)]
+                Inputs = [.. dependencies.Select(dependency => dependency.Id)],
+                Evidence = [.. dependencies.Select(dependency => dependency.Evidence)]
             }
-        })];
+        };
     }
 }

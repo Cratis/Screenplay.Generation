@@ -15,7 +15,7 @@ public class when_all_support_is_failure_only : given.method_facts
     }
 
     [Fact] void should_omit_the_behavior_before_joining() => _result.Facts.ShouldBeEmpty();
-    [Fact] void should_preserve_the_frontend_warning_exactly() => _result.Diagnostics.Single().ShouldEqual(Reason());
+    [Fact] void should_preserve_the_frontend_warning_exactly() => Projection(_result.Diagnostics.Single()).ShouldEqual(Projection(Reason()));
     [Fact] void should_keep_the_structural_artifacts() => _generated.Graph.Artifacts.Count.ShouldEqual(2);
     [Fact] void should_not_resolve_the_excluded_relationship() => _generated.Graph.Relationships.ShouldBeEmpty();
     [Fact] void should_record_the_eligibility_rule() => _result.Rules.Any(rule => rule.Rule.Id == "cratis.screenplay.method-fact-eligibility").ShouldBeTrue();

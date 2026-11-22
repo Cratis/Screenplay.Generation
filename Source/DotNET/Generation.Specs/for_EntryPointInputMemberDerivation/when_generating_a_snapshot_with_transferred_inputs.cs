@@ -10,7 +10,7 @@ public class when_generating_a_snapshot_with_transferred_inputs : given.input_me
 
     void Because()
     {
-        var facts = InputFacts();
+        var facts = InputFacts(Placement(Transfer().Definition.Artifact), Placement(Document));
         var generator = new ScreenplayDefinitionGenerator();
         var options = new ScreenplayGenerationOptions { Domain = "Application" };
         _forward = generator.Generate(Run(facts), options);
@@ -23,4 +23,19 @@ public class when_generating_a_snapshot_with_transferred_inputs : given.input_me
     [Fact] void should_keep_neutral_members_as_provenance() => _forward.AdapterRun.Facts.Single(record => record.Fact.Id == Surface().Id).Disposition.ShouldEqual(GenerationFactDisposition.ProvenanceOnly);
     [Fact] void should_be_independent_of_fact_enumeration() => Projection(_forward.AdapterRun).ShouldEqual(Projection(_reverse.AdapterRun));
     [Fact] void should_print_the_same_source() => _forward.Source.ShouldEqual(_reverse.Source);
+
+    static ArtifactPlacementFact Placement(ArtifactKey artifact) => new()
+    {
+        Id = new FactId { Value = $"placement:{artifact.Subject.Value}" },
+        Subject = artifact.Subject,
+        Evidence = UsageEvidence(ApplicationAdapter),
+        Artifact = artifact,
+        Placement = new ArtifactPlacement
+        {
+            Module = "Customers",
+            Features = ["Listing"],
+            Slice = "FindCustomer",
+            SliceKind = GenerationSliceKind.StateView
+        }
+    };
 }

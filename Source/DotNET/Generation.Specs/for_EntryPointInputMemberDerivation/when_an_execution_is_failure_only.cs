@@ -10,5 +10,5 @@ public class when_an_execution_is_failure_only : given.input_members
     void Because() => _result = Derive(InputFacts(Support(), Classification(MethodExecutionKind.FailureOnly)));
 
     [Fact] void should_not_transfer_from_ineligible_observations() => Members(_result).ShouldBeEmpty();
-    [Fact] void should_retain_the_frontends_original_warning() => _result.Diagnostics.Single().ShouldEqual(Reason());
+    [Fact] void should_retain_the_frontends_original_warning() => Projection(_result.Diagnostics.Single()).ShouldEqual(Projection(Reason()));
 }

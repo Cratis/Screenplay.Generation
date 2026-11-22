@@ -10,5 +10,5 @@ public class when_a_lexical_parent_is_failure_only : given.method_facts
     void Because() => _result = Derive([.. CompleteFacts(), Support(Alternative(enclosing: [Parent])), Classification(MethodExecutionKind.Ordinary), Classification(MethodExecutionKind.FailureOnly, Parent, "parent")]);
 
     [Fact] void should_omit_nested_observations_without_guessing_names() => _result.Facts.ShouldBeEmpty();
-    [Fact] void should_preserve_the_parent_warning() => _result.Diagnostics.Single().ShouldEqual(Reason());
+    [Fact] void should_preserve_the_parent_warning() => Projection(_result.Diagnostics.Single()).ShouldEqual(Projection(Reason()));
 }
