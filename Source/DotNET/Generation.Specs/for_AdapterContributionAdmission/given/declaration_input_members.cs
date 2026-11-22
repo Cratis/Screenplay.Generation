@@ -7,7 +7,9 @@ public class declaration_input_members : method_eligibility
 {
     protected static DeclarationInputMemberDeclarationFact Surface() => new()
     {
-        Id = Id("surface"), Subject = ArtifactSubject, Evidence = Evidence(),
+        Id = Id("surface"),
+        Subject = ArtifactSubject,
+        Evidence = Evidence(),
         Definition = new DeclarationInputMemberDeclarationDefinition
         {
             Member = new DeclarationMemberKey { Declaration = ArtifactSubject, Name = "filter" },
@@ -17,7 +19,9 @@ public class declaration_input_members : method_eligibility
 
     protected static DeclarationInputMemberTypeUseFact SurfaceType(IReadOnlyList<TypeUseShapeKind>? shape = null) => new()
     {
-        Id = Id("surface-type"), Subject = ArtifactSubject, Evidence = Evidence(),
+        Id = Id("surface-type"),
+        Subject = ArtifactSubject,
+        Evidence = Evidence(),
         Definition = new DeclarationInputMemberTypeUseDefinition
         {
             Member = Surface().Definition.Member,
@@ -27,7 +31,9 @@ public class declaration_input_members : method_eligibility
 
     protected static EntryPointInputTransferFact Transfer() => new()
     {
-        Id = Id("transfer"), Subject = ArtifactSubject, Evidence = Evidence(),
+        Id = Id("transfer"),
+        Subject = ArtifactSubject,
+        Evidence = Evidence(),
         Definition = new EntryPointInputTransferDefinition { Method = ArtifactSubject, Artifact = new ArtifactKey { Subject = ArtifactSubject, Kind = ArtifactKind.Query }, Kind = RelationshipKind.Reads }
     };
 }

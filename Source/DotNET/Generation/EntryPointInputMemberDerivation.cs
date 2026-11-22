@@ -276,7 +276,9 @@ static class EntryPointInputMemberDerivation
             proof = Inputs(proof.Concat(binding.Inputs));
             var declaration = new ArtifactMemberDeclarationFact
             {
-                Id = Id(member, "declaration"), Subject = endpoint.Subject, Evidence = typeUse.Evidence,
+                Id = Id(member, "declaration"),
+                Subject = endpoint.Subject,
+                Evidence = typeUse.Evidence,
                 Definition = new ArtifactMemberDeclarationDefinition { Member = member, DeclarationOrder = order }
             };
             List<GenerationFact> outputs = [declaration, typeUse with { Id = Id(member, "type") }];
@@ -284,7 +286,9 @@ static class EntryPointInputMemberDerivation
             {
                 outputs.Add(new TypeUseBindingFact
                 {
-                    Id = Id(member, "binding"), Subject = endpoint.Subject, Evidence = typeUse.Evidence,
+                    Id = Id(member, "binding"),
+                    Subject = endpoint.Subject,
+                    Evidence = typeUse.Evidence,
                     Definition = new TypeUseBindingDefinition { Member = member, Target = target }
                 });
             }
