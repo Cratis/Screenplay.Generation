@@ -10,7 +10,14 @@ static class Structural
     public static string SemanticKey(string family, params string?[] parts) => Node([family, .. parts]);
 
     public static string ArtifactKey(ArtifactKey key) =>
-        Node(key.Subject.Value, Integer((int)key.Kind));
+        WithScopes(Node(key.Subject.Value, Integer((int)key.Kind)), key.Scope);
+
+    public static string BackendScopeKey(BackendScopeKey key) => Node(key.Store.Value, key.EventModelName);
+
+    public static string BackendScope(BackendScopeDefinition definition) => Node(BackendScopeKey(definition.Key), definition.Name);
+
+    public static string WithScopes(string legacy, params BackendScopeKey?[] scopes) =>
+        scopes.All(scope => scope is null) ? legacy : Node(legacy, "backend-scopes", Sequence(scopes, scope => scope is null ? null : BackendScopeKey(scope)));
 
     public static string Artifact(ArtifactDefinition definition) =>
         Node(
@@ -34,17 +41,26 @@ static class Structural
     public static string ArtifactMemberTypeUse(ArtifactMemberTypeUseDefinition definition) =>
         Node(ArtifactMemberKey(definition.Member), TypeUse(definition.Type));
 
-    public static string TypeUse(TypeUseDefinition definition) =>
-        Node(
-            definition.Name,
-            definition.ObservedTypeSubject?.Value,
-            Sequence(definition.Shape, node => Integer((int)node)));
+    public static string TypeUse(TypeUseDefinition definition)
+    {
+        var legacy = Node(definition.Name, definition.ObservedTypeSubject?.Value, Sequence(definition.Shape, node => Integer((int)node)));
+        return WithScopes(legacy, definition.ObservedScope);
+    }
 
     public static string TypeUseBinding(TypeUseBindingDefinition definition) =>
         Node(ArtifactMemberKey(definition.Member), ArtifactKey(definition.Target));
 
     public static string ArtifactMemberRole(ArtifactMemberRoleDefinition definition) =>
         Node(ArtifactMemberKey(definition.Member), Integer((int)definition.Role));
+
+    public static string ArtifactUsageDeclaration(ArtifactUsageDeclarationDefinition definition) =>
+        Node(definition.Declaration.Value, ArtifactKey(definition.Artifact));
+
+    public static string MethodArtifactUsage(MethodArtifactUsageDefinition definition) =>
+        WithScopes(Node(definition.Method.Value, definition.Declaration.Value, Integer((int)definition.Kind)), definition.SourceScope, definition.TargetScope);
+
+    public static string EntryPoint(EntryPointDefinition definition) =>
+        Node(definition.Method.Value, ArtifactKey(definition.Artifact));
 
     public static string Placement(ArtifactPlacement placement) =>
         Node(
@@ -54,7 +70,7 @@ static class Structural
             Integer((int)placement.SliceKind));
 
     public static string RelationshipKey(RelationshipKey key) =>
-        Node(Integer((int)key.Kind), key.Source.Value, key.Target.Value, key.Discriminator);
+        WithScopes(Node(Integer((int)key.Kind), key.Source.Value, key.Target.Value, key.Discriminator), key.SourceScope, key.TargetScope);
 
     public static string Relationship(RelationshipDefinition definition) =>
         Node(
@@ -64,12 +80,17 @@ static class Structural
             Boolean(definition.IsCollection),
             Boolean(definition.IsOptional));
 
-    public static string ConceptRepresentation(ConceptRepresentationDefinition definition) =>
-        Node(
+    public static string ConceptRepresentation(ConceptRepresentationDefinition definition)
+    {
+        var legacy = Node(
             definition.Concept.Value,
             Integer((int)definition.Kind),
             NullableInteger(definition.Primitive is null ? null : (int)definition.Primitive.Value),
             Sequence(definition.EnumerationValues, value => value));
+        return definition.EnumerationNumbers is { } numbers
+            ? Node(legacy, "enumeration-numbers", Sequence(numbers, Integer))
+            : legacy;
+    }
 
     public static string ConceptAttributeKey(ConceptAttributeDefinition definition) =>
         Node(definition.Concept.Value, Integer((int)definition.Kind), definition.Name);
@@ -123,21 +144,12 @@ static class Structural
 
     public static string FactDefinition(GenerationFact fact) => fact switch
     {
+        BackendScopeFact scope => Node("backend-scope", BackendScope(scope.Definition)),
         ArtifactFact artifact => Node("artifact", Artifact(artifact.Definition)),
         ArtifactPlacementFact placement => Node("placement", ArtifactKey(placement.Artifact), Placement(placement.Placement)),
         ArtifactDeclarationFact declaration => Node("artifact-declaration", ArtifactDeclaration(declaration.Definition)),
         ArtifactMemberDeclarationFact member => Node("artifact-member-declaration", ArtifactMemberDeclaration(member.Definition)),
-        ArtifactMemberTypeUseFact typeUse => Node("artifact-member-type-use", ArtifactMemberTypeUse(typeUse.Definition)),
-        TypeUseBindingFact binding => Node("type-use-binding", TypeUseBinding(binding.Definition)),
-        ArtifactMemberRoleFact role => Node("artifact-member-role", ArtifactMemberRole(role.Definition)),
-        RelationshipFact relationship => Node("relationship", Relationship(relationship.Definition)),
-        ConceptRepresentationFact representation => Node("concept-representation", ConceptRepresentation(representation.Definition)),
-        ConceptAttributeFact attribute => Node("concept-attribute", ConceptAttribute(attribute.Definition)),
-        ConceptValidationRuleFact validation => Node("concept-validation-rule", ConceptValidationRule(validation.Definition)),
-        SpecificationScenarioFact scenario => Node("specification-scenario", SpecificationScenario(scenario.Definition)),
-        SpecificationStepFact step => Node("specification-step", SpecificationStep(step.Definition)),
-        SpecificationValueFact value => Node("specification-value", SpecificationValue(value.Definition)),
-        _ => Node("unknown", fact.GetType().FullName ?? fact.GetType().Name)
+        _ => GranularFactDefinition(fact)
     };
 
     public static string Fact(GenerationFact fact) =>
@@ -209,27 +221,72 @@ static class Structural
         ConceptRepresentationFact => (int)GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => (int)GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => (int)GenerationFactCapability.ConceptValidationRule,
+        _ => SpecificationFamily(fact)
+    };
+
+    static int SpecificationFamily(GenerationFact fact) => fact switch
+    {
         SpecificationScenarioFact => (int)GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => (int)GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => (int)GenerationFactCapability.SpecificationValue,
+        _ => GranularFamily(fact)
+    };
+
+    static int GranularFamily(GenerationFact fact) => fact switch
+    {
         ArtifactDeclarationFact => (int)GenerationFactCapability.ArtifactDeclaration,
         ArtifactMemberDeclarationFact => (int)GenerationFactCapability.ArtifactMemberDeclaration,
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
+        _ => UsageFamily(fact)
+    };
+
+    static int UsageFamily(GenerationFact fact) => fact switch
+    {
+        ArtifactUsageDeclarationFact => (int)GenerationFactCapability.ArtifactUsageDeclaration,
+        MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
+        EntryPointFact => (int)GenerationFactCapability.EntryPoint,
+        BackendScopeFact => (int)GenerationFactCapability.BackendScope,
         _ => int.MaxValue
+    };
+
+    static string GranularFactDefinition(GenerationFact fact) => fact switch
+    {
+        ArtifactMemberTypeUseFact typeUse => Node("artifact-member-type-use", ArtifactMemberTypeUse(typeUse.Definition)),
+        TypeUseBindingFact binding => Node("type-use-binding", TypeUseBinding(binding.Definition)),
+        ArtifactMemberRoleFact role => Node("artifact-member-role", ArtifactMemberRole(role.Definition)),
+        ArtifactUsageDeclarationFact declaration => Node("artifact-usage-declaration", ArtifactUsageDeclaration(declaration.Definition)),
+        MethodArtifactUsageFact usage => Node("method-artifact-usage", MethodArtifactUsage(usage.Definition)),
+        EntryPointFact entry => Node("entry-point", EntryPoint(entry.Definition)),
+        _ => DomainFactDefinition(fact)
+    };
+
+    static string DomainFactDefinition(GenerationFact fact) => fact switch
+    {
+        RelationshipFact relationship => Node("relationship", Relationship(relationship.Definition)),
+        ConceptRepresentationFact representation => Node("concept-representation", ConceptRepresentation(representation.Definition)),
+        ConceptAttributeFact attribute => Node("concept-attribute", ConceptAttribute(attribute.Definition)),
+        ConceptValidationRuleFact validation => Node("concept-validation-rule", ConceptValidationRule(validation.Definition)),
+        SpecificationScenarioFact scenario => Node("specification-scenario", SpecificationScenario(scenario.Definition)),
+        SpecificationStepFact step => Node("specification-step", SpecificationStep(step.Definition)),
+        SpecificationValueFact value => Node("specification-value", SpecificationValue(value.Definition)),
+        _ => Node("unknown", fact.GetType().FullName ?? fact.GetType().Name)
     };
 
     static string Property(PropertyDefinition property) =>
         Node(property.Name, TypeReference(property.Type), Boolean(property.IsIdentifier));
 
-    static string TypeReference(TypeReferenceDefinition type) =>
-        Node(
+    static string TypeReference(TypeReferenceDefinition type)
+    {
+        var legacy = Node(
             type.Name,
             type.Subject?.Value,
             NullableInteger(type.TargetArtifactKind is null ? null : (int)type.TargetArtifactKind.Value),
             Boolean(type.IsCollection),
             Boolean(type.IsOptional));
+        return WithScopes(legacy, type.Scope);
+    }
 
     static string Identity(AdapterIdentity identity) => Node(identity.Id, identity.Version);
 

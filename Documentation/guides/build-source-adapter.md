@@ -455,6 +455,36 @@ var facts = DotNetConceptFacts.Emit(
 
 Do not infer concepts from names such as `Id`, from having one property, or from an arbitrary record-struct shape. If the framework nominates the concept but does not prove its primitive backing, retain the concept artifact and emit an adapter-owned `Unsupported` diagnostic instead of inventing a representation.
 
+### Retain backend scope provenance
+
+A stored occurrence is identified by `ArtifactKey`'s exact `(Subject, Kind, Scope)`. `BackendScopeKey` pairs the exact store-registration `SubjectId` with an optional, case-sensitive `EventModelName`; `BackendScopeDefinition.Name` is display metadata only. Emit a located `BackendScopeFact` for each registration and declare the appended `BackendScope` capability (17). Source authority remains the host's responsibility. Do not derive store identity from placement, CLR display names, or another adapter's private state.
+
+Set `ArtifactKey.Scope` on explicitly proved stored occurrences, and use independent `RelationshipKey.SourceScope` / `TargetScope` selectors for endpoints, including explicitly proved cross-store edges. Named type references use `TypeReferenceDefinition.Scope`; granular type uses use `ObservedScope`. A scoped type target requires its exact observed subject. `MethodArtifactUsageDefinition.SourceScope` and `TargetScope` select the independently proved entry-point and declaration occurrences. Null always selects the legacy unscoped occurrence: it never inherits the owner store, selects a sole scoped candidate, or fans out to several stores. Concepts and queries remain global in this version.
+
+The resolver retains declarations and evidence in `Graph.BackendScopes`. Missing scope proof or an unqualified sole scoped candidate is Unknown; an unqualified reference with several scoped candidates is Conflict. Invalid inputs cannot produce derived relationships or bindings. Derived IDs and complete lineage retain both endpoint scopes and the scope declarations used as proof. Existing null-scope identities, member IDs, placement, source subjects, and structural output are unchanged.
+
+**Backend scope is provenance, not executable Screenplay storage semantics.** Current `.play` cannot express store registration or event-model scope. Noncolliding structural syntax is compiler-verified, but affected emitted facts are `PartiallyLowered` (4), with the located `BackendScopeNotSupported` diagnostic. Scope and usage declarations remain `ProvenanceOnly`; they are not fictitious syntax. Scope never invents modules, slices, filenames, `eventsource`, or `sink` declarations. Distinct occurrences that would erase to the same emitted name/kind in the same module/feature/slice namespace are all omitted with `BackendScopeOutputCollision` (Error); `IsSuccess` is false. Host-selected distinct namespaces remain valid. No occurrence is renamed, merged, moved, or chosen arbitrarily.
+
+Scope diagnostics are `UnknownBackendScope` (GEN0059), `ConflictingBackendScope` (GEN0060), `AmbiguousBackendScopeOwnership` (GEN0061), `BackendScopeNotSupported` (GEN0062), `BackendScopeOutputCollision` (GEN0063), and `InvalidBackendScopeUsage` (GEN0064). The language follow-up is [Cratis/Screenplay#1352](https://github.com/Cratis/Screenplay/issues/1352); this package adds no `.play` grammar.
+
+### Join independently proved artifact usage
+
+An independently composed library adapter can emit `ArtifactUsageDeclarationFact` (exact declaration → exact `ArtifactKey`) and `MethodArtifactUsageFact` (exact containing method → executed declaration, with a proved relationship role). An entry-point adapter separately emits `EntryPointFact` (that exact method → source `ArtifactKey`). Fact subjects equal their declaration or method, respectively. Each adapter declares the matching appended `GenerationFactCapability`; existing capability numbers are unchanged.
+
+The closed built-in `cratis.screenplay.artifact-usage` rule, version `1.0.0`, derives `RelationshipFact` with `Reads` only when all three facets and both compatible exact artifact declarations agree. Use project-, overload-, and generic-qualified identities, for example `DotNetSubjectIds.ForMethod`; never join display names or treat a declaration mention as executed usage. Library methods with no entry point remain provenance. Agreeing proofs consolidate into one edge with every input ID and evidence item retained. Conflicting mappings never fan out, and missing mappings, incompatible declarations, or unsupported roles produce located, input-linked diagnostics (GEN0056–GEN0058). Derived outputs are not inputs to another rule in that run; there is no plug-in rule registry.
+
+These neutral facets are provenance, not fictitious Screenplay syntax. The resulting relationship is resolved and compiler-verified through the normal pipeline. Legacy adapters can continue emitting `RelationshipFact` directly; primitive wrappers remain the responsibility of concept adapters such as `DotNetConceptFacts`.
+
+### Opt in to inherited members
+
+Existing `DotNetTypeShapes.PropertiesOf` and `DotNetTypeUseFacts.Emit` calls remain declared-only. For an effective surface, pair `DotNetTypeShapes.PropertiesOf(type, context, DotNetMemberSurfaceScope.Inherited)` with `DotNetTypeUseFacts.EmitWithSurface(type, artifact, context, evidence, DotNetMemberSurfaceScope.Inherited)`. Pairing preserves the legacy/granular member order; mismatched surfaces can produce GEN0050 and omit the artifact. The distinct emission method name keeps existing calls with a default role argument source-compatible.
+
+Inherited mode walks base classes, not interfaces, derived-first. Only public readable instance non-indexer properties proven to originate in analyzed authored syntax trees are eligible; generated, non-authored, and metadata-only bases contribute no members. Constructed generic types retain substitutions. The most-derived eligible raw CLR name wins, so a private getter does not hide an eligible base property. Distinct raw names that normalize to the same member remain separate assertions for existing conflict handling. All facts use the requested artifact and caller evidence; retained properties alone receive roles and contiguous ordinals. Undefined scopes are rejected.
+
+### Preserve enumeration numbers
+
+For an enumeration representation, `ConceptRepresentationDefinition.EnumerationNumbers` optionally supplies one unique int32 number per `EnumerationValues` entry, in the same declaration order. Null retains the existing positional output. Explicit numbers preserve negative, zero, sparse, and int32 boundary values as `name = number` in compiler-verified Screenplay. Numbers cannot be supplied on primitive concepts; mismatched counts and duplicate numbers are rejected rather than renumbered. Distinct explicit numbers remain distinct resolver variants, including explicit positional numbers versus an implicit representation.
+
 ## Derive source placement
 
 Source layout does not decide semantic role. First establish `ArtifactKind` and `GenerationSliceKind` from framework semantics. Then use the shared placement pipeline:

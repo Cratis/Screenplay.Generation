@@ -33,6 +33,8 @@ public sealed class GenerationResolver
         var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(contributedFacts);
         var facts = discriminatorValidation.Facts;
         diagnostics.AddRange(discriminatorValidation.Diagnostics);
+        var backendScopes = BackendScopeFactResolver.Resolve(facts);
+        facts = BackendScopeFactResolver.ValidFacts(facts, diagnostics);
 
         diagnostics.AddRange(ConflictingFactIdentityDiagnostics(facts));
 
@@ -71,6 +73,7 @@ public sealed class GenerationResolver
 
         return new()
         {
+            BackendScopes = backendScopes,
             Artifacts = artifacts,
             ConceptRepresentations = conceptRepresentations,
             ConceptAttributes = conceptAttributes,

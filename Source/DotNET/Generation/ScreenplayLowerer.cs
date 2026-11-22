@@ -40,6 +40,7 @@ public sealed class ScreenplayLowerer
     {
         var sink = new LoweringSink();
         ResolverDiagnosticCoverage.Propagate(graph, sink.Coverage);
+        graph = BackendScopeLowering.Prepare(graph, sink);
         ReportUnsupportedRelationships(graph, sink);
         var placements = graph.Placements
             .Where(_ => !_.IsConflicted)

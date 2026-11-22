@@ -9,21 +9,12 @@ internal static class GenerationFactSemanticKey
 {
     public static string? For(GenerationFact fact) => fact switch
     {
+        BackendScopeFact scope => Structural.SemanticKey("backend-scope", Structural.BackendScope(scope.Definition)),
         ArtifactFact artifact => Artifact(artifact.Definition),
         ArtifactPlacementFact placement => Placement(placement.Artifact, placement.Placement),
         ArtifactDeclarationFact declaration => ArtifactDeclaration(declaration.Definition),
         ArtifactMemberDeclarationFact member => ArtifactMemberDeclaration(member.Definition),
-        ArtifactMemberTypeUseFact typeUse => ArtifactMemberTypeUse(typeUse.Definition),
-        TypeUseBindingFact binding => TypeUseBinding(binding.Definition),
-        ArtifactMemberRoleFact role => ArtifactMemberRole(role.Definition),
-        RelationshipFact relationship => Relationship(relationship.Definition),
-        ConceptRepresentationFact representation => ConceptRepresentation(representation.Definition),
-        ConceptAttributeFact attribute => ConceptAttribute(attribute.Definition),
-        ConceptValidationRuleFact validation => ConceptValidationRule(validation.Definition),
-        SpecificationScenarioFact scenario => SpecificationScenario(scenario.Definition),
-        SpecificationStepFact step => SpecificationStep(step.Definition),
-        SpecificationValueFact value => SpecificationValue(value.Definition),
-        _ => null
+        _ => GranularKey(fact)
     };
 
     public static string Artifact(ArtifactDefinition definition) =>
@@ -67,6 +58,29 @@ internal static class GenerationFactSemanticKey
 
     public static string SpecificationValue(SpecificationValueDefinition definition) =>
         Structural.SemanticKey("specification-value", Structural.SpecificationValue(definition));
+
+    static string? GranularKey(GenerationFact fact) => fact switch
+    {
+        ArtifactMemberTypeUseFact typeUse => ArtifactMemberTypeUse(typeUse.Definition),
+        TypeUseBindingFact binding => TypeUseBinding(binding.Definition),
+        ArtifactMemberRoleFact role => ArtifactMemberRole(role.Definition),
+        ArtifactUsageDeclarationFact declaration => Structural.SemanticKey("artifact-usage-declaration", Structural.ArtifactUsageDeclaration(declaration.Definition)),
+        MethodArtifactUsageFact usage => Structural.SemanticKey("method-artifact-usage", Structural.MethodArtifactUsage(usage.Definition)),
+        EntryPointFact entry => Structural.SemanticKey("entry-point", Structural.EntryPoint(entry.Definition)),
+        _ => DomainKey(fact)
+    };
+
+    static string? DomainKey(GenerationFact fact) => fact switch
+    {
+        RelationshipFact relationship => Relationship(relationship.Definition),
+        ConceptRepresentationFact representation => ConceptRepresentation(representation.Definition),
+        ConceptAttributeFact attribute => ConceptAttribute(attribute.Definition),
+        ConceptValidationRuleFact validation => ConceptValidationRule(validation.Definition),
+        SpecificationScenarioFact scenario => SpecificationScenario(scenario.Definition),
+        SpecificationStepFact step => SpecificationStep(step.Definition),
+        SpecificationValueFact value => SpecificationValue(value.Definition),
+        _ => null
+    };
 }
 
 internal sealed record ScreenplayLoweringCoverage

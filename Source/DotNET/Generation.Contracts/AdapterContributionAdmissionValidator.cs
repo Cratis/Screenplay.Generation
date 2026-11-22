@@ -78,6 +78,11 @@ static class AdapterContributionAdmissionValidator
     {
         ValidateSubject(key.Subject, $"{path}.Subject", fact, context);
         context.Enum(key.Kind, ArtifactKind.Unknown, $"{path}.Kind", fact, key.Subject);
+        BackendScopeFactAdmissionValidator.ValidateKey(key.Scope, $"{path}.Scope", (fact, key.Subject), context);
+        if (key.Scope is not null && key.Kind is ArtifactKind.Concept or ArtifactKind.Query)
+        {
+            context.Add(AdapterContributionAdmissionDiagnosticCode.InvalidKindOperand, $"{path}.Scope", "Concept and query artifacts are global in this scope provenance version", fact, key.Subject);
+        }
     }
 
     public static void ValidateType(
@@ -88,6 +93,11 @@ static class AdapterContributionAdmissionValidator
         AdapterContributionAdmissionContext context)
     {
         ValidateRequiredText(type.Name, $"{path}.Name", fact, subject, context);
+        BackendScopeFactAdmissionValidator.ValidateKey(type.Scope, $"{path}.Scope", (fact, subject), context);
+        if (type.Scope is not null && type.Subject is null)
+        {
+            context.Add(AdapterContributionAdmissionDiagnosticCode.InvalidKindOperand, $"{path}.Scope", "A target scope requires an exact target subject", fact, subject);
+        }
         if (type.Subject is not null)
         {
             ValidateSubject(type.Subject, $"{path}.Subject", fact, context);
@@ -594,14 +604,33 @@ static class AdapterContributionAdmissionValidator
         ConceptRepresentationFact => GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => GenerationFactCapability.ConceptValidationRule,
+        _ => SpecificationCapability(fact)
+    };
+
+    static GenerationFactCapability SpecificationCapability(GenerationFact fact) => fact switch
+    {
         SpecificationScenarioFact => GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => GenerationFactCapability.SpecificationValue,
+        _ => GranularCapability(fact)
+    };
+
+    static GenerationFactCapability GranularCapability(GenerationFact fact) => fact switch
+    {
         ArtifactDeclarationFact => GenerationFactCapability.ArtifactDeclaration,
         ArtifactMemberDeclarationFact => GenerationFactCapability.ArtifactMemberDeclaration,
         ArtifactMemberTypeUseFact => GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => GenerationFactCapability.ArtifactMemberRole,
+        _ => UsageCapability(fact)
+    };
+
+    static GenerationFactCapability UsageCapability(GenerationFact fact) => fact switch
+    {
+        ArtifactUsageDeclarationFact => GenerationFactCapability.ArtifactUsageDeclaration,
+        MethodArtifactUsageFact => GenerationFactCapability.MethodArtifactUsage,
+        EntryPointFact => GenerationFactCapability.EntryPoint,
+        BackendScopeFact => GenerationFactCapability.BackendScope,
         _ => GenerationFactCapability.Unknown
     };
 }

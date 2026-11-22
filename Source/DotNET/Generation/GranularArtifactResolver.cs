@@ -332,7 +332,8 @@ static class GranularArtifactResolver
         return type with
         {
             Subject = target.Subject,
-            TargetArtifactKind = target.Kind
+            TargetArtifactKind = target.Kind,
+            Scope = target.Scope
         };
     }
 
@@ -340,9 +341,23 @@ static class GranularArtifactResolver
         TypeReferenceDefinition type,
         ArtifactMemberTypeUseFact? typeUse,
         ArtifactKey target) =>
+        ConflictingLegacyTarget(type, target) || ConflictingObservedTarget(typeUse, target);
+
+    static bool ConflictingLegacyTarget(TypeReferenceDefinition type, ArtifactKey target) =>
         (type.Subject is not null && type.Subject != target.Subject) ||
         (type.TargetArtifactKind is not null && type.TargetArtifactKind != target.Kind) ||
-        (typeUse?.Definition.Type.ObservedTypeSubject is not null && typeUse.Definition.Type.ObservedTypeSubject != target.Subject);
+        type.Scope != target.Scope;
+
+    static bool ConflictingObservedTarget(ArtifactMemberTypeUseFact? typeUse, ArtifactKey target)
+    {
+        if (typeUse is null)
+        {
+            return false;
+        }
+
+        return typeUse.Definition.Type.ObservedScope != target.Scope ||
+               (typeUse.Definition.Type.ObservedTypeSubject is not null && typeUse.Definition.Type.ObservedTypeSubject != target.Subject);
+    }
 
     static bool TryIdentifierRole(MemberContext member, out bool isIdentifier)
     {
@@ -433,6 +448,7 @@ static class GranularArtifactResolver
         reference = new TypeReferenceDefinition
         {
             Name = type.Name,
+            Scope = type.ObservedScope,
             IsCollection = isCollection,
             IsOptional = isOptional
         };
@@ -441,6 +457,7 @@ static class GranularArtifactResolver
 
     static bool SameUnboundType(TypeReferenceDefinition first, TypeReferenceDefinition second) =>
         first.Name == second.Name &&
+        first.Scope == second.Scope &&
         first.IsCollection == second.IsCollection &&
         first.IsOptional == second.IsOptional;
 

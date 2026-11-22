@@ -79,7 +79,12 @@ public enum GenerationFactDisposition
     /// <summary>
     /// The fact participated in an unresolved conflict.
     /// </summary>
-    Conflicted = 3
+    Conflicted = 3,
+
+    /// <summary>
+    /// Structural syntax was emitted, but backend scope semantics were not; an associated unsupported diagnostic is required.
+    /// </summary>
+    PartiallyLowered = 4
 }
 
 /// <summary>

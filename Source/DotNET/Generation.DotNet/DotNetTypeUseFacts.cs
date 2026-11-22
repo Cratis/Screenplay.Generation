@@ -24,10 +24,37 @@ public static class DotNetTypeUseFacts
         ArtifactKey artifact,
         DotNetAnalysisContext context,
         Evidence evidence,
-        Func<IPropertySymbol, ArtifactMemberRoleKind?>? roleFor = null)
+        Func<IPropertySymbol, ArtifactMemberRoleKind?>? roleFor = null) =>
+        EmitProperties(DotNetTypeShapes.PublicReadablePropertiesOf(type), artifact, context, evidence, roleFor);
+
+    /// <summary>
+    /// Emits granular facts from an explicitly selected property surface without changing legacy overload binding.
+    /// </summary>
+    /// <param name="type">The nominated type whose artifact owns every emitted member.</param>
+    /// <param name="artifact">The artifact role that owns the members.</param>
+    /// <param name="context">The analyzed projects establishing authored origin and exact type subjects.</param>
+    /// <param name="evidence">The caller's evidence retained on all emitted facts.</param>
+    /// <param name="scope">The declared or authority-filtered inherited surface.</param>
+    /// <param name="roleFor">An optional semantic role rule applied only to retained properties.</param>
+    /// <returns>The member facts in contiguous derived-first declaration order.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The scope is undefined.</exception>
+    public static IReadOnlyList<GenerationFact> EmitWithSurface(
+        INamedTypeSymbol type,
+        ArtifactKey artifact,
+        DotNetAnalysisContext context,
+        Evidence evidence,
+        DotNetMemberSurfaceScope scope,
+        Func<IPropertySymbol, ArtifactMemberRoleKind?>? roleFor = null) =>
+        EmitProperties(DotNetEffectiveProperties.Of(type, context, scope), artifact, context, evidence, roleFor);
+
+    static List<GenerationFact> EmitProperties(
+        IReadOnlyList<IPropertySymbol> properties,
+        ArtifactKey artifact,
+        DotNetAnalysisContext context,
+        Evidence evidence,
+        Func<IPropertySymbol, ArtifactMemberRoleKind?>? roleFor)
     {
         List<GenerationFact> facts = [];
-        var properties = DotNetTypeShapes.PublicReadablePropertiesOf(type);
         for (var order = 0; order < properties.Count; order++)
         {
             var property = properties[order];
@@ -84,17 +111,22 @@ public static class DotNetTypeUseFacts
         string adapter,
         string family,
         ArtifactMemberKey member,
-        string sourceMemberName) => new()
-        {
-            Value = string.Join(
+        string sourceMemberName)
+    {
+        var legacy = string.Join(
             ':',
             adapter,
             family,
             Encode(member.Artifact.Subject.Value),
             ((int)member.Artifact.Kind).ToString(System.Globalization.CultureInfo.InvariantCulture),
             Encode(sourceMemberName),
-            Encode(member.Name))
+            Encode(member.Name));
+        var scope = member.Artifact.Scope;
+        return new FactId
+        {
+            Value = scope is null ? legacy : $"{legacy}:scope:{Encode(scope.Store.Value)}:{(scope.EventModelName is { } name ? $"1:{Encode(name)}" : "0")}"
         };
+    }
 
     static string Encode(string value) => string.Concat(
         value.Select(character => ((int)character).ToString("X4", System.Globalization.CultureInfo.InvariantCulture)));

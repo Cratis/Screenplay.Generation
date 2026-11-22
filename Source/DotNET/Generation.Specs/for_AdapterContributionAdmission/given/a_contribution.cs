@@ -51,6 +51,10 @@ public class a_contribution : Specification
         GenerationFactCapability.ArtifactMemberTypeUse,
         GenerationFactCapability.TypeUseBinding,
         GenerationFactCapability.ArtifactMemberRole,
+        GenerationFactCapability.ArtifactUsageDeclaration,
+        GenerationFactCapability.MethodArtifactUsage,
+        GenerationFactCapability.EntryPoint,
+        GenerationFactCapability.BackendScope,
         GenerationFactCapability.Artifact
     ];
 

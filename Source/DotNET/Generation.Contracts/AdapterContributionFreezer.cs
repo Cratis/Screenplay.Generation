@@ -264,6 +264,42 @@ static class AdapterContributionFreezer
                 Evidence = envelope.Evidence,
                 Definition = FreezeValue(value.Definition, $"{envelope.Path}.Definition", context)
             },
+            _ => FreezeUsageFact(fact, envelope, context)
+        };
+
+    static GenerationFact? FreezeUsageFact(
+        GenerationFact fact,
+        FactEnvelope envelope,
+        AdapterContributionAdmissionContext context) => fact switch
+        {
+            BackendScopeFact scope => new BackendScopeFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = BackendScopeFreezer.Definition(scope.Definition, $"{envelope.Path}.Definition", context)
+            },
+            ArtifactUsageDeclarationFact declaration => new ArtifactUsageDeclarationFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = ArtifactUsageFreezer.Declaration(declaration.Definition, $"{envelope.Path}.Definition", context)
+            },
+            MethodArtifactUsageFact usage => new MethodArtifactUsageFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = ArtifactUsageFreezer.Usage(usage.Definition, $"{envelope.Path}.Definition", context)
+            },
+            EntryPointFact entry => new EntryPointFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = ArtifactUsageFreezer.EntryPoint(entry.Definition, $"{envelope.Path}.Definition", context)
+            },
             _ => FreezeGranularFact(fact, envelope, context)
         };
 
@@ -377,6 +413,7 @@ static class AdapterContributionFreezer
             Name = type.Name ?? string.Empty,
             Subject = type.Subject is null ? null : FreezeSubject(type.Subject, $"{path}.Subject", context),
             TargetArtifactKind = type.TargetArtifactKind,
+            Scope = BackendScopeFreezer.Key(type.Scope, $"{path}.Scope", context),
             IsCollection = type.IsCollection,
             IsOptional = type.IsOptional
         };
@@ -400,7 +437,8 @@ static class AdapterContributionFreezer
         return new ArtifactKey
         {
             Subject = FreezeSubject(key.Subject, $"{path}.Subject", context),
-            Kind = key.Kind
+            Kind = key.Kind,
+            Scope = BackendScopeFreezer.Key(key.Scope, $"{path}.Scope", context)
         };
     }
 
@@ -467,7 +505,9 @@ static class AdapterContributionFreezer
                 Kind = key.Kind,
                 Source = FreezeSubject(key.Source, $"{path}.Key.Source", context),
                 Target = FreezeSubject(key.Target, $"{path}.Key.Target", context),
-                Discriminator = key.Discriminator
+                Discriminator = key.Discriminator,
+                SourceScope = BackendScopeFreezer.Key(key.SourceScope, $"{path}.Key.SourceScope", context),
+                TargetScope = BackendScopeFreezer.Key(key.TargetScope, $"{path}.Key.TargetScope", context)
             },
             SourceMember = definition.SourceMember,
             TargetMember = definition.TargetMember,
@@ -496,7 +536,8 @@ static class AdapterContributionFreezer
             Concept = FreezeSubject(definition.Concept, $"{path}.Concept", context),
             Kind = definition.Kind,
             Primitive = definition.Primitive,
-            EnumerationValues = FreezeStrings(definition.EnumerationValues, $"{path}.EnumerationValues", context)
+            EnumerationValues = FreezeStrings(definition.EnumerationValues, $"{path}.EnumerationValues", context),
+            EnumerationNumbers = definition.EnumerationNumbers is { } numbers ? numbers.ToImmutableArray() : null
         };
     }
 
@@ -913,14 +954,33 @@ static class AdapterContributionFreezer
         ConceptRepresentationFact => (int)GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => (int)GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => (int)GenerationFactCapability.ConceptValidationRule,
+        _ => SpecificationFamily(fact)
+    };
+
+    static int SpecificationFamily(GenerationFact fact) => fact switch
+    {
         SpecificationScenarioFact => (int)GenerationFactCapability.SpecificationScenario,
         SpecificationStepFact => (int)GenerationFactCapability.SpecificationStep,
         SpecificationValueFact => (int)GenerationFactCapability.SpecificationValue,
+        _ => GranularFamily(fact)
+    };
+
+    static int GranularFamily(GenerationFact fact) => fact switch
+    {
         ArtifactDeclarationFact => (int)GenerationFactCapability.ArtifactDeclaration,
         ArtifactMemberDeclarationFact => (int)GenerationFactCapability.ArtifactMemberDeclaration,
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
+        _ => UsageFamily(fact)
+    };
+
+    static int UsageFamily(GenerationFact fact) => fact switch
+    {
+        ArtifactUsageDeclarationFact => (int)GenerationFactCapability.ArtifactUsageDeclaration,
+        MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
+        EntryPointFact => (int)GenerationFactCapability.EntryPoint,
+        BackendScopeFact => (int)GenerationFactCapability.BackendScope,
         _ => int.MaxValue
     };
 }

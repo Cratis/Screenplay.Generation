@@ -87,6 +87,23 @@ public static class DotNetTypeShapes
     public static IReadOnlyList<PropertyDefinition> PropertiesOf(INamedTypeSymbol type, DotNetAnalysisContext context) =>
         PropertiesOf(type, propertyType => TypeReferenceFor(propertyType, context));
 
+    /// <summary>
+    /// Gets properties from the selected declared or authority-filtered inherited surface.
+    /// </summary>
+    /// <param name="type">The nominated type.</param>
+    /// <param name="context">The analyzed projects establishing authored origin and exact type subjects.</param>
+    /// <param name="scope">The property surface to select.</param>
+    /// <returns>The properties in derived-first declaration order.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The scope is undefined.</exception>
+    public static IReadOnlyList<PropertyDefinition> PropertiesOf(INamedTypeSymbol type, DotNetAnalysisContext context, DotNetMemberSurfaceScope scope) =>
+    [
+        .. DotNetEffectiveProperties.Of(type, context, scope).Select(property => new PropertyDefinition
+        {
+            Name = PropertyName(property.Name),
+            Type = TypeReferenceFor(property.Type, context)
+        })
+    ];
+
     internal static IReadOnlyList<IPropertySymbol> PublicReadablePropertiesOf(INamedTypeSymbol type) =>
     [
         .. type.GetMembers()

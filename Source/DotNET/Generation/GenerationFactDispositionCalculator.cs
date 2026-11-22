@@ -37,7 +37,8 @@ internal static class GenerationFactDispositionCalculator
                 .Count() > 1)
             .Select(group => group.Key)
             .ToHashSet(StringComparer.Ordinal);
-        var context = new CalculationContext(graph, coverage, diagnostics);
+        var validScopeFacts = BackendScopeFactResolver.ValidFacts(admitted, []).Select(fact => fact.Id).ToHashSet();
+        var context = new CalculationContext(graph, coverage, diagnostics, validScopeFacts);
 
         return
         [
@@ -46,6 +47,19 @@ internal static class GenerationFactDispositionCalculator
     }
 
     static GenerationFactRecord Calculate(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
+    {
+        var record = CalculateStructural(fact, hasConflictingIdentity, context);
+        if (record.Disposition != GenerationFactDisposition.Lowered || BackendScopeFactReferences.Of(fact).Count == 0)
+        {
+            return record;
+        }
+
+        var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context)
+            .Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.BackendScopeNotSupported));
+        return diagnostics.IsEmpty ? record : record with { Disposition = GenerationFactDisposition.PartiallyLowered, Diagnostics = diagnostics };
+    }
+
+    static GenerationFactRecord CalculateStructural(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
     {
         if (!GenerationFactDiscriminators.AreSupported(fact))
         {
@@ -57,7 +71,20 @@ internal static class GenerationFactDispositionCalculator
             return Conflicted(fact, context);
         }
 
-        return GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+        return NeutralDisposition(fact, context) ?? GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+    }
+
+    static GenerationFactRecord? NeutralDisposition(GenerationFact fact, CalculationContext context)
+    {
+        if (fact is not (BackendScopeFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact))
+        {
+            return null;
+        }
+
+        var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context));
+        return diagnostics.Any(diagnostic => diagnostic.Code != GenerationDiagnosticCodes.BackendScopeNotSupported && diagnostic.Outcome is GenerationDiagnosticOutcome.Unknown or GenerationDiagnosticOutcome.Unsupported)
+            ? Omitted(fact, context)
+            : new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.ProvenanceOnly, Diagnostics = diagnostics };
     }
 
     static bool IsConflicted(GenerationFact fact, CalculationContext context) =>
@@ -206,10 +233,23 @@ internal static class GenerationFactDispositionCalculator
         }
 
         foreach (var diagnostic in context.Diagnostics.Where(diagnostic =>
-                     diagnostic.Outcome is not null && diagnostic.Facts.Any(link => link == fact.Id)))
+                     diagnostic.Outcome is not null &&
+                     diagnostic.Facts.Any(link => link == fact.Id) &&
+                     ScopeDiagnosticApplies(fact, diagnostic, context)))
         {
             yield return diagnostic;
         }
+    }
+
+    static bool ScopeDiagnosticApplies(GenerationFact fact, GenerationDiagnostic diagnostic, CalculationContext context)
+    {
+        if (string.Equals(diagnostic.Code, GenerationDiagnosticCodes.UnknownBackendScope, StringComparison.Ordinal) ||
+            string.Equals(diagnostic.Code, GenerationDiagnosticCodes.AmbiguousBackendScopeOwnership, StringComparison.Ordinal))
+        {
+            return !context.ValidScopeFacts.Contains(fact.Id);
+        }
+
+        return true;
     }
 
     static GenerationFactRecord? GranularDisposition(GenerationFact fact, CalculationContext context)
@@ -294,5 +334,6 @@ internal static class GenerationFactDispositionCalculator
     sealed record CalculationContext(
         ResolvedApplicationGraph Graph,
         ScreenplayLoweringCoverage Coverage,
-        IReadOnlyList<GenerationDiagnostic> Diagnostics);
+        IReadOnlyList<GenerationDiagnostic> Diagnostics,
+        IReadOnlySet<FactId> ValidScopeFacts);
 }

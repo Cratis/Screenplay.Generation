@@ -257,11 +257,35 @@ public sealed record ResolvedConceptValidationRule
     public bool IsConflicted => Variants.Count > 1;
 }
 
+/// <summary>Represents one exact declared or referenced backend scope.</summary>
+public sealed record ResolvedBackendScope
+{
+    /// <summary>Gets the exact store and event-model qualifier.</summary>
+    public required BackendScopeKey Key { get; init; }
+
+    /// <summary>Gets distinct metadata assertions; an empty list denotes a missing declaration.</summary>
+    public IReadOnlyList<BackendScopeDefinition> Definitions { get; init; } = [];
+
+    /// <summary>Gets the canonical scope declaration input IDs.</summary>
+    public IReadOnlyList<FactId> SupportingFacts { get; init; } = [];
+
+    /// <summary>Gets the canonical evidence supporting the scope declarations.</summary>
+    public IReadOnlyList<Evidence> Evidence { get; init; } = [];
+
+    /// <summary>Gets whether metadata assertions disagree within this exact scope.</summary>
+    public bool IsConflicted => Definitions.Count > 1;
+
+    internal IReadOnlyList<GenerationFact> Facts { get; init; } = [];
+}
+
 /// <summary>
 /// Represents the deterministic semantic graph resolved from all adapter contributions.
 /// </summary>
 public sealed record ResolvedApplicationGraph
 {
+    /// <summary>Gets declared and referenced backend scopes in canonical identity order.</summary>
+    public IReadOnlyList<ResolvedBackendScope> BackendScopes { get; init; } = [];
+
     /// <summary>
     /// Gets the resolved artifacts in canonical order.
     /// </summary>

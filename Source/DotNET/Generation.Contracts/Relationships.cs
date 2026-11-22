@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Text.Json.Serialization;
+
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>
@@ -108,6 +110,14 @@ public sealed record RelationshipKey
     /// Gets an optional stable discriminator when several relationships of the same kind connect the same subjects.
     /// </summary>
     public string? Discriminator { get; init; }
+
+    /// <summary>Gets the exact source occurrence's scope; null is unscoped, not a wildcard.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BackendScopeKey? SourceScope { get; init; }
+
+    /// <summary>Gets the exact target occurrence's scope, including explicitly proved cross-store edges.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BackendScopeKey? TargetScope { get; init; }
 }
 
 /// <summary>

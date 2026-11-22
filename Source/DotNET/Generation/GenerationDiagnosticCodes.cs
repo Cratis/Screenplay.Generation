@@ -272,4 +272,31 @@ public static class GenerationDiagnosticCodes
     /// A type-use binding targets an artifact role that was not declared for the exact subject.
     /// </summary>
     public const string MissingTypeUseBindingTarget = "GEN0055";
+
+    /// <summary>An entry point or executed declaration lacks an exact artifact mapping.</summary>
+    public const string MissingArtifactUsageMapping = "GEN0056";
+
+    /// <summary>Incompatible exact entry-point, usage, or artifact mappings prevent a join.</summary>
+    public const string ConflictingArtifactUsageMapping = "GEN0057";
+
+    /// <summary>The built-in usage join does not support the asserted relationship role.</summary>
+    public const string UnsupportedArtifactUsageRole = "GEN0058";
+
+    /// <summary>A referenced exact backend scope has no declaration.</summary>
+    public const string UnknownBackendScope = "GEN0059";
+
+    /// <summary>Metadata assertions disagree for one exact backend scope.</summary>
+    public const string ConflictingBackendScope = "GEN0060";
+
+    /// <summary>An unqualified reference could select several scoped occurrences.</summary>
+    public const string AmbiguousBackendScopeOwnership = "GEN0061";
+
+    /// <summary>Scope provenance is retained but current Screenplay cannot express backend ownership.</summary>
+    public const string BackendScopeNotSupported = "GEN0062";
+
+    /// <summary>Several stored occurrences would collapse into one current Screenplay declaration.</summary>
+    public const string BackendScopeOutputCollision = "GEN0063";
+
+    /// <summary>A scope selector or ownership assertion is invalid.</summary>
+    public const string InvalidBackendScopeUsage = "GEN0064";
 }

@@ -335,6 +335,7 @@ internal static class Program
         try
         {
             ExerciseCurrentPackages();
+            ExerciseArtifactUsagePackages();
             Console.WriteLine("Current-source consumer compiled, composed, resolved, and compiler-verified deterministically.");
             return 0;
         }
@@ -1786,6 +1787,124 @@ internal static class Program
         {
             throw new CurrentSourceConsumerFailure(code, message);
         }
+    }
+
+    static void ExerciseArtifactUsagePackages()
+    {
+        var tree = CSharpSyntaxTree.ParseText("""
+            namespace Usage;
+            public class Base { public string Origin { get; } }
+            public class Customer : Base { public string Name { get; } }
+            public static class FindCustomer { public static Customer Execute() => null!; }
+            public static class Endpoint { public static Customer Get() => FindCustomer.Execute(); }
+            public enum Status { Negative = -7, Sparse = 42 }
+            public static class Stores { public static void First() {} public static void Second() {} }
+            """, path: "/workspace/Usage.cs");
+        var compilation = CSharpCompilation.Create("Usage", [tree], TrustedPlatformReferences(), new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        Require(!compilation.GetDiagnostics().Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), "CSC0063", "The usage fixture does not compile.");
+        var project = new DotNetProjectCompilation { Name = "Usage", Compilation = compilation, SourceRoot = "/workspace", AuthoredSyntaxTrees = compilation.SyntaxTrees.ToHashSet() };
+        var context = new DotNetAnalysisContext([project]);
+        var registrations = new[]
+        {
+            DotNetAdapterRegistration.ForLegacy(new UsageProofAdapter(true)),
+            DotNetAdapterRegistration.ForLegacy(new UsageProofAdapter(false))
+        };
+        var run = DotNetAdapterRunner.Run(registrations, context, new DotNetAdapterOptions());
+        var generator = new ScreenplayDefinitionGenerator();
+        var generated = generator.Generate(run, new ScreenplayGenerationOptions { Domain = "Customers" });
+        var reversed = generator.Generate(DotNetAdapterRunner.Run(registrations.Reverse(), context, new DotNetAdapterOptions()), new ScreenplayGenerationOptions { Domain = "Customers" });
+        Require(generated.IsSuccess && generated.Source == reversed.Source && generated.Diagnostics.Count == 0, "CSC0064", "Independent usage proofs did not lower deterministically.");
+        Require(generated.Source.Contains("reads Customer", StringComparison.Ordinal) && generated.Source.Contains("origin String", StringComparison.Ordinal) && generated.Source.Contains("negative = -7", StringComparison.Ordinal) && generated.Source.Contains("sparse = 42", StringComparison.Ordinal), "CSC0065", "The current packages lost inherited members, explicit enum numbers, or the joined read.");
+        var edge = generated.AdapterRun!.Derivation!.Facts.Single(record => record.Fact is RelationshipFact);
+        Require(edge.Lineage!.Producer.Id == "cratis.screenplay.artifact-usage" && edge.Lineage.Inputs.Length == 9 && edge.Disposition == GenerationFactDisposition.Lowered, "CSC0066", "The usage join lost its complete lineage or final disposition.");
+        Require(generated.AdapterRun.Facts.Where(record => record.Fact is EntryPointFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact).All(record => record.Disposition == GenerationFactDisposition.ProvenanceOnly), "CSC0067", "Usage provenance was reported as fictitious syntax.");
+        ExerciseBackendScopePackages(context);
+    }
+
+    static void ExerciseBackendScopePackages(DotNetAnalysisContext context)
+    {
+        var registrations = new[] { DotNetAdapterRegistration.ForLegacy(new ScopeProofAdapter()) };
+        var run = DotNetAdapterRunner.Run(registrations, context, new DotNetAdapterOptions());
+        var generated = new ScreenplayDefinitionGenerator().Generate(run, new ScreenplayGenerationOptions { Domain = "Customers" });
+        Require(!generated.IsSuccess && generated.Graph.BackendScopes.Count == 2 && generated.Diagnostics.Any(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.BackendScopeOutputCollision && diagnostic.Severity == GenerationDiagnosticSeverity.Error), "CSC0068", "The current packages lost exact backend scope provenance or did not reject an output identity collision.");
+        Require(!generated.Source.Contains("event CustomerRegistered", StringComparison.Ordinal) && generated.Source.Contains("command Register", StringComparison.Ordinal), "CSC0069", "Scope collisions were merged, renamed, selected, or allowed to remove an unrelated unscoped artifact.");
+        Require(generated.Diagnostics.Any(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.BackendScopeNotSupported && diagnostic.Source is not null && diagnostic.Facts.Length > 0), "CSC0070", "Current Screenplay scope loss was not reported with real source and input links.");
+        Require(generated.AdapterRun!.Facts.Where(record => record.Fact is ArtifactFact fact && fact.Definition.Key.Scope is not null).All(record => record.Disposition == GenerationFactDisposition.OmittedWithDiagnostic), "CSC0071", "Omitted scope-colliding events were incorrectly reported as fully lowered.");
+        Require(generated.AdapterRun.Facts.Where(record => record.Fact is BackendScopeFact).All(record => record.Disposition == GenerationFactDisposition.ProvenanceOnly), "CSC0072", "Backend declarations were reported as executable Screenplay syntax.");
+        var serialized = JsonSerializer.SerializeToElement(generated.AdapterRun, _serializerOptions);
+        Require(serialized.GetProperty("Facts").EnumerateArray().Count() == generated.AdapterRun.Facts.Length, "CSC0073", "Scope-aware package snapshots did not serialize through the public contract.");
+    }
+
+    sealed class ScopeProofAdapter : IDotNetScreenplayAdapter
+    {
+        public AdapterIdentity Identity { get; } = new() { Id = "scope-proof", Version = "1.0.0" };
+        public bool CanAnalyze(DotNetAnalysisContext context) => true;
+
+        public AdapterContribution Analyze(DotNetAnalysisContext context, DotNetAdapterOptions options)
+        {
+            var project = context.Projects.Single();
+            var subject = project.SubjectForType(project.Compilation.GetTypeByMetadataName("Usage.Customer")!);
+            List<GenerationFact> facts = [];
+            foreach (var method in project.Compilation.GetTypeByMetadataName("Usage.Stores")!.GetMembers().OfType<IMethodSymbol>().Where(method => method.MethodKind == MethodKind.Ordinary))
+            {
+                var evidence = DotNetSource.EvidenceFor(method, Identity, project, EvidenceStrength.Exact, "The authored fixture registration establishes the exact store occurrence");
+                var scope = new BackendScopeKey { Store = DotNetSubjectIds.ForMethod(method, project.Name), EventModelName = "Customers" };
+                var occurrence = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Event, Scope = scope };
+                facts.Add(new BackendScopeFact { Id = Id($"{method.Name}:scope"), Subject = scope.Store, Evidence = evidence, Definition = new BackendScopeDefinition { Key = scope, Name = "Customer store" } });
+                facts.Add(new ArtifactFact { Id = Id($"{method.Name}:event"), Subject = subject, Evidence = evidence, Definition = new ArtifactDefinition { Key = occurrence, Name = "CustomerRegistered" } });
+                facts.Add(new ArtifactPlacementFact { Id = Id($"{method.Name}:placement"), Subject = subject, Evidence = evidence, Artifact = occurrence, Placement = new ArtifactPlacement { Module = "Customers", Slice = "Register", SliceKind = GenerationSliceKind.StateChange } });
+            }
+
+            var commandType = project.Compilation.GetTypeByMetadataName("Usage.Endpoint")!;
+            var command = new ArtifactKey { Subject = project.SubjectForType(commandType), Kind = ArtifactKind.Command };
+            var commandEvidence = DotNetSource.EvidenceFor(commandType, Identity, project, EvidenceStrength.Exact, "The unrelated authored command remains unscoped");
+            facts.Add(new ArtifactFact { Id = Id("command"), Subject = command.Subject, Evidence = commandEvidence, Definition = new ArtifactDefinition { Key = command, Name = "Register" } });
+            facts.Add(new ArtifactPlacementFact { Id = Id("command-placement"), Subject = command.Subject, Evidence = commandEvidence, Artifact = command, Placement = new ArtifactPlacement { Module = "Customers", Slice = "Register", SliceKind = GenerationSliceKind.StateChange } });
+            return new AdapterContribution { Adapter = Identity, Facts = facts };
+        }
+
+        FactId Id(string value) => new() { Value = $"{Identity.Id}:{value}" };
+    }
+
+    sealed class UsageProofAdapter(bool library) : IDotNetScreenplayAdapter
+    {
+        public AdapterIdentity Identity { get; } = new() { Id = library ? "usage-library" : "usage-entry", Version = "1.0.0" };
+        public bool CanAnalyze(DotNetAnalysisContext context) => true;
+
+        public AdapterContribution Analyze(DotNetAnalysisContext context, DotNetAdapterOptions options)
+        {
+            var project = context.Projects.Single();
+            var documentType = project.Compilation.GetTypeByMetadataName("Usage.Customer")!;
+            var queryType = project.Compilation.GetTypeByMetadataName("Usage.Endpoint")!;
+            var declaration = project.SubjectForType(project.Compilation.GetTypeByMetadataName("Usage.FindCustomer")!);
+            var method = DotNetSubjectIds.ForMethod(queryType.GetMembers("Get").OfType<IMethodSymbol>().Single(), project.Name);
+            var document = new ArtifactKey { Subject = project.SubjectForType(documentType), Kind = ArtifactKind.ReadModel };
+            var query = new ArtifactKey { Subject = project.SubjectForType(queryType), Kind = ArtifactKind.Command };
+            var evidence = DotNetSource.EvidenceFor(library ? documentType : queryType, Identity, project, EvidenceStrength.Exact, "The authored fixture establishes its independent artifact declaration");
+            var artifact = library ? document : query;
+            List<GenerationFact> facts =
+            [
+                new ArtifactFact { Id = Id("artifact"), Subject = artifact.Subject, Evidence = evidence, Definition = new ArtifactDefinition { Key = artifact, Name = library ? "Customer" : "FindCustomer", Properties = library ? DotNetTypeShapes.PropertiesOf(documentType, context, DotNetMemberSurfaceScope.Inherited) : [] } },
+                new ArtifactPlacementFact { Id = Id("placement"), Subject = artifact.Subject, Evidence = evidence, Artifact = artifact, Placement = new ArtifactPlacement { Module = "Customers", Slice = library ? "View" : "Lookup", SliceKind = library ? GenerationSliceKind.StateView : GenerationSliceKind.StateChange } }
+            ];
+            if (library)
+            {
+                facts.Add(new ArtifactUsageDeclarationFact { Id = Id("declaration"), Subject = declaration, Evidence = evidence, Definition = new ArtifactUsageDeclarationDefinition { Declaration = declaration, Artifact = document } });
+                facts.Add(new MethodArtifactUsageFact { Id = Id("usage"), Subject = method, Evidence = evidence, Definition = new MethodArtifactUsageDefinition { Method = method, Declaration = declaration, Kind = RelationshipKind.Reads } });
+                facts.AddRange(DotNetTypeUseFacts.EmitWithSurface(documentType, document, context, evidence, DotNetMemberSurfaceScope.Inherited));
+                var status = new ArtifactKey { Subject = project.SubjectForType(project.Compilation.GetTypeByMetadataName("Usage.Status")!), Kind = ArtifactKind.Concept };
+                facts.Add(new ArtifactFact { Id = Id("status"), Subject = status.Subject, Evidence = evidence, Definition = new ArtifactDefinition { Key = status, Name = "Status" } });
+                facts.Add(new ConceptRepresentationFact { Id = Id("status-representation"), Subject = status.Subject, Evidence = evidence, Definition = new ConceptRepresentationDefinition { Concept = status.Subject, Kind = ConceptRepresentationKind.Enumeration, EnumerationValues = ["Negative", "Sparse"], EnumerationNumbers = [-7, 42] } });
+            }
+            else
+            {
+                facts.Add(new EntryPointFact { Id = Id("entry"), Subject = method, Evidence = evidence, Definition = new EntryPointDefinition { Method = method, Artifact = query } });
+            }
+
+            return new AdapterContribution { Adapter = Identity, Facts = facts };
+        }
+
+        FactId Id(string name) => new() { Value = $"{Identity.Id}:{name}" };
     }
 
     sealed class ExternalCustomerAdapter : IDescribedDotNetScreenplayAdapter, IDotNetScreenplayAdapter

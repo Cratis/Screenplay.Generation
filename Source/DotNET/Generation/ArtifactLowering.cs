@@ -13,14 +13,14 @@ internal static class ArtifactLowering
 {
     public static CommandSyntax BuildCommand(ArtifactDefinition definition, LoweringContext context)
     {
-        var productionRelationships = context.RelationshipsFrom(definition.Key.Subject, RelationshipKind.Produces);
+        var productionRelationships = context.RelationshipsFrom(definition.Key, RelationshipKind.Produces);
         var imperativeProductionRelationships = productionRelationships
             .Where(_ => _.Key.Discriminator == "imperative")
             .ToArray();
         var hasImperativeProduction = imperativeProductionRelationships.Length > 0;
         var loweredProductionRelationships = productionRelationships
             .Where(_ => !hasImperativeProduction && _.Key.Discriminator != "imperative")
-            .Select(_ => (Relationship: _, Name: context.ArtifactName(_.Key.Target, ArtifactKind.Event)))
+            .Select(_ => (Relationship: _, Name: context.ArtifactName(_.Key.Target, ArtifactKind.Event, _.Key.TargetScope)))
             .Where(_ => _.Name is not null)
             .ToArray();
         var produces = loweredProductionRelationships
@@ -29,8 +29,8 @@ internal static class ArtifactLowering
             .Order(StringComparer.Ordinal)
             .Select(_ => new ProducesSyntax(_, null, [], Generated))
             .ToArray();
-        var loweredReadRelationships = context.RelationshipsFrom(definition.Key.Subject, RelationshipKind.Reads)
-            .Select(_ => (Relationship: _, Name: context.ArtifactName(_.Key.Target, ArtifactKind.ReadModel)))
+        var loweredReadRelationships = context.RelationshipsFrom(definition.Key, RelationshipKind.Reads)
+            .Select(_ => (Relationship: _, Name: context.ArtifactName(_.Key.Target, ArtifactKind.ReadModel, _.Key.TargetScope)))
             .Where(_ => _.Name is not null)
             .ToArray();
         var reads = loweredReadRelationships
@@ -62,9 +62,9 @@ internal static class ArtifactLowering
 
     public static QuerySyntax? BuildQuery(ArtifactDefinition definition, LoweringContext context)
     {
-        var returns = context.RelationshipsFrom(definition.Key.Subject, RelationshipKind.Returns);
+        var returns = context.RelationshipsFrom(definition.Key, RelationshipKind.Returns);
         var returnType = returns.Length == 1
-            ? context.ArtifactName(returns[0].Key.Target, ArtifactKind.ReadModel)
+            ? context.ArtifactName(returns[0].Key.Target, ArtifactKind.ReadModel, returns[0].Key.TargetScope)
             : null;
         if (returnType is null)
         {
@@ -113,10 +113,10 @@ internal static class ArtifactLowering
 
     public static ReducerSyntax? BuildReducer(ArtifactDefinition definition, LoweringContext context)
     {
-        var builds = context.RelationshipsFrom(definition.Key.Subject, RelationshipKind.Builds);
-        var consumes = context.RelationshipsFrom(definition.Key.Subject, RelationshipKind.Consumes);
+        var builds = context.RelationshipsFrom(definition.Key, RelationshipKind.Builds);
+        var consumes = context.RelationshipsFrom(definition.Key, RelationshipKind.Consumes);
         var readModel = builds.Length == 1
-            ? context.ArtifactName(builds[0].Key.Target, ArtifactKind.ReadModel)
+            ? context.ArtifactName(builds[0].Key.Target, ArtifactKind.ReadModel, builds[0].Key.TargetScope)
             : null;
         if (readModel is null || consumes.Length == 0)
         {
@@ -125,10 +125,10 @@ internal static class ArtifactLowering
         }
 
         var loweredConsumes = consumes
-            .Where(_ => context.ArtifactName(_.Key.Target, ArtifactKind.Event) is not null)
+            .Where(_ => context.ArtifactName(_.Key.Target, ArtifactKind.Event, _.Key.TargetScope) is not null)
             .ToArray();
         var rules = loweredConsumes
-            .Select(_ => context.ArtifactName(_.Key.Target, ArtifactKind.Event)!)
+            .Select(_ => context.ArtifactName(_.Key.Target, ArtifactKind.Event, _.Key.TargetScope)!)
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .Select(_ => new ReducerRuleSyntax(_, FileFrom(definition.File), null, Generated))

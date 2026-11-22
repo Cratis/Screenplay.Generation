@@ -45,18 +45,19 @@ internal sealed class LoweringContext(
 
     public LoweringSink Sink { get; } = sink;
 
-    public RelationshipDefinition[] RelationshipsFrom(SubjectId source, RelationshipKind kind) =>
+    public RelationshipDefinition[] RelationshipsFrom(ArtifactKey source, RelationshipKind kind) =>
     [
         .. _relationships
-            .Where(_ => _.Key.Source == source && _.Key.Kind == kind)
+            .Where(_ => _.Key.Source == source.Subject && _.Key.SourceScope == source.Scope && _.Key.Kind == kind)
             .OrderBy(Canonical.Relationship, StringComparer.Ordinal)
     ];
 
-    public string? ArtifactName(SubjectId subject, ArtifactKind kind) =>
-        _artifacts.FirstOrDefault(_ => _.Key.Subject == subject && _.Key.Kind == kind)?.Name;
+    public string? ArtifactName(SubjectId subject, ArtifactKind kind, BackendScopeKey? scope = null) =>
+        _artifacts.FirstOrDefault(_ => _.Key.Subject == subject && _.Key.Kind == kind && _.Key.Scope == scope)?.Name;
 
     public string TypeName(TypeReferenceDefinition type) =>
         type.Subject is not null &&
+        type.Scope is null &&
         type.TargetArtifactKind is null or ArtifactKind.Concept &&
         conceptNames.TryGetValue(type.Subject.Value, out var conceptName)
             ? conceptName
@@ -66,6 +67,6 @@ internal sealed class LoweringContext(
         SpecificationSyntaxLowerer.Lower(
             graph,
             placement,
-            artifact => ArtifactName(artifact.Subject, artifact.Kind),
+            artifact => ArtifactName(artifact.Subject, artifact.Kind, artifact.Scope),
             Sink);
 }

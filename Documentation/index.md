@@ -22,6 +22,8 @@ Use the [source adapter guide](guides/build-source-adapter.md) to implement a .N
 
 The guide is the canonical onboarding contract for source-adapter authors. Ecosystem adapters remain independently versioned and owned by the frameworks they analyze.
 
+Backend store/event-model ownership can be retained as exact scope provenance on stored occurrences, relationships, type targets, and independently proved usage facets. Current `.play` does not express those storage semantics: affected structural syntax is reported as partially lowered, while ambiguous output collisions are rejected. See [backend scope provenance](guides/build-source-adapter.md#retain-backend-scope-provenance).
+
 ## Packages
 
 | Package | Responsibility |

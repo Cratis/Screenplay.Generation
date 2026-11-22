@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Text.Json.Serialization;
+
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>
@@ -144,6 +146,10 @@ public sealed record ArtifactKey
     /// Gets the semantic artifact kind.
     /// </summary>
     public required ArtifactKind Kind { get; init; }
+
+    /// <summary>Gets the exact stored occurrence; null retains the legacy unscoped identity.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BackendScopeKey? Scope { get; init; }
 }
 
 /// <summary>
@@ -191,6 +197,10 @@ public sealed record TypeReferenceDefinition
     /// Gets the exact artifact role of <see cref="Subject"/> when a granular binding established one.
     /// </summary>
     public ArtifactKind? TargetArtifactKind { get; init; }
+
+    /// <summary>Gets the target occurrence's scope, independently of the owning artifact.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BackendScopeKey? Scope { get; init; }
 
     /// <summary>
     /// Gets whether the value is a collection.
