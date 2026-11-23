@@ -30,10 +30,11 @@ static class ConceptNameYieldSelection
 
         var dropped = yielded.Select(concept => GenerationFactInstance.Of(concept.Fact)).ToHashSet();
         var facts = input.Facts.Where(fact => !dropped.Contains(GenerationFactInstance.Of(fact))).ToImmutableArray();
-        var diagnostics = yielded.Select(concept => Diagnostic(concept, input.Facts)).ToImmutableArray();
+        var coalesced = ConceptNameYieldDiagnostics.Coalesce(yielded.Select(concept => (ArtifactDeclarationFact)concept.Fact), input, _rule);
+        var diagnostics = coalesced.Values.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal).ToImmutableArray();
         var conflictInputs = conflicts.Select(concept => new ConceptNameReservations.Reservation(concept.Name, concept.Fact))
             .Concat(reservations).ToArray();
-        var fallbacks = Fallbacks(facts, yielded, conflictInputs, diagnostics);
+        var fallbacks = Fallbacks(facts, yielded, conflictInputs, coalesced);
         var dispositions = input.Dispositions.ToBuilder();
         foreach (var concept in yielded)
         {
@@ -51,7 +52,7 @@ static class ConceptNameYieldSelection
                 new GenerationDerivationRuleRecord
                 {
                     Rule = _rule,
-                    Inputs = [.. conflictInputs.Select(source => source.Fact.Id).Concat(fallbacks.SelectMany(record => record.Lineage!.Inputs)).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
+                    Inputs = [.. conflictInputs.Select(source => source.Fact.Id).Concat(diagnostics.SelectMany(diagnostic => diagnostic.Lineage!.Inputs)).Concat(fallbacks.SelectMany(record => record.Lineage!.Inputs)).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
                     Outputs = [.. fallbacks.Select(record => record.Fact.Id)],
                     Diagnostics = diagnostics
                 }
@@ -81,31 +82,18 @@ static class ConceptNameYieldSelection
         _ => null
     };
 
-    static GenerationDiagnostic Diagnostic(ConceptDeclaration concept, ImmutableArray<GenerationFact> facts)
-    {
-        var marker = ((ArtifactDeclarationFact)concept.Fact).Definition.NameConflictYield!;
-        return marker.Diagnostic with
-        {
-            Facts = [.. marker.Diagnostic.Facts.Concat(facts.Where(fact => IsConceptFacet(fact, concept)).Select(fact => fact.Id)).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)]
-        };
-    }
-
-    static bool IsConceptFacet(GenerationFact fact, ConceptDeclaration concept) =>
-        fact.Subject == concept.Key.Subject && fact.Evidence.Adapter == concept.Fact.Evidence.Adapter &&
-        fact is ConceptRepresentationFact or ConceptAttributeFact or ConceptValidationRuleFact;
-
     static ImmutableArray<GenerationFactRecord> Fallbacks(
         ImmutableArray<GenerationFact> facts,
         ConceptDeclaration[] yielded,
         ConceptNameReservations.Reservation[] conflictInputs,
-        ImmutableArray<GenerationDiagnostic> diagnostics)
+        ImmutableDictionary<string, GenerationDiagnostic> diagnostics)
     {
         var retained = facts.Select(Concept).OfType<ConceptDeclaration>().Select(concept => concept.Key).ToHashSet();
         return
         [
             .. facts.OfType<ArtifactMemberTypeUseFact>()
                 .OrderBy(fact => fact.Id.Value, StringComparer.Ordinal)
-                .SelectMany(typeUse => yielded.Select((concept, index) => (Concept: concept, Diagnostic: diagnostics[index]))
+                .SelectMany(typeUse => yielded.Select(concept => (Concept: concept, Diagnostic: diagnostics[ConceptNameYieldDiagnostics.Key((ArtifactDeclarationFact)concept.Fact)]))
                     .Where(pair => Matches(typeUse, pair.Concept, retained))
                     .Select(pair => Fallback(typeUse, pair.Concept, pair.Diagnostic, conflictInputs)))
         ];
