@@ -20,6 +20,7 @@ static class AdapterContributionAdmissionValidator
         OmissionDiagnosticGroupAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity, sourceAuthorityValidator, context);
         DiagnosticIntentAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         DiagnosticIntentAdmissionValidator.ValidateOrdinary(input.Facts, input.Diagnostics, context);
+        ConceptNameYieldAdmission.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
 
         foreach (var fact in input.Facts)
         {

@@ -416,7 +416,8 @@ static class AdapterRunCanonicalizer
         Artifact = ArtifactKey(definition.Artifact),
         Name = definition.Name,
         Description = definition.Description,
-        File = definition.File
+        File = definition.File,
+        NameConflictYield = definition.NameConflictYield is { } marker ? marker with { Diagnostic = Diagnostic(marker.Diagnostic) } : null
     };
 
     static ArtifactMemberKey ArtifactMemberKey(ArtifactMemberKey member) => new()

@@ -12,19 +12,25 @@ sealed record EffectiveGenerationInputs(
     ImmutableDictionary<GenerationFactInstance, GenerationFactDisposition> Dispositions,
     ImmutableDictionary<FactId, ImmutableArray<GenerationFact>> EligibilityInputs)
 {
+    public ImmutableArray<GenerationFactRecord> NameYieldFallbacks { get; init; } = [];
+
+    public ImmutableArray<GenerationDerivationRuleRecord> NameYieldRules { get; init; } = [];
+
+    public IEnumerable<GenerationFact> BindingFacts => Facts.Concat(NameYieldFallbacks.Select(record => record.Fact));
+
     public IEnumerable<GenerationFact> OmittedFacts => OriginalFacts.Where(HasDisposition);
 
     public bool HasDisposition(GenerationFact fact) => Dispositions.ContainsKey(GenerationFactInstance.Of(fact));
 
     public GenerationFactDisposition DispositionOf(GenerationFact fact) => Dispositions[GenerationFactInstance.Of(fact)];
 
-    public static EffectiveGenerationInputs FromFacts(IEnumerable<GenerationFact> facts) => MethodFactEligibility.Select([.. facts]);
+    public static EffectiveGenerationInputs FromFacts(IEnumerable<GenerationFact> facts) => ConceptNameYieldSelection.Select(MethodFactEligibility.Select([.. facts]));
 
     public static EffectiveGenerationInputs FromContributions(IEnumerable<AdapterContribution> contributions)
     {
         var input = contributions.ToArray();
         var invalid = input.SelectMany(contribution => InvalidSupports(contribution.Facts)).ToHashSet();
-        return MethodFactEligibility.Select([.. input.SelectMany(contribution => contribution.Facts)], invalid);
+        return ConceptNameYieldSelection.Select(MethodFactEligibility.Select([.. input.SelectMany(contribution => contribution.Facts)], invalid));
     }
 
     static IEnumerable<MethodFactSupportFact> InvalidSupports(IReadOnlyList<GenerationFact> facts) =>

@@ -26,11 +26,13 @@ static class Structural
             definition.Description,
             Sequence(definition.Properties, Property));
 
-    public static string ArtifactDeclaration(ArtifactDeclarationDefinition definition) =>
-        Node(
-            ArtifactKey(definition.Artifact),
-            definition.Name,
-            definition.Description);
+    public static string ArtifactDeclaration(ArtifactDeclarationDefinition definition)
+    {
+        var declaration = Node(ArtifactKey(definition.Artifact), definition.Name, definition.Description);
+        return definition.NameConflictYield is { } marker
+            ? Node(declaration, "name-conflict-yield", Diagnostic(marker.Diagnostic))
+            : declaration;
+    }
 
     public static string ArtifactMemberKey(ArtifactMemberKey member) =>
         Node(ArtifactKey(member.Artifact), member.Name);
