@@ -15,14 +15,20 @@ public class declaration_input_target_omissions : declaration_input_members
 
     protected static DeclarationInputMemberTargetOmittedFact Omission(GenerationDiagnostic? diagnostic = null) => new()
     {
-        Id = Id("declaration-omission"), Subject = ArtifactSubject, Evidence = Evidence(),
+        Id = Id("declaration-omission"),
+        Subject = ArtifactSubject,
+        Evidence = Evidence(),
         Definition = new DeclarationInputMemberTargetOmittedDefinition
         {
             Member = Surface().Definition.Member,
             Diagnostic = diagnostic ?? new GenerationDiagnostic
             {
-                Code = "atomic.FlagsOmitted", Severity = GenerationDiagnosticSeverity.Warning,
-                Message = "No target is contributed", Subject = ArtifactSubject, Source = Source(), Facts = [ObservedType().Id]
+                Code = "atomic.FlagsOmitted",
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Message = "No target is contributed",
+                Subject = ArtifactSubject,
+                Source = Source(),
+                Facts = [ObservedType().Id]
             }
         }
     };
