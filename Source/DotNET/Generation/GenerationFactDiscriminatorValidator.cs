@@ -50,6 +50,21 @@ static class GenerationFactDiscriminatorValidator
     {
         Validate(fact, fact.Evidence.Strength, _evidenceStrength, diagnostics);
 
+        if (fact is MethodDiagnosticProjectionFact projection)
+        {
+            if (!DiagnosticIntentValidation.Valid(projection))
+            {
+                diagnostics.Add(DiagnosticIntentValidation.Invalid(fact));
+            }
+
+            return;
+        }
+
+        ValidateOtherFact(fact, diagnostics);
+    }
+
+    static void ValidateOtherFact(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
         switch (fact)
         {
             case ArtifactFact or

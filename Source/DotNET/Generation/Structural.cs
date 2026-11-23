@@ -176,8 +176,9 @@ static class Structural
             evidence.Source is null ? null : Source(evidence.Source),
             evidence.Explanation);
 
-    public static string Diagnostic(GenerationDiagnostic diagnostic) =>
-        Node(
+    public static string Diagnostic(GenerationDiagnostic diagnostic)
+    {
+        var identity = Node(
             diagnostic.Code,
             Integer((int)diagnostic.Severity),
             diagnostic.Message,
@@ -185,6 +186,13 @@ static class Structural
             Sequence((diagnostic.Facts.IsDefault ? Enumerable.Empty<FactId>() : diagnostic.Facts).OrderBy(fact => fact?.Value, StringComparer.Ordinal), fact => fact?.Value),
             diagnostic.Source is null ? null : Source(diagnostic.Source),
             diagnostic.Subject?.Value);
+        return diagnostic.Lineage is null ? identity : Node(identity, DiagnosticLineage(diagnostic.Lineage));
+    }
+
+    public static string DiagnosticLineage(GenerationFactLineage lineage) => Node(
+        lineage.Producer.Id,
+        lineage.Producer.Version,
+        Sequence(lineage.Inputs.Zip(lineage.Evidence, (id, evidence) => Node(id.Value, Evidence(evidence))).Order(StringComparer.Ordinal), value => value));
 
     public static string AdmissionDiagnostic(AdapterContributionAdmissionDiagnostic diagnostic) =>
         Node(
@@ -253,6 +261,7 @@ static class Structural
 
     static int TypeUseOmissionFamily(GenerationFact fact) => fact switch
     {
+        MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageFamily(fact)
     };
@@ -289,9 +298,12 @@ static class Structural
 
     static string TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
+        MethodDiagnosticProjectionFact projection => DiagnosticProjection(projection),
         TypeUseTargetOmittedFact omission => Node("type-use-target-omitted", ArtifactMemberKey(omission.Definition.Member), Diagnostic(omission.Definition.Diagnostic)),
         _ => ObservationFactDefinition(fact)
     };
+
+    static string DiagnosticProjection(MethodDiagnosticProjectionFact projection) => WithScopes(Node("method-diagnostic-projection", projection.Definition?.Method?.Value, Integer((int)(projection.Definition?.Mode ?? MethodDiagnosticProjectionMode.Unknown)), Integer((int)(projection.Definition?.EntryPointRole ?? ArtifactKind.Unknown)), projection.Definition?.Diagnostic is { } payload ? Diagnostic(payload) : null), projection.Definition?.Scope);
 
     static string ObservationFactDefinition(GenerationFact fact) => fact switch
     {

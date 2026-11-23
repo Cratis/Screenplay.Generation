@@ -17,6 +17,8 @@ static class AdapterContributionAdmissionValidator
         ValidateDuplicateFactIds(input.Facts, context);
         MethodEligibilityAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         TypeUseTargetOmissionAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
+        DiagnosticIntentAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
+        DiagnosticIntentAdmissionValidator.ValidateOrdinary(input.Facts, input.Diagnostics, context);
 
         foreach (var fact in input.Facts)
         {
@@ -347,6 +349,10 @@ static class AdapterContributionAdmissionValidator
         AdapterContributionAdmissionContext context)
     {
         var path = $"Contribution.Diagnostics[{index}]";
+        if (diagnostic.Lineage is not null)
+        {
+            context.Add(AdapterContributionAdmissionDiagnosticCode.InvalidContributionDiagnostic, $"{path}.Lineage", "Diagnostic lineage is engine-owned");
+        }
         if (!AdapterContributionText.IsRequired(diagnostic.Code))
         {
             context.Add(
@@ -639,6 +645,7 @@ static class AdapterContributionAdmissionValidator
 
     static GenerationFactCapability TypeUseOmissionCapability(GenerationFact fact) => fact switch
     {
+        MethodDiagnosticProjectionFact => GenerationFactCapability.MethodDiagnosticProjection,
         TypeUseTargetOmittedFact => GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageCapability(fact)
     };

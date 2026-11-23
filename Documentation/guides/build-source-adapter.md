@@ -73,6 +73,14 @@ Keep conditional semantic diagnostics inside the alternative. Top-level adapter,
 
 These are source-neutral proof contracts, not C# callback recognition. Ecosystem adapters must provide exact executable/lexical ownership and retain unproved execution as unknown rather than inventing ordinary behavior.
 
+## Project a method diagnostic
+
+Declare `GenerationFactCapability.MethodDiagnosticProjection` (28) to contribute `MethodDiagnosticProjectionFact`. Set its exact method subject, backend scope, Command or Query `EntryPointRole`, and `Mode = MethodDiagnosticProjectionMode.EntryPointArtifact`. Its located diagnostic payload must match the intent's exact evidence and subject, reference nonempty same-contribution support facts, and omit engine-owned `Lineage`. Provide one same-contribution `MethodFactSupportFact` whose alternatives all name that exact method and scope. Do not also contribute the payload as an ordinary or alternative diagnostic.
+
+Generation applies eligibility first, then independently resolves exact entry-point facts for that method, role, and scope. Null scope is unscoped, never a wildcard. It does not infer ownership from names, containers, property shapes, or provider-specific symbols. Repeated proofs of one artifact are not ambiguous. Failure-only observations do not project their payloads.
+
+A unique mapping changes only the payload's diagnostic subject to the artifact subject. Its original code, message, severity, outcome, location, and support references remain intact. Engine-owned diagnostic `Lineage` retains the intent, local observations, eligible support/classification dependencies, exact entry-point proofs, and scope evidence. The diagnostics-only rule `cratis.screenplay.method-diagnostic-projection` version `1.0.0` has no fact outputs. Missing mappings report `GEN0081`; ambiguous mappings report `GEN0082`. Malformed direct inputs fail closed with `GEN0080`. Legacy diagnostics retain null lineage and unchanged meaning.
+
 ## Transfer declaration-owned inputs
 
 A reusable library can contribute `DeclarationInputMemberDeclarationFact` and `DeclarationInputMemberTypeUseFact` without inventing an artifact role. An application adapter opts an exact query endpoint into transfer with `EntryPointInputTransferFact`, its exact `EntryPointFact`, and ordered `MethodArtifactUsageFact` observations. Direct endpoint members win; proved execution order then source member order determines additions. Full substituted type and named-binding proof are retained in one fixed-snapshot derivation pass. Plain `Reads` facts remain relationship-only.

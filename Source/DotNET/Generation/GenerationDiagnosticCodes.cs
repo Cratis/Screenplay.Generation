@@ -8,6 +8,15 @@ namespace Cratis.Screenplay.Generation;
 /// </summary>
 public static class GenerationDiagnosticCodes
 {
+    /// <summary>Diagnostic intent metadata is invalid; no adapter payload was emitted.</summary>
+    public const string InvalidDiagnosticIntent = "GEN0080";
+
+    /// <summary>No compatible exact entry-point mapping exists for a diagnostic intent.</summary>
+    public const string MissingDiagnosticEntryPoint = "GEN0081";
+
+    /// <summary>Several distinct compatible exact entry-point mappings exist for a diagnostic intent.</summary>
+    public const string AmbiguousDiagnosticEntryPoint = "GEN0082";
+
     /// <summary>Entry-point input transfer lacks exact declaration, type, or precedence proof.</summary>
     public const string InvalidEntryPointInputTransfer = "GEN0069";
 

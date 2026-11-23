@@ -45,6 +45,10 @@ static class AdapterFactAdmissionValidator
         {
             GranularFactAdmissionValidator.Validate(omission, path, context);
         }
+        else if (fact is MethodDiagnosticProjectionFact)
+        {
+            DiagnosticIntentAdmissionValidator.ValidateShape(fact, path, context);
+        }
         else
         {
             ValidateDomainFamily(fact, path, context);

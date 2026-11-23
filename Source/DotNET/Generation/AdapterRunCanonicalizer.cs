@@ -89,6 +89,7 @@ static class AdapterRunCanonicalizer
 
     static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
+        MethodDiagnosticProjectionFact projection => Projection(projection),
         TypeUseTargetOmittedFact omission => omission with
         {
             Definition = omission.Definition with { Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
@@ -168,6 +169,14 @@ static class AdapterRunCanonicalizer
                 EnclosingExecutables = [.. alternative.EnclosingExecutables.Select(Subject).Distinct().OrderBy(subject => subject.Value, StringComparer.Ordinal)],
                 Diagnostics = Diagnostics(alternative.Diagnostics)
             }).GroupBy(Structural.MethodSupport, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())]
+        }
+    };
+
+    static MethodDiagnosticProjectionFact Projection(MethodDiagnosticProjectionFact fact) => fact.Definition is not { Method: not null, Diagnostic: not null } ? fact : fact with
+    {
+        Definition = fact.Definition with
+        {
+            Method = Subject(fact.Definition.Method), Scope = Scope(fact.Definition.Scope), Diagnostic = Diagnostic(fact.Definition.Diagnostic)
         }
     };
 
@@ -316,7 +325,8 @@ static class AdapterRunCanonicalizer
                 .OrderBy(fact => fact.Value, StringComparer.Ordinal)
         ],
         Source = diagnostic.Source is null ? null : Source(diagnostic.Source),
-        Subject = diagnostic.Subject is null ? null : Subject(diagnostic.Subject)
+        Subject = diagnostic.Subject is null ? null : Subject(diagnostic.Subject),
+        Lineage = diagnostic.Lineage is { } lineage ? DiagnosticLineage(lineage) : null
     };
 
     static Evidence Evidence(Evidence evidence) => new()
@@ -342,6 +352,17 @@ static class AdapterRunCanonicalizer
         EndLine = source.EndLine,
         EndColumn = source.EndColumn
     };
+
+    static GenerationFactLineage DiagnosticLineage(GenerationFactLineage lineage)
+    {
+        var dependencies = lineage.Inputs.Zip(lineage.Evidence, (id, evidence) => (Id: id, Evidence: evidence))
+            .OrderBy(dependency => dependency.Id.Value, StringComparer.Ordinal).ThenBy(dependency => Structural.Evidence(dependency.Evidence), StringComparer.Ordinal).ToArray();
+        return new()
+        {
+            Producer = Rule(lineage.Producer), Inputs = [.. dependencies.Select(dependency => new FactId { Value = dependency.Id.Value })],
+            Evidence = [.. dependencies.Select(dependency => Evidence(dependency.Evidence))]
+        };
+    }
 
     static SubjectId Subject(SubjectId subject) => new() { Value = subject.Value };
 

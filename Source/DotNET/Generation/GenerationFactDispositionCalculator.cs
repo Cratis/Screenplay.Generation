@@ -61,6 +61,11 @@ internal static class GenerationFactDispositionCalculator
 
     static GenerationFactRecord CalculateStructural(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
     {
+        if (fact is MethodDiagnosticProjectionFact)
+        {
+            return DiagnosticIntentDisposition(fact, context);
+        }
+
         if (!GenerationFactDiscriminators.AreSupported(fact))
         {
             return Omitted(fact, context);
@@ -72,6 +77,19 @@ internal static class GenerationFactDispositionCalculator
         }
 
         return NeutralDisposition(fact, context) ?? GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+    }
+
+    static GenerationFactRecord DiagnosticIntentDisposition(GenerationFact fact, CalculationContext context)
+    {
+        var diagnostics = CanonicalDiagnostics(context.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(fact.Id) || diagnostic.Lineage?.Inputs.Contains(fact.Id) == true));
+        var failures = diagnostics.Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.InvalidDiagnosticIntent || diagnostic.Code == GenerationDiagnosticCodes.MissingDiagnosticEntryPoint || diagnostic.Code == GenerationDiagnosticCodes.AmbiguousDiagnosticEntryPoint).ToArray();
+        var disposition = failures.Length > 0 ? GenerationFactDisposition.OmittedWithDiagnostic : GenerationFactDisposition.ProvenanceOnly;
+        if (failures.Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict))
+        {
+            disposition = GenerationFactDisposition.Conflicted;
+        }
+
+        return new() { Fact = fact, Disposition = disposition, Diagnostics = diagnostics };
     }
 
     static GenerationFactRecord? NeutralDisposition(GenerationFact fact, CalculationContext context)
