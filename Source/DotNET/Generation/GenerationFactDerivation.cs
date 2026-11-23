@@ -79,9 +79,10 @@ public static class GenerationFactDerivation
                 },
                 .. usageRules,
                 .. inputMemberRules,
-                .. MethodEligibilityLineage.Rules(effective)
+                .. MethodEligibilityLineage.Rules(effective),
+                .. effective.NameYieldRules
             ],
-            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts], effective),
+            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts, .. effective.NameYieldFallbacks], effective),
             Diagnostics = diagnostics
         };
 
