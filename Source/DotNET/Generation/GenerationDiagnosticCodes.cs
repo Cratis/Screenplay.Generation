@@ -323,4 +323,10 @@ public static class GenerationDiagnosticCodes
 
     /// <summary>The host did not supply the required fixed source mapper.</summary>
     public const string SourcePlacementResolverUnavailable = "GEN0077";
+
+    /// <summary>An opted-in mixed-kind source group was split into effective slice names.</summary>
+    public const string MixedSliceKindsSplit = "GEN0079";
+
+    /// <summary>A split name still collides incompatibly after exactly two normalization stages.</summary>
+    public const string ConflictingMixedSliceSplit = "GEN0078";
 }

@@ -219,7 +219,10 @@ public enum GenerationFactCapability
     TypeUseTargetOmitted = 23,
 
     /// <summary><see cref="ArtifactSourcePlacementCandidateFact"/> facts.</summary>
-    ArtifactSourcePlacementCandidate = 26
+    ArtifactSourcePlacementCandidate = 26,
+
+    /// <summary>Explicit mixed-kind slice fallback metadata on placement facts or candidates.</summary>
+    MixedSlicePlacementFallback = 27
 }
 
 /// <summary>

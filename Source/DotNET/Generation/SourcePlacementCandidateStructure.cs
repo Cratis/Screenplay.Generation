@@ -7,16 +7,19 @@ namespace Cratis.Screenplay.Generation;
 
 static class SourcePlacementCandidateStructure
 {
-    public static string Definition(ArtifactSourcePlacementCandidateDefinition definition) => Key(Copy(definition, key => key));
+    public static string Definition(ArtifactSourcePlacementCandidateDefinition definition) => MixedSliceFallbackStructure.WithIdentity(Key(Copy(definition, key => key)), definition?.MixedSliceFallback);
 
     public static bool Supported(ArtifactSourcePlacementCandidateDefinition definition) =>
         definition?.Artifact is not null && definition.Owner is not null && definition.Policy is not null && Valid(definition);
 
     public static ArtifactSourcePlacementCandidateDefinition Copy(ArtifactSourcePlacementCandidateDefinition? definition, Func<ArtifactKey, ArtifactKey> copyKey) => new()
     {
-        Artifact = copyKey(definition?.Artifact ?? MissingKey()), Owner = copyKey(definition?.Owner ?? MissingKey()),
-        SliceKind = definition?.SliceKind ?? GenerationSliceKind.Unknown, Reason = definition?.Reason ?? ArtifactSourcePlacementReason.Unknown,
-        Policy = definition?.Policy is { } policy ? policy with { } : new() { Version = -1 }
+        Artifact = copyKey(definition?.Artifact ?? MissingKey()),
+        Owner = copyKey(definition?.Owner ?? MissingKey()),
+        SliceKind = definition?.SliceKind ?? GenerationSliceKind.Unknown,
+        Reason = definition?.Reason ?? ArtifactSourcePlacementReason.Unknown,
+        Policy = definition?.Policy is { } policy ? policy with { } : new() { Version = -1 },
+        MixedSliceFallback = MixedSliceFallbackStructure.Copy(definition?.MixedSliceFallback)
     };
 
     static ArtifactKey MissingKey() => new() { Subject = new SubjectId { Value = string.Empty }, Kind = ArtifactKind.Unknown };

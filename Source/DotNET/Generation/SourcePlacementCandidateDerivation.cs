@@ -18,7 +18,10 @@ static class SourcePlacementCandidateDerivation
 
     internal static GenerationDiagnostic Diagnostic(string code, GenerationDiagnosticOutcome outcome, GenerationFact[] inputs, string message) => new()
     {
-        Code = code, Severity = GenerationDiagnosticSeverity.Error, Outcome = outcome, Message = message,
+        Code = code,
+        Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = outcome,
+        Message = message,
         Subject = inputs.OfType<ArtifactSourcePlacementCandidateFact>().First().Subject,
         Source = inputs.FirstOrDefault(fact => fact.Evidence.Source is not null)?.Evidence.Source,
         Facts = [.. inputs.Select(fact => fact.Id)]
@@ -47,7 +50,10 @@ static class SourcePlacementCandidateDerivation
         Fact = new ArtifactPlacementFact
         {
             Id = new FactId { Value = $"generation:derive:source-owner-placement:1:{Encode(Structural.ArtifactKey(artifact))}" },
-            Subject = artifact.Subject, Artifact = artifact, Placement = placement,
+            Subject = artifact.Subject,
+            Artifact = artifact,
+            Placement = placement,
+            MixedSliceFallback = MixedSliceFallbackStructure.Copy(inputs.OfType<ArtifactSourcePlacementCandidateFact>().First(fact => fact.Evidence.Strength == strength).Definition.MixedSliceFallback),
             Evidence = inputs.OfType<ArtifactSourcePlacementCandidateFact>().First(fact => fact.Evidence.Strength == strength).Evidence
         },
         Lineage = new() { Producer = Rule, Inputs = [.. inputs.Select(fact => fact.Id)], Evidence = [.. inputs.Select(fact => fact.Evidence)] }
@@ -86,7 +92,7 @@ static class SourcePlacementCandidateDerivation
 
             var strength = candidates.Min(candidate => candidate.Evidence.Strength);
             var strongest = candidates.Where(candidate => candidate.Evidence.Strength == strength).ToArray();
-            if (strongest.Select(candidate => candidate.Definition.SliceKind).Distinct().Count() != 1)
+            if (strongest.Select(candidate => MixedSliceFallbackStructure.WithPolicy(candidate.Definition.SliceKind.ToString(), candidate.Definition.MixedSliceFallback)).Distinct(StringComparer.Ordinal).Count() != 1)
             {
                 _diagnostics.Add(Diagnostic(GenerationDiagnosticCodes.ConflictingSourceOwnerCandidates, GenerationDiagnosticOutcome.Conflict, inputs, "Equally strong source-owner candidates disagree on semantic slice kind"));
                 return;

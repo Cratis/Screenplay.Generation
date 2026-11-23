@@ -2,3 +2,5 @@
   href: build-source-adapter.md
 - name: Derive query inputs from declaration surfaces
   href: query-input-member-derivation.md
+- name: Split mixed-kind slices
+  href: split-mixed-kind-slices.md

@@ -36,6 +36,48 @@ static class AdapterContributionAdmissionValidator
         }
     }
 
+    public static void ValidateSource(
+        SourceRange source,
+        string path,
+        FactId? fact,
+        SubjectId? subject,
+        ISourceAuthorityValidator? sourceAuthorityValidator,
+        AdapterContributionAdmissionContext context)
+    {
+        if (!IsValidSourceRange(source))
+        {
+            context.Add(
+                AdapterContributionAdmissionDiagnosticCode.InvalidSourceRange,
+                path,
+                $"{path} must identify a normalized portable relative path without rooted, backslash, empty, or dot segments and an ordered positive 1-based range",
+                fact,
+                subject,
+                source);
+            return;
+        }
+
+        if (sourceAuthorityValidator is null)
+        {
+            context.Add(
+                AdapterContributionAdmissionDiagnosticCode.SourceAuthorityRequired,
+                path,
+                $"Source range '{source.Path}:{source.StartLine}:{source.StartColumn}' requires a host authority validator",
+                fact,
+                subject,
+                source);
+        }
+        else if (!sourceAuthorityValidator.IsAuthoritative(source))
+        {
+            context.Add(
+                AdapterContributionAdmissionDiagnosticCode.SourceNotAuthoritative,
+                path,
+                $"Source range '{source.Path}:{source.StartLine}:{source.StartColumn}' is not authoritative authored source",
+                fact,
+                subject,
+                source);
+        }
+    }
+
     public static void ValidateSubject(
         SubjectId subject,
         string path,
@@ -294,6 +336,8 @@ static class AdapterContributionAdmissionValidator
                 context);
         }
 
+        MixedSliceFallbackAdmission.Validate(fact, factPath, sourceAuthorityValidator, context);
+        MixedSliceFallbackAdmission.ValidateCapability(fact, descriptor, factPath, context);
         var capability = CapabilityFor(fact);
         if (!descriptor.EmittedFactCapabilities.Contains(capability))
         {
@@ -443,48 +487,6 @@ static class AdapterContributionAdmissionValidator
     static bool IsOrdered(SourceRange source) =>
         source.EndLine > source.StartLine ||
         (source.EndLine == source.StartLine && source.EndColumn >= source.StartColumn);
-
-    static void ValidateSource(
-        SourceRange source,
-        string path,
-        FactId? fact,
-        SubjectId? subject,
-        ISourceAuthorityValidator? sourceAuthorityValidator,
-        AdapterContributionAdmissionContext context)
-    {
-        if (!IsValidSourceRange(source))
-        {
-            context.Add(
-                AdapterContributionAdmissionDiagnosticCode.InvalidSourceRange,
-                path,
-                $"{path} must identify a normalized portable relative path without rooted, backslash, empty, or dot segments and an ordered positive 1-based range",
-                fact,
-                subject,
-                source);
-            return;
-        }
-
-        if (sourceAuthorityValidator is null)
-        {
-            context.Add(
-                AdapterContributionAdmissionDiagnosticCode.SourceAuthorityRequired,
-                path,
-                $"Source range '{source.Path}:{source.StartLine}:{source.StartColumn}' requires a host authority validator",
-                fact,
-                subject,
-                source);
-        }
-        else if (!sourceAuthorityValidator.IsAuthoritative(source))
-        {
-            context.Add(
-                AdapterContributionAdmissionDiagnosticCode.SourceNotAuthoritative,
-                path,
-                $"Source range '{source.Path}:{source.StartLine}:{source.StartColumn}' is not authoritative authored source",
-                fact,
-                subject,
-                source);
-        }
-    }
 
     static bool IsIdentityPart(string? value) =>
         AdapterContributionText.IsNormalized(value, false);

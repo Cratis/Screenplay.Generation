@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Text.Json.Serialization;
+
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>Identifies independently established source ownership.</summary>
@@ -53,6 +55,10 @@ public sealed record ArtifactSourcePlacementCandidateDefinition
 
     /// <summary>Gets the explicit versioned selection policy.</summary>
     public required ArtifactSourcePlacementSelectionPolicy Policy { get; init; }
+
+    /// <summary>Gets optional attributable mixed-kind splitting metadata to propagate to the derived placement.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MixedSlicePlacementFallbackDefinition? MixedSliceFallback { get; init; }
 }
 
 /// <summary>Asserts a source-owner candidate using attributable adapter evidence.</summary>

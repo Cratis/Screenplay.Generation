@@ -62,6 +62,7 @@ public class a_contribution : Specification
         GenerationFactCapability.EntryPointInputTransfer,
         GenerationFactCapability.TypeUseTargetOmitted,
         GenerationFactCapability.ArtifactSourcePlacementCandidate,
+        GenerationFactCapability.MixedSlicePlacementFallback,
         GenerationFactCapability.Artifact
     ];
 

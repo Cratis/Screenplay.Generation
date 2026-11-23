@@ -155,7 +155,7 @@ static class Structural
     {
         BackendScopeFact scope => Node("backend-scope", BackendScope(scope.Definition)),
         ArtifactFact artifact => Node("artifact", Artifact(artifact.Definition)),
-        ArtifactPlacementFact placement => Node("placement", ArtifactKey(placement.Artifact), Placement(placement.Placement)),
+        ArtifactPlacementFact placement => MixedSliceFallbackStructure.WithIdentity(Node("placement", ArtifactKey(placement.Artifact), Placement(placement.Placement)), placement.MixedSliceFallback),
         ArtifactSourcePlacementCandidateFact candidate => SourcePlacementCandidateStructure.Definition(candidate.Definition),
         ArtifactDeclarationFact declaration => Node("artifact-declaration", ArtifactDeclaration(declaration.Definition)),
         ArtifactMemberDeclarationFact member => Node("artifact-member-declaration", ArtifactMemberDeclaration(member.Definition)),

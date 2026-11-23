@@ -12,14 +12,17 @@ static class SourcePlacementCandidateFreezer
         if (definition?.Policy is null) context.Missing($"{envelope.Path}.Definition.Policy");
         return new ArtifactSourcePlacementCandidateFact
         {
-            Id = envelope.Id, Subject = envelope.Subject, Evidence = envelope.Evidence,
+            Id = envelope.Id,
+            Subject = envelope.Subject,
+            Evidence = envelope.Evidence,
             Definition = new ArtifactSourcePlacementCandidateDefinition
             {
                 Artifact = AdapterContributionFreezer.FreezeArtifactKey(definition?.Artifact, $"{envelope.Path}.Definition.Artifact", context),
                 Owner = AdapterContributionFreezer.FreezeArtifactKey(definition?.Owner, $"{envelope.Path}.Definition.Owner", context),
                 SliceKind = definition?.SliceKind ?? GenerationSliceKind.Unknown,
                 Reason = definition?.Reason ?? ArtifactSourcePlacementReason.Unknown,
-                Policy = definition?.Policy is { } policy ? policy with { } : new ArtifactSourcePlacementSelectionPolicy()
+                Policy = definition?.Policy is { } policy ? policy with { } : new ArtifactSourcePlacementSelectionPolicy(),
+                MixedSliceFallback = MixedSliceFallbackAdmission.Freeze(definition?.MixedSliceFallback, $"{envelope.Path}.Definition.MixedSliceFallback", context)
             }
         };
     }

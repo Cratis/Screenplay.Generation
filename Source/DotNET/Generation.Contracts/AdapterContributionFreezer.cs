@@ -34,6 +34,8 @@ static class AdapterContributionFreezer
         return new(frozenDescriptor, adapter, facts, diagnostics);
     }
 
+    internal static Evidence FreezeNestedEvidence(Evidence? evidence, string path, AdapterContributionAdmissionContext context) => FreezeEvidence(evidence, path, context);
+
     internal static ArtifactKey FreezeArtifactKey(ArtifactKey? key, string path, AdapterContributionAdmissionContext context)
     {
         if (key is null)
@@ -211,7 +213,8 @@ static class AdapterContributionFreezer
                 Subject = subject,
                 Evidence = evidence,
                 Artifact = FreezeArtifactKey(placement.Artifact, $"{path}.Artifact", context),
-                Placement = FreezePlacement(placement.Placement, $"{path}.Placement", context)
+                Placement = FreezePlacement(placement.Placement, $"{path}.Placement", context),
+                MixedSliceFallback = MixedSliceFallbackAdmission.Freeze(placement.MixedSliceFallback, $"{path}.MixedSliceFallback", context)
             },
             ArtifactSourcePlacementCandidateFact candidate => SourcePlacementCandidateFreezer.Freeze(candidate, envelope, context),
             RelationshipFact relationship => new RelationshipFact

@@ -98,6 +98,7 @@ public sealed class ScreenplayDefinitionGenerator(
             input.SelectMany(contribution => contribution.Diagnostics)
                 .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
             effective.OmittedFacts);
+        (graph, derivation) = PlacementNormalization.Complete(graph, derivation, effective.Facts);
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -149,6 +150,7 @@ public sealed class ScreenplayDefinitionGenerator(
             completed.SelectMany(contribution => contribution.Diagnostics)
                 .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
             effective.OmittedFacts);
+        (graph, derivation) = PlacementNormalization.Complete(graph, derivation, effective.Facts);
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
