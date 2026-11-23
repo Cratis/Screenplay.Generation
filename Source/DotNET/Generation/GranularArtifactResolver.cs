@@ -292,7 +292,12 @@ static class GranularArtifactResolver
             return ApplyBinding(member, bindingVariants[0], typeUses);
         }
 
-        if (typeUses.Selected?.Definition.Type.ObservedTypeSubject is not null && type.Subject is null)
+        if (typeUses.Selected?.Definition.Type.ObservedTypeSubject is null || type.Subject is not null)
+        {
+            return type;
+        }
+
+        if (TypeUseTargetOmissions.ForMissingTarget(typeUses.Facts, member.Facts.OfType<TypeUseTargetOmittedFact>(), member.Declared).Length == 0)
         {
             member.Incomplete(
                 typeUses.Facts.Concat(member.Variant.Supports),
@@ -505,6 +510,7 @@ static class GranularArtifactResolver
     {
         ArtifactMemberDeclarationFact declaration => declaration.Definition.Member,
         ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member,
+        TypeUseTargetOmittedFact omission => omission.Definition.Member,
         TypeUseBindingFact binding => binding.Definition.Member,
         ArtifactMemberRoleFact role => role.Definition.Member,
         _ => null
@@ -515,6 +521,7 @@ static class GranularArtifactResolver
         ArtifactMemberDeclarationFact or
         ArtifactMemberTypeUseFact or
         TypeUseBindingFact or
+        TypeUseTargetOmittedFact or
         ArtifactMemberRoleFact;
 
     static string DeclarationKey(ArtifactDeclarationDefinition definition) =>

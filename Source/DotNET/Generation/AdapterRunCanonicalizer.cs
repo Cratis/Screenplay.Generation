@@ -84,6 +84,15 @@ static class AdapterRunCanonicalizer
         ArtifactMemberDeclarationFact member => member with { Definition = ArtifactMemberDeclaration(member.Definition) },
         ArtifactMemberTypeUseFact typeUse => typeUse with { Definition = ArtifactMemberTypeUse(typeUse.Definition) },
         TypeUseBindingFact binding => binding with { Definition = TypeUseBinding(binding.Definition) },
+        _ => TypeUseOmissionDefinition(fact)
+    };
+
+    static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
+    {
+        TypeUseTargetOmittedFact omission => omission with
+        {
+            Definition = omission.Definition with { Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
+        },
         _ => UsageFactDefinition(fact)
     };
 

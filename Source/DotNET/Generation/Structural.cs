@@ -248,6 +248,12 @@ static class Structural
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
+        _ => TypeUseOmissionFamily(fact)
+    };
+
+    static int TypeUseOmissionFamily(GenerationFact fact) => fact switch
+    {
+        TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageFamily(fact)
     };
 
@@ -278,6 +284,12 @@ static class Structural
         ArtifactUsageDeclarationFact declaration => Node("artifact-usage-declaration", ArtifactUsageDeclaration(declaration.Definition)),
         MethodArtifactUsageFact usage => Node("method-artifact-usage", MethodArtifactUsage(usage.Definition)),
         EntryPointFact entry => Node("entry-point", EntryPoint(entry.Definition)),
+        _ => TypeUseOmissionDefinition(fact)
+    };
+
+    static string TypeUseOmissionDefinition(GenerationFact fact) => fact switch
+    {
+        TypeUseTargetOmittedFact omission => Node("type-use-target-omitted", ArtifactMemberKey(omission.Definition.Member), Diagnostic(omission.Definition.Diagnostic)),
         _ => ObservationFactDefinition(fact)
     };
 

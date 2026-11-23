@@ -18,6 +18,7 @@ internal static class GenerationFactDiscriminators
         ArtifactDeclarationFact or
         ArtifactMemberDeclarationFact or
         ArtifactMemberTypeUseFact or
+        TypeUseTargetOmittedFact or
         TypeUseBindingFact or
         ArtifactMemberRoleFact => ArtifactFamilySupported(fact),
         ConceptRepresentationFact or
@@ -68,6 +69,12 @@ internal static class GenerationFactDiscriminators
         ArtifactMemberRoleFact role =>
             Supported(role.Definition.Member.Artifact.Kind, ArtifactKind.Unknown) &&
             Supported(role.Definition.Role, ArtifactMemberRoleKind.Unknown),
+        _ => TargetOmissionSupported(fact)
+    };
+
+    static bool TargetOmissionSupported(GenerationFact fact) => fact switch
+    {
+        TypeUseTargetOmittedFact omission => Supported(omission.Definition.Member.Artifact.Kind, ArtifactKind.Unknown),
         _ => true
     };
 

@@ -16,6 +16,7 @@ static class AdapterContributionAdmissionValidator
         ValidateProducer(input, context);
         ValidateDuplicateFactIds(input.Facts, context);
         MethodEligibilityAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
+        TypeUseTargetOmissionAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
 
         foreach (var fact in input.Facts)
         {
@@ -633,6 +634,12 @@ static class AdapterContributionAdmissionValidator
         ArtifactMemberTypeUseFact => GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => GenerationFactCapability.ArtifactMemberRole,
+        _ => TypeUseOmissionCapability(fact)
+    };
+
+    static GenerationFactCapability TypeUseOmissionCapability(GenerationFact fact) => fact switch
+    {
+        TypeUseTargetOmittedFact => GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageCapability(fact)
     };
 

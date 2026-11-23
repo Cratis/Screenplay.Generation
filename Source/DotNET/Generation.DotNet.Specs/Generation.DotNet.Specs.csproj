@@ -14,6 +14,7 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
 
         <ProjectReference Include="../Generation.Contracts/Generation.Contracts.csproj" />
+        <ProjectReference Include="../Generation/Generation.csproj" />
         <ProjectReference Include="../Generation.DotNet/Generation.DotNet.csproj" />
     </ItemGroup>
 </Project>
