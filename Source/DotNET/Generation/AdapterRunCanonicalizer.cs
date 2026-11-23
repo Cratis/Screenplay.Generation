@@ -103,6 +103,23 @@ static class AdapterRunCanonicalizer
         {
             Definition = usage.Definition with { Method = Subject(usage.Definition.Method), Declaration = Subject(usage.Definition.Declaration), SourceScope = Scope(usage.Definition.SourceScope), TargetScope = Scope(usage.Definition.TargetScope) }
         },
+        _ => ObservationFactDefinition(fact)
+    };
+
+    static GenerationFact ObservationFactDefinition(GenerationFact fact) => fact switch
+    {
+        MethodExecutionClassificationFact classification => Classification(classification),
+        MethodFactSupportFact support => Support(support),
+        DeclarationInputMemberDeclarationFact declaration => declaration with { Definition = declaration.Definition with { Member = DeclarationMember(declaration.Definition.Member) } },
+        DeclarationInputMemberTypeUseFact typeUse => typeUse with
+        {
+            Definition = typeUse.Definition with
+            {
+                Member = DeclarationMember(typeUse.Definition.Member),
+                Type = typeUse.Definition.Type with { ObservedTypeSubject = typeUse.Definition.Type.ObservedTypeSubject is { } subject ? Subject(subject) : null, ObservedScope = Scope(typeUse.Definition.Type.ObservedScope), Shape = [.. typeUse.Definition.Type.Shape] }
+            }
+        },
+        EntryPointInputTransferFact transfer => transfer with { Definition = transfer.Definition with { Method = Subject(transfer.Definition.Method), Artifact = ArtifactKey(transfer.Definition.Artifact) } },
         RelationshipFact relationship => relationship with { Definition = Relationship(relationship.Definition) },
         _ => DomainFactDefinition(fact)
     };
@@ -116,6 +133,33 @@ static class AdapterRunCanonicalizer
         SpecificationStepFact step => step with { Definition = SpecificationStep(step.Definition) },
         SpecificationValueFact value => value with { Definition = SpecificationValue(value.Definition) },
         _ => fact
+    };
+
+    static MethodExecutionClassificationFact Classification(MethodExecutionClassificationFact fact) => fact.Definition is null ? fact : fact with
+    {
+        Definition = fact.Definition with
+        {
+            Method = Subject(fact.Definition.Method),
+            Scope = Scope(fact.Definition.Scope),
+            OmissionReason = fact.Definition.OmissionReason is { } reason ? Diagnostic(reason) : null
+        }
+    };
+
+    static DeclarationMemberKey DeclarationMember(DeclarationMemberKey member) => member with { Declaration = Subject(member.Declaration), Scope = Scope(member.Scope) };
+
+    static MethodFactSupportFact Support(MethodFactSupportFact fact) => fact.Definition is not { Candidate: not null, Alternatives: not null } || fact.Definition.Alternatives.Any(alternative => alternative is null) ? fact : fact with
+    {
+        Definition = fact.Definition with
+        {
+            Candidate = new FactId { Value = fact.Definition.Candidate.Value },
+            Alternatives = [.. fact.Definition.Alternatives.Select(alternative => alternative with
+            {
+                Method = Subject(alternative.Method),
+                Scope = Scope(alternative.Scope),
+                EnclosingExecutables = [.. alternative.EnclosingExecutables.Select(Subject).Distinct().OrderBy(subject => subject.Value, StringComparer.Ordinal)],
+                Diagnostics = Diagnostics(alternative.Diagnostics)
+            }).GroupBy(Structural.MethodSupport, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())]
+        }
     };
 
     static GenerationFactLineage Lineage(GenerationFactLineage lineage) => new()

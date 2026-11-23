@@ -15,6 +15,7 @@ static class AdapterContributionAdmissionValidator
         ValidateDescriptor(input.Descriptor, context);
         ValidateProducer(input, context);
         ValidateDuplicateFactIds(input.Facts, context);
+        MethodEligibilityAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
 
         foreach (var fact in input.Facts)
         {
@@ -146,6 +147,11 @@ static class AdapterContributionAdmissionValidator
 
         ValidateGenerationVersionRange(descriptor, context);
     }
+
+    internal static void ValidateMethodDiagnostic(
+        (string AdapterId, HashSet<string> FactIds, ISourceAuthorityValidator? Authority) owner,
+        GenerationDiagnostic diagnostic,
+        AdapterContributionAdmissionContext context) => ValidateDiagnostic(owner.AdapterId, owner.FactIds, diagnostic, 0, owner.Authority, context);
 
     static bool IsStableAbsoluteUri(string value) =>
         AdapterContributionText.IsNormalized(value, false) &&
@@ -601,6 +607,11 @@ static class AdapterContributionAdmissionValidator
         ArtifactFact => GenerationFactCapability.Artifact,
         ArtifactPlacementFact => GenerationFactCapability.ArtifactPlacement,
         RelationshipFact => GenerationFactCapability.Relationship,
+        _ => ConceptCapability(fact)
+    };
+
+    static GenerationFactCapability ConceptCapability(GenerationFact fact) => fact switch
+    {
         ConceptRepresentationFact => GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => GenerationFactCapability.ConceptValidationRule,
@@ -631,6 +642,16 @@ static class AdapterContributionAdmissionValidator
         MethodArtifactUsageFact => GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => GenerationFactCapability.EntryPoint,
         BackendScopeFact => GenerationFactCapability.BackendScope,
+        _ => ObservationCapability(fact)
+    };
+
+    static GenerationFactCapability ObservationCapability(GenerationFact fact) => fact switch
+    {
+        MethodExecutionClassificationFact => GenerationFactCapability.MethodExecutionClassification,
+        MethodFactSupportFact => GenerationFactCapability.MethodFactSupport,
+        DeclarationInputMemberDeclarationFact => GenerationFactCapability.DeclarationInputMemberDeclaration,
+        DeclarationInputMemberTypeUseFact => GenerationFactCapability.DeclarationInputMemberTypeUse,
+        EntryPointInputTransferFact => GenerationFactCapability.EntryPointInputTransfer,
         _ => GenerationFactCapability.Unknown
     };
 }

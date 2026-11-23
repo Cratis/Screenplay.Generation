@@ -34,6 +34,14 @@ internal static class GenerationFactDiscriminators
         ArtifactUsageDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
         EntryPointFact entry => Supported(entry.Definition.Artifact.Kind, ArtifactKind.Unknown),
         MethodArtifactUsageFact usage => Supported(usage.Definition.Kind, RelationshipKind.Unknown),
+        _ => ObservationFamilySupported(fact)
+    };
+
+    static bool ObservationFamilySupported(GenerationFact fact) => fact switch
+    {
+        DeclarationInputMemberTypeUseFact typeUse => typeUse.Definition.Type.Shape.All(shape => Supported(shape, TypeUseShapeKind.Unknown)),
+        EntryPointInputTransferFact transfer => Supported(transfer.Definition.Artifact.Kind, ArtifactKind.Unknown) && Supported(transfer.Definition.Kind, RelationshipKind.Unknown),
+        MethodExecutionClassificationFact classification => Supported(classification.Definition.Kind, MethodExecutionKind.Unknown),
         RelationshipFact relationship => Supported(relationship.Definition.Key.Kind, RelationshipKind.Unknown),
         _ => true
     };

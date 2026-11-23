@@ -87,15 +87,14 @@ public sealed class ScreenplayDefinitionGenerator(
         ScreenplayGenerationOptions options)
     {
         var input = contributions.ToArray();
-        var baseFacts = input.SelectMany(contribution => contribution.Facts).ToArray();
-        var derivation = GenerationFactDerivation.Derive(new AdapterRunSnapshot
-        {
-            Facts = [.. baseFacts.Select(fact => new GenerationFactRecord { Fact = fact })]
-        });
+        var effective = EffectiveGenerationInputs.FromContributions(input);
+        var baseFacts = effective.Facts;
+        var derivation = GenerationFactDerivation.Derive(effective);
         var graph = resolver.ResolveFacts(
             baseFacts.Concat(derivation.Facts.Select(record => record.Fact)),
             input.SelectMany(contribution => contribution.Diagnostics)
-                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)));
+                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
+            effective.OmittedFacts);
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -136,34 +135,17 @@ public sealed class ScreenplayDefinitionGenerator(
         ScreenplayGenerationOptions options)
     {
         var canonicalAdapters = CanonicalAdapters(snapshot.Adapters);
-        var completed = canonicalAdapters
-            .Select(record => record.Execution)
-            .OfType<AdapterExecutionCompleted>()
-            .Select(execution => execution.Contribution)
-            .OrderBy(contribution => contribution.Descriptor.Identity.Id, StringComparer.Ordinal)
-            .ThenBy(contribution => contribution.Descriptor.Identity.Version, StringComparer.Ordinal)
-            .ToArray();
-        var facts = completed
-            .SelectMany(contribution => contribution.Facts.Select(fact => new ProducedFact(contribution.Descriptor.Identity, fact)))
-            .OrderBy(item => item.Producer.Id, StringComparer.Ordinal)
-            .ThenBy(item => item.Producer.Version, StringComparer.Ordinal)
-            .ThenBy(item => item.Fact.Id.Value, StringComparer.Ordinal)
-            .ThenBy(item => item.Fact.Subject.Value, StringComparer.Ordinal)
-            .ThenBy(item => Structural.FactFamily(item.Fact))
-            .ThenBy(item => Structural.FactDefinition(item.Fact), StringComparer.Ordinal)
-            .ThenBy(item => Structural.Evidence(item.Fact.Evidence), StringComparer.Ordinal)
-            .Select(item => item.Fact)
-            .ToArray();
-        var derivation = GenerationFactDerivation.Derive(new AdapterRunSnapshot
-        {
-            Facts = [.. facts.Select(fact => new GenerationFactRecord { Fact = fact })]
-        });
+        var completed = CompletedContributions(canonicalAdapters);
+        var facts = AdmittedFacts(completed);
+        var effective = EffectiveGenerationInputs.FromFacts(facts);
+        var derivation = GenerationFactDerivation.Derive(effective);
         var derivedFacts = derivation.Facts.Select(record => record.Fact).ToArray();
-        var effectiveFacts = facts.Concat(derivedFacts).ToArray();
+        var effectiveFacts = effective.Facts.Concat(derivedFacts).ToArray();
         var graph = resolver.ResolveFacts(
             effectiveFacts,
             completed.SelectMany(contribution => contribution.Diagnostics)
-                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)));
+                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
+            effective.OmittedFacts);
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -189,10 +171,16 @@ public sealed class ScreenplayDefinitionGenerator(
             .Concat(derivation.Facts)
             .ToArray();
         var factRecords = GenerationFactDispositionCalculator.Calculate(
-            inputRecords,
+            inputRecords.Where(record => !effective.HasDisposition(record.Fact)),
             graph,
             lowering.Coverage,
-            pipelineDiagnostics);
+            [.. pipelineDiagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic)))])
+            .Concat(inputRecords.Where(record => effective.HasDisposition(record.Fact)).Select(record => record with
+            {
+                Disposition = effective.DispositionOf(record.Fact),
+                Diagnostics = [.. effective.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(record.Fact.Id))]
+            }))
+            .ToArray();
         var canonicalFactRecords = AdapterRunCanonicalizer.FactRecords(
             factRecords.Where(record => record.Lineage is null));
         var canonicalDerivation = AdapterRunCanonicalizer.Derivation(derivation with
@@ -222,6 +210,28 @@ public sealed class ScreenplayDefinitionGenerator(
             AdapterRun = adapterRun
         };
     }
+
+    static AdapterContributionSnapshot[] CompletedContributions(IEnumerable<AdapterRunRecord> adapters) =>
+    [
+        .. adapters.Select(record => record.Execution)
+            .OfType<AdapterExecutionCompleted>()
+            .Select(execution => execution.Contribution)
+            .OrderBy(contribution => contribution.Descriptor.Identity.Id, StringComparer.Ordinal)
+            .ThenBy(contribution => contribution.Descriptor.Identity.Version, StringComparer.Ordinal)
+    ];
+
+    static GenerationFact[] AdmittedFacts(IEnumerable<AdapterContributionSnapshot> completed) =>
+    [
+        .. completed.SelectMany(contribution => contribution.Facts.Select(fact => new ProducedFact(contribution.Descriptor.Identity, fact)))
+            .OrderBy(item => item.Producer.Id, StringComparer.Ordinal)
+            .ThenBy(item => item.Producer.Version, StringComparer.Ordinal)
+            .ThenBy(item => item.Fact.Id.Value, StringComparer.Ordinal)
+            .ThenBy(item => item.Fact.Subject.Value, StringComparer.Ordinal)
+            .ThenBy(item => Structural.FactFamily(item.Fact))
+            .ThenBy(item => Structural.FactDefinition(item.Fact), StringComparer.Ordinal)
+            .ThenBy(item => Structural.Evidence(item.Fact.Evidence), StringComparer.Ordinal)
+            .Select(item => item.Fact)
+    ];
 
     static ImmutableArray<AdapterRunRecord> CanonicalAdapters(IEnumerable<AdapterRunRecord> adapters) =>
     [

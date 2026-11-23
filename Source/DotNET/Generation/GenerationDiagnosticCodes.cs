@@ -8,6 +8,15 @@ namespace Cratis.Screenplay.Generation;
 /// </summary>
 public static class GenerationDiagnosticCodes
 {
+    /// <summary>Entry-point input transfer lacks exact declaration, type, or precedence proof.</summary>
+    public const string InvalidEntryPointInputTransfer = "GEN0069";
+
+    /// <summary>Method eligibility metadata is invalid and its dependent behavior was omitted.</summary>
+    public const string InvalidMethodFactEligibility = "GEN0067";
+
+    /// <summary>Exact execution classifications conflict for one backend occurrence.</summary>
+    public const string ConflictingMethodExecutionClassification = "GEN0068";
+
     /// <summary>
     /// Two adapters or source locations asserted incompatible definitions for the same artifact.
     /// </summary>

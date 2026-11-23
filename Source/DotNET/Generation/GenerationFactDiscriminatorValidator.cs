@@ -7,6 +7,7 @@ namespace Cratis.Screenplay.Generation;
 
 static class GenerationFactDiscriminatorValidator
 {
+    static readonly DiscriminatorRule<MethodExecutionKind> _methodExecutionKind = new(MethodExecutionKind.Unknown, GenerationDiagnosticCodes.InvalidMethodFactEligibility);
     static readonly DiscriminatorRule<EvidenceStrength> _evidenceStrength = new(EvidenceStrength.Unknown, GenerationDiagnosticCodes.UnsupportedEvidenceStrength);
     static readonly DiscriminatorRule<ArtifactKind> _artifactKind = new(ArtifactKind.Unknown, GenerationDiagnosticCodes.UnsupportedArtifactKind);
     static readonly DiscriminatorRule<GenerationSliceKind> _sliceKind = new(GenerationSliceKind.Unknown, GenerationDiagnosticCodes.UnsupportedSliceKind);
@@ -71,6 +72,26 @@ static class GenerationFactDiscriminatorValidator
                 break;
             case SpecificationScenarioFact or SpecificationStepFact or SpecificationValueFact:
                 ValidateSpecificationFamily(fact, diagnostics);
+                break;
+            default:
+                ValidateObservationFamily(fact, diagnostics);
+                break;
+        }
+    }
+
+    static void ValidateObservationFamily(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
+        switch (fact)
+        {
+            case DeclarationInputMemberTypeUseFact typeUse:
+                ValidateTypeUseShape(fact, typeUse.Definition.Type.Shape, diagnostics);
+                break;
+            case EntryPointInputTransferFact transfer:
+                Validate(fact, transfer.Definition.Artifact.Kind, _artifactKind, diagnostics);
+                Validate(fact, transfer.Definition.Kind, _relationshipKind, diagnostics);
+                break;
+            case MethodExecutionClassificationFact classification:
+                Validate(fact, classification.Definition.Kind, _methodExecutionKind, diagnostics);
                 break;
         }
     }

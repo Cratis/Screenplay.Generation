@@ -1,2 +1,4 @@
 - name: Build a source adapter
   href: build-source-adapter.md
+- name: Derive query inputs from declaration surfaces
+  href: query-input-member-derivation.md

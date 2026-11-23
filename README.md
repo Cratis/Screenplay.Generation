@@ -39,6 +39,10 @@ See [Build a .NET source adapter](Documentation/guides/build-source-adapter.md) 
 | Granular artifact/member/type-use/binding/role facts | No | Yes |
 | Fixed-snapshot derivation rule and input/evidence lineage | No | Yes |
 | Exact nested .NET type-use fact emission | No | Yes |
+| Exact method eligibility with conditional observation support | No | Yes |
+| Opt-in query input transfer from declaration-owned surfaces | No | Yes |
+
+Current `main` also supports [query input derivation from declaration surfaces](Documentation/guides/query-input-member-derivation.md): explicit transfer intent and proved execution/source order add exact inputs without turning source declarations into artifacts. Ordinary `Reads` facts retain their original meaning. Method-dependent observations are selected before all derivation and resolution; the adapter guide documents the source-neutral eligibility proof contract.
 
 ## Architecture
 

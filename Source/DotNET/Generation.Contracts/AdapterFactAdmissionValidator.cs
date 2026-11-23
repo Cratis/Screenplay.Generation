@@ -43,6 +43,9 @@ static class AdapterFactAdmissionValidator
     {
         switch (fact)
         {
+            case DeclarationInputMemberDeclarationFact or DeclarationInputMemberTypeUseFact or EntryPointInputTransferFact:
+                DeclarationInputMemberAdmissionValidator.Validate(fact, path, context);
+                break;
             case BackendScopeFact scope:
                 BackendScopeFactAdmissionValidator.Validate(scope, path, context);
                 break;

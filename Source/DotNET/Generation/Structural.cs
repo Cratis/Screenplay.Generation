@@ -12,7 +12,7 @@ static class Structural
     public static string ArtifactKey(ArtifactKey key) =>
         WithScopes(Node(key.Subject.Value, Integer((int)key.Kind)), key.Scope);
 
-    public static string BackendScopeKey(BackendScopeKey key) => Node(key.Store.Value, key.EventModelName);
+    public static string BackendScopeKey(BackendScopeKey key) => Node(key.Store?.Value, key.EventModelName);
 
     public static string BackendScope(BackendScopeDefinition definition) => Node(BackendScopeKey(definition.Key), definition.Name);
 
@@ -56,8 +56,17 @@ static class Structural
     public static string ArtifactUsageDeclaration(ArtifactUsageDeclarationDefinition definition) =>
         Node(definition.Declaration.Value, ArtifactKey(definition.Artifact));
 
-    public static string MethodArtifactUsage(MethodArtifactUsageDefinition definition) =>
-        WithScopes(Node(definition.Method.Value, definition.Declaration.Value, Integer((int)definition.Kind)), definition.SourceScope, definition.TargetScope);
+    public static string MethodArtifactUsage(MethodArtifactUsageDefinition definition)
+    {
+        var legacy = WithScopes(Node(definition.Method.Value, definition.Declaration.Value, Integer((int)definition.Kind)), definition.SourceScope, definition.TargetScope);
+        return definition.ExecutionOrder is { } order ? Node(legacy, Integer(order)) : legacy;
+    }
+
+    public static string DeclarationMember(DeclarationMemberKey member) => WithScopes(Node(member.Declaration.Value, member.Name), member.Scope);
+
+    public static string MethodSupport(MethodFactSupportAlternative? alternative) => alternative is null
+        ? Node("missing-alternative")
+        : WithScopes(Node(alternative.Method?.Value, Sequence((alternative.EnclosingExecutables ?? []).Select(subject => subject?.Value).Distinct().Order(StringComparer.Ordinal), value => value), Sequence((alternative.Diagnostics ?? []).Select(diagnostic => diagnostic is null ? null : Diagnostic(diagnostic)).Distinct().Order(StringComparer.Ordinal), value => value)), alternative.Scope);
 
     public static string EntryPoint(EntryPointDefinition definition) =>
         Node(definition.Method.Value, ArtifactKey(definition.Artifact));
@@ -173,7 +182,7 @@ static class Structural
             Integer((int)diagnostic.Severity),
             diagnostic.Message,
             NullableInteger(diagnostic.Outcome is null ? null : (int)diagnostic.Outcome.Value),
-            Sequence(diagnostic.Facts.OrderBy(fact => fact.Value, StringComparer.Ordinal), fact => fact.Value),
+            Sequence((diagnostic.Facts.IsDefault ? Enumerable.Empty<FactId>() : diagnostic.Facts).OrderBy(fact => fact?.Value, StringComparer.Ordinal), fact => fact?.Value),
             diagnostic.Source is null ? null : Source(diagnostic.Source),
             diagnostic.Subject?.Value);
 
@@ -248,6 +257,16 @@ static class Structural
         MethodArtifactUsageFact => (int)GenerationFactCapability.MethodArtifactUsage,
         EntryPointFact => (int)GenerationFactCapability.EntryPoint,
         BackendScopeFact => (int)GenerationFactCapability.BackendScope,
+        _ => ObservationFamily(fact)
+    };
+
+    static int ObservationFamily(GenerationFact fact) => fact switch
+    {
+        MethodExecutionClassificationFact => (int)GenerationFactCapability.MethodExecutionClassification,
+        MethodFactSupportFact => (int)GenerationFactCapability.MethodFactSupport,
+        DeclarationInputMemberDeclarationFact => (int)GenerationFactCapability.DeclarationInputMemberDeclaration,
+        DeclarationInputMemberTypeUseFact => (int)GenerationFactCapability.DeclarationInputMemberTypeUse,
+        EntryPointInputTransferFact => (int)GenerationFactCapability.EntryPointInputTransfer,
         _ => int.MaxValue
     };
 
@@ -259,6 +278,16 @@ static class Structural
         ArtifactUsageDeclarationFact declaration => Node("artifact-usage-declaration", ArtifactUsageDeclaration(declaration.Definition)),
         MethodArtifactUsageFact usage => Node("method-artifact-usage", MethodArtifactUsage(usage.Definition)),
         EntryPointFact entry => Node("entry-point", EntryPoint(entry.Definition)),
+        _ => ObservationFactDefinition(fact)
+    };
+
+    static string ObservationFactDefinition(GenerationFact fact) => fact switch
+    {
+        MethodExecutionClassificationFact classification => WithScopes(Node("method-execution", classification.Definition?.Method?.Value, Integer((int)(classification.Definition?.Kind ?? MethodExecutionKind.Unknown)), classification.Definition?.OmissionReason is { } reason ? Diagnostic(reason) : null), classification.Definition?.Scope),
+        DeclarationInputMemberDeclarationFact declaration => Node("declaration-input-member", DeclarationMember(declaration.Definition.Member), Integer(declaration.Definition.DeclarationOrder)),
+        DeclarationInputMemberTypeUseFact typeUse => Node("declaration-input-type", DeclarationMember(typeUse.Definition.Member), TypeUse(typeUse.Definition.Type)),
+        EntryPointInputTransferFact transfer => Node("entry-input-transfer", transfer.Definition.Method.Value, ArtifactKey(transfer.Definition.Artifact), Integer((int)transfer.Definition.Kind)),
+        MethodFactSupportFact support => Node("method-support", support.Definition?.Candidate?.Value, Sequence((support.Definition?.Alternatives ?? []).Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value)),
         _ => DomainFactDefinition(fact)
     };
 

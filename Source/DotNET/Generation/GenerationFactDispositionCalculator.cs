@@ -76,7 +76,7 @@ internal static class GenerationFactDispositionCalculator
 
     static GenerationFactRecord? NeutralDisposition(GenerationFact fact, CalculationContext context)
     {
-        if (fact is not (BackendScopeFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact))
+        if (fact is not (BackendScopeFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact or MethodExecutionClassificationFact or MethodFactSupportFact or DeclarationInputMemberDeclarationFact or DeclarationInputMemberTypeUseFact or EntryPointInputTransferFact))
         {
             return null;
         }

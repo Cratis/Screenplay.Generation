@@ -15,12 +15,15 @@ public static class GenerationFactDerivation
     /// </summary>
     /// <param name="snapshot">The immutable adapter run containing the admitted base facts.</param>
     /// <returns>An immutable derivation snapshot whose rules consumed only the fixed base fact array.</returns>
-    public static GenerationDerivationSnapshot Derive(AdapterRunSnapshot snapshot)
+    public static GenerationDerivationSnapshot Derive(AdapterRunSnapshot snapshot) =>
+        Derive(EffectiveGenerationInputs.FromFacts(snapshot.Facts.Select(record => record.Fact)));
+
+    internal static GenerationDerivationSnapshot Derive(EffectiveGenerationInputs effective)
     {
-        var canonicalInput = AdapterRunCanonicalizer.FactRecords(snapshot.Facts);
+        var canonicalInput = AdapterRunCanonicalizer.FactRecords(effective.Facts.Select(fact => new GenerationFactRecord { Fact = fact }));
         var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(
             canonicalInput.Select(record => record.Fact));
-        var validationDiagnostics = discriminatorValidation.Diagnostics.ToList();
+        var validationDiagnostics = discriminatorValidation.Diagnostics.Concat(effective.Diagnostics).ToList();
         var validFacts = GranularArtifactResolver.ValidFactsForDerivation(
             discriminatorValidation.Facts,
             validationDiagnostics);
@@ -34,9 +37,21 @@ public static class GenerationFactDerivation
             .ToImmutableArray();
         var typeUseBindings = TypeUseBindingDerivation.Derive(baseFacts);
         var artifactUsages = ArtifactUsageDerivation.Derive(baseFacts);
+        var inputMembers = EntryPointInputMemberDerivation.Derive(baseFacts);
+        ImmutableArray<GenerationDerivationRuleRecord> inputMemberRules = inputMembers.Inputs.IsEmpty ? [] :
+        [
+            new GenerationDerivationRuleRecord
+            {
+                Rule = EntryPointInputMemberDerivation.Rule,
+                Inputs = inputMembers.Inputs,
+                Outputs = [.. inputMembers.Facts.Select(record => record.Fact.Id)],
+                Diagnostics = inputMembers.Diagnostics
+            }
+        ];
         var diagnostics = validationDiagnostics
             .Concat(typeUseBindings.Diagnostics)
             .Concat(artifactUsages.Diagnostics)
+            .Concat(inputMembers.Diagnostics)
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .ToImmutableArray();
         ImmutableArray<GenerationDerivationRuleRecord> usageRules = baseFacts.Any(record => record.Fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
@@ -62,9 +77,11 @@ public static class GenerationFactDerivation
                     Outputs = [.. typeUseBindings.Facts.Select(record => record.Fact.Id)],
                     Diagnostics = typeUseBindings.Diagnostics
                 },
-                .. usageRules
+                .. usageRules,
+                .. inputMemberRules,
+                .. MethodEligibilityLineage.Rules(effective)
             ],
-            Facts = [.. typeUseBindings.Facts, .. artifactUsages.Facts],
+            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts], effective),
             Diagnostics = diagnostics
         };
 
