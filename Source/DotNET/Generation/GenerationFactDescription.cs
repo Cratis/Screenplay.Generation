@@ -17,7 +17,7 @@ internal static class GenerationFactDescription
         ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact.Subject,
         TypeUseBindingFact binding => binding.Definition.Member.Artifact.Subject,
         ArtifactMemberRoleFact role => role.Definition.Member.Artifact.Subject,
-        _ => DomainSubject(fact)
+        _ => OmissionSubject(fact)
     };
 
     public static string Family(GenerationFact fact) => fact switch
@@ -29,6 +29,18 @@ internal static class GenerationFactDescription
         ArtifactMemberTypeUseFact => "artifact member type use",
         TypeUseBindingFact => "type-use binding",
         ArtifactMemberRoleFact => "artifact member role",
+        _ => OmissionFamily(fact)
+    };
+
+    static SubjectId OmissionSubject(GenerationFact fact) => fact switch
+    {
+        TypeUseTargetOmittedFact omission => omission.Definition.Member.Artifact.Subject,
+        _ => DomainSubject(fact)
+    };
+
+    static string OmissionFamily(GenerationFact fact) => fact switch
+    {
+        TypeUseTargetOmittedFact => "type-use target omission",
         _ => UsageFamily(fact)
     };
 

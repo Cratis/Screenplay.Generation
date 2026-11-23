@@ -213,7 +213,10 @@ public enum GenerationFactCapability
     DeclarationInputMemberTypeUse = 21,
 
     /// <summary><see cref="EntryPointInputTransferFact"/> facts.</summary>
-    EntryPointInputTransfer = 22
+    EntryPointInputTransfer = 22,
+
+    /// <summary><see cref="TypeUseTargetOmittedFact"/> facts.</summary>
+    TypeUseTargetOmitted = 23
 }
 
 /// <summary>

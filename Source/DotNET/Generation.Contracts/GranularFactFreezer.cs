@@ -49,6 +49,32 @@ static class GranularFactFreezer
             Definition = FreezeMemberTypeUse(fact.Definition, $"{path}.Definition", context)
         };
 
+    public static TypeUseTargetOmittedFact Freeze(
+        TypeUseTargetOmittedFact fact,
+        FactEnvelope envelope,
+        AdapterContributionAdmissionContext context)
+    {
+        if (fact.Definition?.Diagnostic is null)
+        {
+            context.Missing($"{envelope.Path}.Definition.Diagnostic");
+        }
+
+        return new TypeUseTargetOmittedFact
+        {
+            Id = envelope.Id,
+            Subject = envelope.Subject,
+            Evidence = envelope.Evidence,
+            Definition = new TypeUseTargetOmittedDefinition
+            {
+                Member = FreezeMemberKey(fact.Definition?.Member, $"{envelope.Path}.Definition.Member", context),
+                Diagnostic = AdapterContributionFreezer.FreezeMethodDiagnostic(
+                    fact.Definition?.Diagnostic ?? new GenerationDiagnostic { Code = string.Empty, Severity = GenerationDiagnosticSeverity.Unknown, Message = string.Empty },
+                    $"{envelope.Path}.Definition.Diagnostic",
+                    context)
+            }
+        };
+    }
+
     public static TypeUseBindingFact Freeze(
         TypeUseBindingFact fact,
         FactId id,

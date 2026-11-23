@@ -34,8 +34,20 @@ static class AdapterFactAdmissionValidator
                 GranularFactAdmissionValidator.Validate(role, path, context);
                 break;
             default:
-                ValidateDomainFamily(fact, path, context);
+                ValidateTypeUseOmission(fact, path, context);
                 break;
+        }
+    }
+
+    static void ValidateTypeUseOmission(GenerationFact fact, string path, AdapterContributionAdmissionContext context)
+    {
+        if (fact is TypeUseTargetOmittedFact omission)
+        {
+            GranularFactAdmissionValidator.Validate(omission, path, context);
+        }
+        else
+        {
+            ValidateDomainFamily(fact, path, context);
         }
     }
 

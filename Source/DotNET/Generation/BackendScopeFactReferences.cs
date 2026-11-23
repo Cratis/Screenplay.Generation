@@ -23,6 +23,7 @@ static class BackendScopeFactReferences
     {
         ArtifactMemberDeclarationFact member => member.Definition.Member.Artifact,
         ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact,
+        TypeUseTargetOmittedFact omission => omission.Definition.Member.Artifact,
         TypeUseBindingFact binding => binding.Definition.Member.Artifact,
         ArtifactMemberRoleFact role => role.Definition.Member.Artifact,
         _ => null

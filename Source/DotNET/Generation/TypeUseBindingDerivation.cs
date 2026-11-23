@@ -16,12 +16,12 @@ static class TypeUseBindingDerivation
     public static TypeUseBindingDerivationResult Derive(ImmutableArray<GenerationFactRecord> baseFacts)
     {
         var facts = baseFacts.Select(record => record.Fact).ToArray();
-        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts));
+        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts), [.. facts.OfType<TypeUseTargetOmittedFact>()]);
         var consideredInputs = facts
             .Where(fact => fact is BackendScopeFact or ArtifactFact or
                            ArtifactDeclarationFact or
                            ArtifactMemberDeclarationFact or
-                           ArtifactMemberTypeUseFact)
+                           ArtifactMemberTypeUseFact or TypeUseTargetOmittedFact)
             .Select(fact => fact.Id)
             .OrderBy(id => id.Value, StringComparer.Ordinal)
             .ToImmutableArray();
@@ -40,6 +40,7 @@ static class TypeUseBindingDerivation
                 derived.Add(BackendScopeFactResolver.AttachScopeLineage(record, facts));
             }
 
+            diagnostics.AddRange(outcome.OmissionDiagnostics);
             if (outcome.Diagnostic is { } diagnostic)
             {
                 diagnostics.Add(diagnostic);
@@ -63,7 +64,7 @@ static class TypeUseBindingDerivation
         }
 
         var facts = baseFacts.Select(record => record.Fact).ToArray();
-        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts));
+        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts), []);
         var owners = index.Artifacts.Where(declaration => declaration.Key == context.Member.Artifact).ToArray();
         var target = ResolveTarget(context, observedType, owners, index);
         return target.Failure is { } failure
@@ -98,6 +99,12 @@ static class TypeUseBindingDerivation
         if (memberDeclarations.Failure is { } memberFailure)
         {
             return BindingOutcome.Failed(memberFailure);
+        }
+
+        var omissions = TypeUseTargetOmissions.ForMissingTarget(typeUses, index.Omissions, index.Artifacts.Select(declaration => declaration.Key));
+        if (omissions.Length > 0)
+        {
+            return BindingOutcome.Skipped with { OmissionDiagnostics = [.. omissions.Select(omission => omission.Definition.Diagnostic)] };
         }
 
         var target = ResolveTarget(context, observedType, owner.Value, index);
@@ -394,7 +401,7 @@ static class TypeUseBindingDerivation
     static string Escape(string value) => string.Concat(
         value.Select(character => ((int)character).ToString("X4", System.Globalization.CultureInfo.InvariantCulture)));
 
-    sealed record DeclarationIndex(IReadOnlyList<DeclaredArtifact> Artifacts, IReadOnlyList<DeclaredMember> Members);
+    sealed record DeclarationIndex(IReadOnlyList<DeclaredArtifact> Artifacts, IReadOnlyList<DeclaredMember> Members, TypeUseTargetOmittedFact[] Omissions);
 
     sealed record BindingContext(ArtifactMemberKey Member, ArtifactMemberTypeUseFact[] TypeUses)
     {
@@ -435,6 +442,8 @@ static class TypeUseBindingDerivation
 
     sealed record BindingOutcome(GenerationFactRecord? Record, GenerationDiagnostic? Diagnostic)
     {
+        public ImmutableArray<GenerationDiagnostic> OmissionDiagnostics { get; init; } = [];
+
         public static BindingOutcome Skipped { get; } = new(null, null);
 
         public static BindingOutcome Bound(GenerationFactRecord record) => new(record, null);

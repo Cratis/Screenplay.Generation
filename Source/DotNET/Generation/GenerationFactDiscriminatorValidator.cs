@@ -57,6 +57,7 @@ static class GenerationFactDiscriminatorValidator
                 ArtifactDeclarationFact or
                 ArtifactMemberDeclarationFact or
                 ArtifactMemberTypeUseFact or
+                TypeUseTargetOmittedFact or
                 TypeUseBindingFact or
                 ArtifactMemberRoleFact:
                 ValidateArtifactFamily(fact, diagnostics);
@@ -141,6 +142,17 @@ static class GenerationFactDiscriminatorValidator
                 Validate(fact, role.Definition.Member.Artifact.Kind, _artifactKind, diagnostics);
                 Validate(fact, role.Definition.Role, _artifactMemberRoleKind, diagnostics);
                 break;
+            default:
+                ValidateTargetOmission(fact, diagnostics);
+                break;
+        }
+    }
+
+    static void ValidateTargetOmission(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
+        if (fact is TypeUseTargetOmittedFact omission)
+        {
+            Validate(fact, omission.Definition.Member.Artifact.Kind, _artifactKind, diagnostics);
         }
     }
 

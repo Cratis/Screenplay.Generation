@@ -346,6 +346,15 @@ static class AdapterContributionFreezer
             ArtifactMemberTypeUseFact typeUse => GranularFactFreezer.Freeze(typeUse, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
             TypeUseBindingFact binding => GranularFactFreezer.Freeze(binding, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
             ArtifactMemberRoleFact role => GranularFactFreezer.Freeze(role, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
+            _ => FreezeTypeUseOmission(fact, envelope, context)
+        };
+
+    static GenerationFact? FreezeTypeUseOmission(
+        GenerationFact fact,
+        FactEnvelope envelope,
+        AdapterContributionAdmissionContext context) => fact switch
+        {
+            TypeUseTargetOmittedFact omission => GranularFactFreezer.Freeze(omission, envelope, context),
             _ => MethodEligibilityFreezer.Freeze(fact, envelope, context) ?? UnsupportedFact(fact, envelope.Path, context)
         };
 
@@ -1010,6 +1019,12 @@ static class AdapterContributionFreezer
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
+        _ => TypeUseOmissionFamily(fact)
+    };
+
+    static int TypeUseOmissionFamily(GenerationFact fact) => fact switch
+    {
+        TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageFamily(fact)
     };
 

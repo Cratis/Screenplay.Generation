@@ -68,6 +68,12 @@ static class GranularFactAdmissionValidator
     }
 
     public static void Validate(
+        TypeUseTargetOmittedFact fact,
+        string path,
+        AdapterContributionAdmissionContext context) =>
+        ValidateMember(fact, fact.Definition.Member, $"{path}.Definition.Member", context);
+
+    public static void Validate(
         TypeUseBindingFact fact,
         string path,
         AdapterContributionAdmissionContext context)
