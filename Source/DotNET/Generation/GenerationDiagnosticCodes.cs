@@ -314,4 +314,13 @@ public static class GenerationDiagnosticCodes
 
     /// <summary>The input does not satisfy the strict canonical ESM contract.</summary>
     public const string InvalidCanonicalEsm = "GEN0066";
+
+    /// <summary>A source-owner candidate is invalid or lacks independent ownership proof.</summary>
+    public const string InvalidSourceOwnerCandidate = "GEN0075";
+
+    /// <summary>Equally strong source-owner selection inputs conflict.</summary>
+    public const string ConflictingSourceOwnerCandidates = "GEN0076";
+
+    /// <summary>The host did not supply the required fixed source mapper.</summary>
+    public const string SourcePlacementResolverUnavailable = "GEN0077";
 }

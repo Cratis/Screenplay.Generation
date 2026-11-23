@@ -16,6 +16,7 @@ static class BackendScopeFactReferences
         ArtifactFact artifact => artifact.Definition.Key,
         ArtifactDeclarationFact declaration => declaration.Definition.Artifact,
         ArtifactPlacementFact placement => placement.Artifact,
+        ArtifactSourcePlacementCandidateFact candidate => candidate.Definition.Artifact,
         _ => MemberOwner(fact)
     };
 
@@ -32,6 +33,7 @@ static class BackendScopeFactReferences
     static IEnumerable<BackendScopeKey?> Scopes(GenerationFact fact) => fact switch
     {
         BackendScopeFact scope => [scope.Definition.Key],
+        ArtifactSourcePlacementCandidateFact candidate => [candidate.Definition.Artifact.Scope, candidate.Definition.Owner.Scope],
         ArtifactFact artifact => artifact.Definition.Properties.Select(property => property.Type.Scope).Prepend(artifact.Definition.Key.Scope),
         ArtifactMemberTypeUseFact typeUse => [typeUse.Definition.Member.Artifact.Scope, typeUse.Definition.Type.ObservedScope],
         TypeUseBindingFact binding => [binding.Definition.Member.Artifact.Scope, binding.Definition.Target.Scope],

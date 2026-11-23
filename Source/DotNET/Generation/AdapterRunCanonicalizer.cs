@@ -89,6 +89,7 @@ static class AdapterRunCanonicalizer
 
     static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
+        ArtifactSourcePlacementCandidateFact candidate => candidate with { Definition = SourcePlacementCandidateStructure.Copy(candidate.Definition, ArtifactKey) },
         TypeUseTargetOmittedFact omission => omission with
         {
             Definition = omission.Definition with { Diagnostic = Diagnostic(omission.Definition.Diagnostic) }

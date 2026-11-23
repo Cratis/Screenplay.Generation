@@ -17,6 +17,9 @@ public sealed record ScreenplayGenerationOptions
     /// Gets the generated document's domain name.
     /// </summary>
     public required string Domain { get; init; }
+
+    /// <summary>Gets the host's fixed-snapshot source mapping boundary for candidate placement.</summary>
+    public IArtifactSourcePlacementResolver? SourcePlacementResolver { get; init; }
 }
 
 /// <summary>
@@ -89,7 +92,7 @@ public sealed class ScreenplayDefinitionGenerator(
         var input = contributions.ToArray();
         var effective = EffectiveGenerationInputs.FromContributions(input);
         var baseFacts = effective.Facts;
-        var derivation = GenerationFactDerivation.Derive(effective);
+        var derivation = GenerationFactDerivation.Derive(effective, options.SourcePlacementResolver);
         var graph = resolver.ResolveFacts(
             baseFacts.Concat(derivation.Facts.Select(record => record.Fact)),
             input.SelectMany(contribution => contribution.Diagnostics)
@@ -138,7 +141,7 @@ public sealed class ScreenplayDefinitionGenerator(
         var completed = CompletedContributions(canonicalAdapters);
         var facts = AdmittedFacts(completed);
         var effective = EffectiveGenerationInputs.FromFacts(facts);
-        var derivation = GenerationFactDerivation.Derive(effective);
+        var derivation = GenerationFactDerivation.Derive(effective, options.SourcePlacementResolver);
         var derivedFacts = derivation.Facts.Select(record => record.Fact).ToArray();
         var effectiveFacts = effective.Facts.Concat(derivedFacts).ToArray();
         var graph = resolver.ResolveFacts(

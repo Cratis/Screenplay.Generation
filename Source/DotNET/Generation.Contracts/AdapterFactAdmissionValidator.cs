@@ -15,6 +15,9 @@ static class AdapterFactAdmissionValidator
             case ArtifactFact artifact:
                 ArtifactFactAdmissionValidator.Validate(artifact, path, context);
                 break;
+            case ArtifactSourcePlacementCandidateFact candidate:
+                SourcePlacementCandidateAdmissionValidator.Validate(candidate, path, context);
+                break;
             case ArtifactPlacementFact placement:
                 ArtifactFactAdmissionValidator.Validate(placement, path, context);
                 break;

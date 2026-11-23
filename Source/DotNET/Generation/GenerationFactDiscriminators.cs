@@ -32,6 +32,7 @@ internal static class GenerationFactDiscriminators
 
     static bool UsageFamilySupported(GenerationFact fact) => fact switch
     {
+        ArtifactSourcePlacementCandidateFact candidate => SourcePlacementCandidateStructure.Supported(candidate.Definition),
         ArtifactUsageDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
         EntryPointFact entry => Supported(entry.Definition.Artifact.Kind, ArtifactKind.Unknown),
         MethodArtifactUsageFact usage => Supported(usage.Definition.Kind, RelationshipKind.Unknown),
