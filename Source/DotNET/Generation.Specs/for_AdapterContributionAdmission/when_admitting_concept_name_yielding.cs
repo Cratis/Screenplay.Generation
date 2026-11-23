@@ -12,7 +12,10 @@ public class when_admitting_concept_name_yielding : given.a_contribution
     AdapterContributionAdmissionResult _foreignSubject = null!;
     AdapterContributionAdmissionResult _notConcept = null!;
     AdapterContributionAdmissionResult _missingOutcome = null!;
-    AdapterContributionAdmissionResult _conflictingOutcome = null!;
+    AdapterContributionAdmissionResult _conflictOutcome = null!;
+    AdapterContributionAdmissionResult _unknownOutcome = null!;
+    AdapterContributionAdmissionResult _invalidOutcome = null!;
+    AdapterContributionAdmissionResult _foreignConflictDiagnostic = null!;
     ArtifactDeclarationFact _declaration = null!;
 
     void Because()
@@ -25,7 +28,10 @@ public class when_admitting_concept_name_yielding : given.a_contribution
         _foreignSubject = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Subject = ExternalSubject });
         _notConcept = Admit(contribution: Contribution([_declaration with { Definition = _declaration.Definition with { Artifact = ArtifactKey(ArtifactSubject, ArtifactKind.Command) } }]));
         _missingOutcome = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Outcome = null });
-        _conflictingOutcome = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Outcome = GenerationDiagnosticOutcome.Conflict });
+        _conflictOutcome = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Outcome = GenerationDiagnosticOutcome.Conflict });
+        _unknownOutcome = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Outcome = GenerationDiagnosticOutcome.Unknown });
+        _invalidOutcome = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Outcome = (GenerationDiagnosticOutcome)9999 });
+        _foreignConflictDiagnostic = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Outcome = GenerationDiagnosticOutcome.Conflict, Facts = [Id("not-in-this-contribution")] });
     }
 
     [Fact] void should_admit_the_producer_owned_marker() => _valid.IsAdmitted.ShouldBeTrue();
@@ -38,7 +44,11 @@ public class when_admitting_concept_name_yielding : given.a_contribution
     [Fact] void should_reject_another_subjects_diagnostic() => _foreignSubject.IsAdmitted.ShouldBeFalse();
     [Fact] void should_reject_markers_on_non_concepts() => _notConcept.IsAdmitted.ShouldBeFalse();
     [Fact] void should_reject_a_missing_diagnostic_outcome() => _missingOutcome.IsAdmitted.ShouldBeFalse();
-    [Fact] void should_reject_a_conflicting_diagnostic_outcome() => _conflictingOutcome.IsAdmitted.ShouldBeFalse();
+    [Fact] void should_admit_a_conflict_diagnostic_outcome() => _conflictOutcome.IsAdmitted.ShouldBeTrue();
+    [Fact] void should_preserve_the_conflict_diagnostic_outcome() => _conflictOutcome.Snapshot!.Facts.OfType<ArtifactDeclarationFact>().Single().Definition.NameConflictYield!.Diagnostic.Outcome.ShouldEqual(GenerationDiagnosticOutcome.Conflict);
+    [Fact] void should_reject_an_unknown_diagnostic_outcome() => _unknownOutcome.IsAdmitted.ShouldBeFalse();
+    [Fact] void should_reject_an_invalid_diagnostic_outcome() => _invalidOutcome.IsAdmitted.ShouldBeFalse();
+    [Fact] void should_reject_a_foreign_conflict_diagnostic() => _foreignConflictDiagnostic.IsAdmitted.ShouldBeFalse();
     [Fact] void should_preserve_the_diagnostic_outcome() => _valid.Snapshot!.Facts.OfType<ArtifactDeclarationFact>().Single().Definition.NameConflictYield!.Diagnostic.Outcome.ShouldEqual(GenerationDiagnosticOutcome.Unsupported);
 
     AdapterContributionAdmissionResult WithDiagnostic(GenerationDiagnostic diagnostic) => Admit(contribution: Contribution(

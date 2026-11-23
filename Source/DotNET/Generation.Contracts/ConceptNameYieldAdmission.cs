@@ -42,12 +42,12 @@ static class ConceptNameYieldAdmission
                     declaration.Subject);
             }
 
-            if (diagnostic.Outcome != GenerationDiagnosticOutcome.Unsupported)
+            if (diagnostic.Outcome is not (GenerationDiagnosticOutcome.Conflict or GenerationDiagnosticOutcome.Unsupported))
             {
                 context.Add(
                     AdapterContributionAdmissionDiagnosticCode.InvalidContributionDiagnostic,
                     $"Contribution.Facts[{declaration.Id}].Definition.NameConflictYield.Diagnostic.Outcome",
-                    "A name-conflict yield diagnostic must have the Unsupported outcome",
+                    "A name-conflict yield diagnostic must have the Conflict or Unsupported outcome",
                     declaration.Id,
                     declaration.Subject);
             }
