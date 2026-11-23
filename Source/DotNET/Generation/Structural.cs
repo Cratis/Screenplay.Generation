@@ -266,6 +266,7 @@ static class Structural
         MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
         OccurrenceOmissionDiagnosticFact => (int)GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
+        DeclarationInputMemberTargetOmittedFact => (int)GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         _ => UsageFamily(fact)
     };
 
@@ -317,6 +318,7 @@ static class Structural
     {
         MethodExecutionClassificationFact classification => WithScopes(Node("method-execution", classification.Definition?.Method?.Value, Integer((int)(classification.Definition?.Kind ?? MethodExecutionKind.Unknown)), classification.Definition?.OmissionReason is { } reason ? Diagnostic(reason) : null), classification.Definition?.Scope),
         DeclarationInputMemberDeclarationFact declaration => Node("declaration-input-member", DeclarationMember(declaration.Definition.Member), Integer(declaration.Definition.DeclarationOrder)),
+        DeclarationInputMemberTargetOmittedFact omission => Node("declaration-input-target-omitted", DeclarationMember(omission.Definition.Member), Diagnostic(omission.Definition.Diagnostic)),
         DeclarationInputMemberTypeUseFact typeUse => Node("declaration-input-type", DeclarationMember(typeUse.Definition.Member), TypeUse(typeUse.Definition.Type)),
         EntryPointInputTransferFact transfer => Node("entry-input-transfer", transfer.Definition.Method.Value, ArtifactKey(transfer.Definition.Artifact), Integer((int)transfer.Definition.Kind)),
         MethodFactSupportFact support => Node("method-support", support.Definition?.Candidate?.Value, Sequence((support.Definition?.Alternatives ?? []).Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value)),

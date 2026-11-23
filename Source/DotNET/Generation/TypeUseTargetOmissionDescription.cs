@@ -6,8 +6,13 @@ namespace Cratis.Screenplay.Generation;
 static class TypeUseTargetOmissionDescription
 {
     public static SubjectId DiagnosticSubject(GenerationFact fact, SubjectId fallback) =>
-        fact is TypeUseTargetOmittedFact omission ? omission.Definition.Member.Artifact.Subject : fallback;
+        fact switch
+        {
+            TypeUseTargetOmittedFact omission => omission.Definition.Member.Artifact.Subject,
+            DeclarationInputMemberTargetOmittedFact omission => omission.Definition.Member.Declaration,
+            _ => fallback
+        };
 
     public static string Family(GenerationFact fact, string fallback) =>
-        fact is TypeUseTargetOmittedFact ? "type-use target omission" : fallback;
+        fact is TypeUseTargetOmittedFact or DeclarationInputMemberTargetOmittedFact ? "type-use target omission" : fallback;
 }

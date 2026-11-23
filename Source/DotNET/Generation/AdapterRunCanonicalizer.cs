@@ -121,6 +121,10 @@ static class AdapterRunCanonicalizer
     {
         MethodExecutionClassificationFact classification => Classification(classification),
         MethodFactSupportFact support => Support(support),
+        DeclarationInputMemberTargetOmittedFact omission => omission with
+        {
+            Definition = omission.Definition with { Member = DeclarationMember(omission.Definition.Member), Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
+        },
         DeclarationInputMemberDeclarationFact declaration => declaration with { Definition = declaration.Definition with { Member = DeclarationMember(declaration.Definition.Member) } },
         DeclarationInputMemberTypeUseFact typeUse => typeUse with
         {

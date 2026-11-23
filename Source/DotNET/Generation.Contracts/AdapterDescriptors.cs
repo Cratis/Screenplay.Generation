@@ -222,7 +222,10 @@ public enum GenerationFactCapability
     MethodDiagnosticProjection = 28,
 
     /// <summary><see cref="OccurrenceOmissionDiagnosticFact"/> opt-in per-occurrence omission candidates.</summary>
-    OccurrenceOmissionDiagnostic = 29
+    OccurrenceOmissionDiagnostic = 29,
+
+    /// <summary><see cref="DeclarationInputMemberTargetOmittedFact"/> facts.</summary>
+    DeclarationInputMemberTargetOmitted = 32
 }
 
 /// <summary>
