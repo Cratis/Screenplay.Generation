@@ -101,16 +101,10 @@ static class TypeUseBindingDerivation
             return BindingOutcome.Failed(memberFailure);
         }
 
-        var omissions = TypeUseTargetOmissions.ForMissingTarget(typeUses, index.Omissions, index.Artifacts.Select(declaration => declaration.Key));
-        if (omissions.Length > 0)
-        {
-            return BindingOutcome.Skipped with { OmissionDiagnostics = [.. omissions.Select(omission => omission.Definition.Diagnostic)] };
-        }
-
         var target = ResolveTarget(context, observedType, owner.Value, index);
         if (target.Failure is { } targetFailure)
         {
-            return BindingOutcome.Failed(targetFailure);
+            return ResolveTargetFailure(context, index, targetFailure);
         }
 
         return BindingOutcome.Bound(CreateRecord(
@@ -119,6 +113,19 @@ static class TypeUseBindingDerivation
             target.Value,
             owner.Value.Select(declaration => declaration.Fact)
                 .Concat(memberDeclarations.Value.Select(declaration => declaration.Fact))));
+    }
+
+    static BindingOutcome ResolveTargetFailure(BindingContext context, DeclarationIndex index, GenerationDiagnostic failure)
+    {
+        if (failure.Code != GenerationDiagnosticCodes.MissingTypeUseTarget)
+        {
+            return BindingOutcome.Failed(failure);
+        }
+
+        var omissions = TypeUseTargetOmissions.ForMissingTarget(context.TypeUses, index.Omissions, index.Artifacts.Select(declaration => declaration.Key));
+        return omissions.Length > 0
+            ? BindingOutcome.Skipped with { OmissionDiagnostics = [.. omissions.Select(omission => omission.Definition.Diagnostic)] }
+            : BindingOutcome.Failed(failure);
     }
 
     static GenerationDiagnostic? ConflictingTypeUse(BindingContext context)
