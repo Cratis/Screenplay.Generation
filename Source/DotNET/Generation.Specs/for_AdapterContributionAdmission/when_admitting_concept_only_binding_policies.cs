@@ -12,12 +12,23 @@ public class when_admitting_concept_only_binding_policies : given.a_contribution
     void Because() => _result = Admit(contribution: Contribution([ObservedType(), _policy]));
 
     [Fact] void should_admit_the_producer_owned_opt_in() => _result.IsAdmitted.ShouldBeTrue();
-    [Fact] void should_freeze_the_member() => ReferenceEquals(Frozen().Definition.Member, _policy.Definition.Member).ShouldBeFalse();
-    [Fact] void should_freeze_the_warning() => ReferenceEquals(Frozen().Definition.Diagnostic, _policy.Definition.Diagnostic).ShouldBeFalse();
-    [Fact] void should_freeze_warning_source() => ReferenceEquals(Frozen().Definition.Diagnostic.Source, _policy.Definition.Diagnostic.Source).ShouldBeFalse();
-    [Fact] void should_preserve_warning_links() => Frozen().Definition.Diagnostic.Facts.ShouldContainOnly(ObservedType().Id);
+    [Fact] void should_freeze_the_definition() => ReferenceEquals(Frozen().Definition, _policy.Definition).ShouldBeFalse();
+    [Fact] void should_freeze_the_observation_reference() => ReferenceEquals(Frozen().Definition.TypeUse, _policy.Definition.TypeUse).ShouldBeFalse();
+    [Fact] void should_preserve_the_observation_reference() => Frozen().Definition.TypeUse.ShouldEqual(ObservedType().Id);
     [Fact] void should_require_the_capability() => Admit(descriptor: Descriptor([.. AllCapabilities().Where(capability => capability != GenerationFactCapability.TypeUseBindingPolicy)]), contribution: Contribution([ObservedType(), _policy])).IsAdmitted.ShouldBeFalse();
+    [Fact] void should_admit_a_declaration_input_policy() => Admit(contribution: Contribution([InputType(), _policy with { Definition = _policy.Definition with { TypeUse = InputType().Id } }])).IsAdmitted.ShouldBeTrue();
 
     TypeUseBindingPolicyFact Frozen() => _result.Snapshot.Facts.OfType<TypeUseBindingPolicyFact>().Single();
     static ArtifactMemberTypeUseFact ObservedType() => EveryFact().OfType<ArtifactMemberTypeUseFact>().Single();
+    static DeclarationInputMemberTypeUseFact InputType() => new()
+    {
+        Id = Id("input-type"),
+        Subject = ArtifactSubject,
+        Evidence = Evidence(),
+        Definition = new()
+        {
+            Member = new() { Declaration = ArtifactSubject, Name = "input" },
+            Type = ObservedType().Definition.Type
+        }
+    };
 }

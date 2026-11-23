@@ -16,12 +16,12 @@ static class TypeUseBindingDerivation
     public static TypeUseBindingDerivationResult Derive(ImmutableArray<GenerationFactRecord> baseFacts)
     {
         var facts = baseFacts.Select(record => record.Fact).ToArray();
-        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts), [.. facts.OfType<TypeUseTargetOmittedFact>()]);
+        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts), [.. facts.OfType<TypeUseTargetOmittedFact>()], facts);
         var consideredInputs = facts
             .Where(fact => fact is BackendScopeFact or ArtifactFact or
                            ArtifactDeclarationFact or
                            ArtifactMemberDeclarationFact or
-                           ArtifactMemberTypeUseFact or TypeUseTargetOmittedFact)
+                           ArtifactMemberTypeUseFact or TypeUseTargetOmittedFact or TypeUseBindingPolicyFact)
             .Select(fact => fact.Id)
             .OrderBy(id => id.Value, StringComparer.Ordinal)
             .ToImmutableArray();
@@ -55,26 +55,32 @@ static class TypeUseBindingDerivation
 
     internal static (ArtifactKey? Target, GenerationFact[] Inputs, GenerationDiagnostic? Diagnostic) BindTransferredType(
         ArtifactMemberTypeUseFact typeUse,
-        ImmutableArray<GenerationFactRecord> baseFacts)
+        ImmutableArray<GenerationFactRecord> baseFacts,
+        bool conceptOnly = false)
     {
-        var context = new BindingContext(typeUse.Definition.Member, [typeUse]);
+        var context = new BindingContext(typeUse.Definition.Member, [typeUse], conceptOnly);
         if (typeUse.Definition.Type.ObservedTypeSubject is not { } observedType)
         {
             return (null, [], null);
         }
 
         var facts = baseFacts.Select(record => record.Fact).ToArray();
-        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts), []);
+        var index = new DeclarationIndex(ArtifactDeclarations(facts), MemberDeclarations(facts), [], facts);
         var owners = index.Artifacts.Where(declaration => declaration.Key == context.Member.Artifact).ToArray();
         var target = ResolveTarget(context, observedType, owners, index);
-        return target.Failure is { } failure
-            ? (null, [], failure)
-            : (target.Value[0].Key, CanonicalInputs(target.Value.Select(declaration => declaration.Fact)), null);
+        if (target.Failure is { } failure)
+        {
+            return conceptOnly && failure.Code == GenerationDiagnosticCodes.MissingTypeUseTarget
+                ? (null, [], null)
+                : (null, [], failure);
+        }
+
+        return (target.Value[0].Key, CanonicalInputs(target.Value.Select(declaration => declaration.Fact)), null);
     }
 
     static BindingOutcome DeriveBinding(ArtifactMemberTypeUseFact[] typeUses, DeclarationIndex index)
     {
-        var context = new BindingContext(typeUses[0].Definition.Member, typeUses);
+        var context = new BindingContext(typeUses[0].Definition.Member, typeUses, typeUses.All(typeUse => TypeUseBindingPolicies.OptedIn(typeUse, index.Facts)));
         if (ConflictingTypeUse(context) is { } typeUseConflict)
         {
             return BindingOutcome.Failed(typeUseConflict);
@@ -112,7 +118,8 @@ static class TypeUseBindingDerivation
             typeUse,
             target.Value,
             owner.Value.Select(declaration => declaration.Fact)
-                .Concat(memberDeclarations.Value.Select(declaration => declaration.Fact))));
+                .Concat(memberDeclarations.Value.Select(declaration => declaration.Fact))
+                .Concat(TypeUseBindingPolicies.ForMember(context.Member, index.Facts))));
     }
 
     static BindingOutcome ResolveTargetFailure(BindingContext context, DeclarationIndex index, GenerationDiagnostic failure)
@@ -123,7 +130,7 @@ static class TypeUseBindingDerivation
         }
 
         var omissions = TypeUseTargetOmissions.ForMissingTarget(context.TypeUses, index.Omissions, index.Artifacts.Select(declaration => declaration.Key));
-        return omissions.Length > 0
+        return omissions.Length > 0 || context.ConceptOnly
             ? BindingOutcome.Skipped with { OmissionDiagnostics = [.. omissions.Select(omission => omission.Definition.Diagnostic)] }
             : BindingOutcome.Failed(failure);
     }
@@ -199,6 +206,11 @@ static class TypeUseBindingDerivation
         DeclarationIndex index)
     {
         var legacyTargets = LegacyTargets(context.Member, observedType, owners);
+        if (PolicyTargetConflict(context, index, legacyTargets) is { } policyConflict)
+        {
+            return Resolution<DeclaredArtifact[]>.Fail(policyConflict);
+        }
+
         if (legacyTargets.Length > 1)
         {
             return Resolution<DeclaredArtifact[]>.Fail(context.Diagnostic(
@@ -209,9 +221,7 @@ static class TypeUseBindingDerivation
         }
 
         var targetDeclarations = index.Artifacts
-            .Where(declaration => declaration.Key.Subject == observedType &&
-                                  declaration.Key.Scope == context.TypeUses[0].Definition.Type.ObservedScope &&
-                                  (legacyTargets.Length == 0 || declaration.Key == legacyTargets[0]))
+            .Where(declaration => MatchesTarget(declaration.Key, context, legacyTargets))
             .ToArray();
         if (targetDeclarations.Length == 0)
         {
@@ -243,6 +253,27 @@ static class TypeUseBindingDerivation
                 exactTargetDeclarations.Select(declaration => declaration.Fact),
                 $"Observed type subject '{observedType.Value}' has incompatible declarations"))
             : Resolution<DeclaredArtifact[]>.Succeed(exactTargetDeclarations);
+    }
+
+    static bool MatchesTarget(ArtifactKey key, BindingContext context, ArtifactKey[] legacyTargets) =>
+        key.Subject == context.TypeUses[0].Definition.Type.ObservedTypeSubject &&
+        key.Scope == context.TypeUses[0].Definition.Type.ObservedScope &&
+        (legacyTargets.Length == 0 || key == legacyTargets[0]) &&
+        (!context.ConceptOnly || key.Kind == ArtifactKind.Concept);
+
+    static GenerationDiagnostic? PolicyTargetConflict(BindingContext context, DeclarationIndex index, ArtifactKey[] legacyTargets)
+    {
+        var explicitTargets = index.Facts.OfType<TypeUseBindingFact>().Where(fact => fact.Definition.Member == context.Member).ToArray();
+        if (!context.ConceptOnly || legacyTargets.Concat(explicitTargets.Select(fact => fact.Definition.Target)).All(target => target.Kind == ArtifactKind.Concept))
+        {
+            return null;
+        }
+
+        return context.Diagnostic(
+            GenerationDiagnosticCodes.ConflictingTypeUseTarget,
+            GenerationDiagnosticOutcome.Conflict,
+            explicitTargets,
+            "A concept-only type use contradicts an explicit non-concept target");
     }
 
     static ArtifactKey[] LegacyTargets(ArtifactMemberKey member, SubjectId observedType, DeclaredArtifact[] owners) =>
@@ -408,9 +439,9 @@ static class TypeUseBindingDerivation
     static string Escape(string value) => string.Concat(
         value.Select(character => ((int)character).ToString("X4", System.Globalization.CultureInfo.InvariantCulture)));
 
-    sealed record DeclarationIndex(IReadOnlyList<DeclaredArtifact> Artifacts, IReadOnlyList<DeclaredMember> Members, TypeUseTargetOmittedFact[] Omissions);
+    sealed record DeclarationIndex(IReadOnlyList<DeclaredArtifact> Artifacts, IReadOnlyList<DeclaredMember> Members, TypeUseTargetOmittedFact[] Omissions, IReadOnlyList<GenerationFact> Facts);
 
-    sealed record BindingContext(ArtifactMemberKey Member, ArtifactMemberTypeUseFact[] TypeUses)
+    sealed record BindingContext(ArtifactMemberKey Member, ArtifactMemberTypeUseFact[] TypeUses, bool ConceptOnly)
     {
         public GenerationDiagnostic Diagnostic(
             string code,

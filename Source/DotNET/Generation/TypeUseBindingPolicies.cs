@@ -5,10 +5,24 @@ namespace Cratis.Screenplay.Generation;
 
 static class TypeUseBindingPolicies
 {
-    public static bool Supported(TypeUseBindingPolicyFact policy) =>
-        policy.Definition.AllowedTargetKind == ArtifactKind.Concept &&
-        policy.Definition.Fallback == TypeUseBindingFallback.PreserveObservedTypeWithoutTarget &&
-        policy.Definition.Member.Artifact.Kind != ArtifactKind.Unknown && Enum.IsDefined(policy.Definition.Member.Artifact.Kind);
+    public static bool Supported(TypeUseBindingPolicyFact policy) => policy.Definition?.Policy == TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback;
+
+    public static bool OptedIn(GenerationFact observation, IReadOnlyList<GenerationFact> facts)
+    {
+        var policies = facts.OfType<TypeUseBindingPolicyFact>().Where(policy => policy.Definition?.TypeUse == observation.Id).ToArray();
+        return policies.Length == 1 && Valid(policies[0], facts);
+    }
+
+    public static IReadOnlySet<ArtifactMemberKey> Members(IReadOnlyList<GenerationFact> facts) => facts.OfType<ArtifactMemberTypeUseFact>()
+        .GroupBy(fact => fact.Definition.Member)
+        .Where(group => group.All(observation => OptedIn(observation, facts)))
+        .Select(group => group.Key).ToHashSet();
+
+    public static IEnumerable<GenerationFact> ForMember(ArtifactMemberKey member, IReadOnlyList<GenerationFact> facts)
+    {
+        var observations = facts.OfType<ArtifactMemberTypeUseFact>().Where(fact => fact.Definition.Member == member).Select(fact => fact.Id).ToHashSet();
+        return facts.OfType<TypeUseBindingPolicyFact>().Where(policy => policy.Definition is not null && observations.Contains(policy.Definition.TypeUse));
+    }
 
     public static void Validate(GenerationFact fact, IReadOnlyList<GenerationFact> facts, List<GenerationDiagnostic> diagnostics)
     {
@@ -22,35 +36,35 @@ static class TypeUseBindingPolicies
             Code = GenerationDiagnosticCodes.InvalidTypeUseBindingPolicy,
             Severity = GenerationDiagnosticSeverity.Error,
             Outcome = GenerationDiagnosticOutcome.Unknown,
-            Message = "A concept-only binding policy requires an exact same-producer observed type use and warning template",
+            Message = "A binding policy requires one exact same-producer type observation and a supported policy",
             Subject = policy.Subject,
             Source = policy.Evidence.Source,
             Facts = [policy.Id]
         });
     }
 
-    static bool Valid(TypeUseBindingPolicyFact policy, IReadOnlyList<GenerationFact> facts) =>
-        Supported(policy) && policy.Subject == policy.Definition.Member.Artifact.Subject &&
-        !string.IsNullOrWhiteSpace(policy.Definition.Member.Name) && ValidWarning(policy, facts) && MatchesObservation(policy, facts);
-
-    static bool MatchesObservation(TypeUseBindingPolicyFact policy, IReadOnlyList<GenerationFact> facts)
+    static bool Valid(TypeUseBindingPolicyFact policy, IReadOnlyList<GenerationFact> facts)
     {
-        var typeUses = facts.OfType<ArtifactMemberTypeUseFact>().Where(candidate => Matches(policy, candidate)).ToArray();
-        var policies = facts.OfType<TypeUseBindingPolicyFact>().Where(candidate =>
-            candidate.Evidence.Adapter == policy.Evidence.Adapter && candidate.Definition.Member == policy.Definition.Member);
-        return policies.Count() == 1 && typeUses.Length > 0 && typeUses.All(candidate => candidate.Definition.Type.ObservedTypeSubject is not null);
+        if (!Supported(policy))
+        {
+            return false;
+        }
+
+        var observations = facts.Where(fact => fact.Id == policy.Definition.TypeUse && fact.Evidence.Adapter == policy.Evidence.Adapter).ToArray();
+        var policies = facts.OfType<TypeUseBindingPolicyFact>().Where(candidate => candidate.Evidence.Adapter == policy.Evidence.Adapter && candidate.Definition?.TypeUse == policy.Definition.TypeUse);
+        return policies.Count() == 1 && observations.Length == 1 && Matches(policy, observations[0]);
     }
 
-    static bool ValidWarning(TypeUseBindingPolicyFact policy, IReadOnlyList<GenerationFact> facts)
+    static bool Matches(TypeUseBindingPolicyFact policy, GenerationFact observation) =>
+        Supported(policy) && policy.Subject == observation.Subject && SameEvidence(policy.Evidence, observation.Evidence) && ExactObservation(observation);
+
+    static bool SameEvidence(Evidence policy, Evidence observation) =>
+        policy.Adapter == observation.Adapter && policy.Source == observation.Source && policy.Strength == EvidenceStrength.Exact && observation.Strength == EvidenceStrength.Exact;
+
+    static bool ExactObservation(GenerationFact observation) => observation switch
     {
-        var diagnostic = policy.Definition.Diagnostic;
-        var ownedIds = facts.Where(fact => fact.Evidence.Adapter == policy.Evidence.Adapter).Select(fact => fact.Id).ToHashSet();
-        return Warning(diagnostic) && diagnostic.Subject == policy.Subject && diagnostic.Source == policy.Evidence.Source && diagnostic.Facts.All(ownedIds.Contains);
-    }
-
-    static bool Warning(GenerationDiagnostic diagnostic) => diagnostic.Severity == GenerationDiagnosticSeverity.Warning &&
-        !string.IsNullOrWhiteSpace(diagnostic.Code) && !string.IsNullOrWhiteSpace(diagnostic.Message);
-
-    static bool Matches(TypeUseBindingPolicyFact policy, ArtifactMemberTypeUseFact typeUse) =>
-        policy.Definition.Member == typeUse.Definition.Member && policy.Subject == typeUse.Subject && policy.Evidence.Adapter == typeUse.Evidence.Adapter;
+        ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Type.ObservedTypeSubject is not null,
+        DeclarationInputMemberTypeUseFact typeUse => typeUse.Definition.Type.ObservedTypeSubject is not null,
+        _ => false
+    };
 }

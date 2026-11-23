@@ -3,33 +3,27 @@
 
 namespace Cratis.Screenplay.Generation;
 
-/// <summary>Defines the fallback when a producer's concept-only type use has no concept target.</summary>
-public enum TypeUseBindingFallback
+/// <summary>Defines the producer's binding policy for an exact observed type use.</summary>
+public enum TypeUseBindingPolicyKind
 {
-    /// <summary>The fallback is unknown.</summary>
-    Unknown = -1,
+    /// <summary>The policy is unknown.</summary>
+    Unknown = 0,
 
-    /// <summary>Keep the observed member type without an artifact target.</summary>
-    PreserveObservedTypeWithoutTarget = 0
+    /// <summary>Bind only a surviving concept, otherwise preserve the printable observed type.</summary>
+    ConceptOnlyWithUnboundFallback = 1
 }
 
-/// <summary>Opts one producer's exact member type use into concept-only binding.</summary>
+/// <summary>Opts one producer's exact type observation into concept-only binding.</summary>
 public sealed record TypeUseBindingPolicyDefinition
 {
-    /// <summary>Gets the member whose type use is constrained.</summary>
-    public required ArtifactMemberKey Member { get; init; }
+    /// <summary>Gets the local artifact-member or declaration-input type-use fact.</summary>
+    public required FactId TypeUse { get; init; }
 
-    /// <summary>Gets the allowed target kind. Only <see cref="ArtifactKind.Concept"/> is supported.</summary>
-    public required ArtifactKind AllowedTargetKind { get; init; }
-
-    /// <summary>Gets the fallback for a missing concept target.</summary>
-    public required TypeUseBindingFallback Fallback { get; init; }
-
-    /// <summary>Gets the producer-owned warning template, emitted only when fallback is needed.</summary>
-    public required GenerationDiagnostic Diagnostic { get; init; }
+    /// <summary>Gets the binding policy.</summary>
+    public required TypeUseBindingPolicyKind Policy { get; init; }
 }
 
-/// <summary>A producer-owned binding policy for an exact member type use, not a target assertion.</summary>
+/// <summary>A producer-owned binding policy for one observation, not a target assertion.</summary>
 public sealed record TypeUseBindingPolicyFact : GenerationFact
 {
     /// <summary>Gets the policy.</summary>

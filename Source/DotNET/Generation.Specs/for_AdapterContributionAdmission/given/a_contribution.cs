@@ -284,19 +284,8 @@ public class a_contribution : Specification
         Evidence = Evidence(),
         Definition = new()
         {
-            Member = MemberKey("second"),
-            AllowedTargetKind = ArtifactKind.Concept,
-            Fallback = TypeUseBindingFallback.PreserveObservedTypeWithoutTarget,
-            Diagnostic = new()
-            {
-                Code = "atomic.ConceptUnavailable",
-                Severity = GenerationDiagnosticSeverity.Warning,
-                Outcome = GenerationDiagnosticOutcome.Unsupported,
-                Message = "No concept is contributed for this type",
-                Subject = ArtifactSubject,
-                Source = Source(),
-                Facts = [Id("artifact-member-type-use")]
-            }
+            TypeUse = Id("artifact-member-type-use"),
+            Policy = TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback
         }
     };
 

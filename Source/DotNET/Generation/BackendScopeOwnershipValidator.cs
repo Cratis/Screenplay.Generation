@@ -13,7 +13,15 @@ static class BackendScopeOwnershipValidator
             ArtifactDeclarationFact declaration => new Candidate(declaration.Definition.Artifact, fact),
             _ => null
         }).OfType<Candidate>().ToArray();
-        foreach (var reference in facts.SelectMany(fact => Endpoints(fact).Select(endpoint => (Fact: fact, Endpoint: endpoint))))
+        foreach (var diagnostic in ValidateEndpoints(facts, rejected, artifacts).Concat(ValidateUsages(facts, rejected)))
+        {
+            yield return diagnostic;
+        }
+    }
+
+    static IEnumerable<GenerationDiagnostic> ValidateEndpoints(GenerationFact[] facts, HashSet<FactId> rejected, Candidate[] artifacts)
+    {
+        foreach (var reference in facts.Where(fact => RequiresTarget(fact, facts)).SelectMany(fact => Endpoints(fact).Select(endpoint => (Fact: fact, Endpoint: endpoint))))
         {
             if (Check(reference.Fact, reference.Endpoint, artifacts) is { } diagnostic)
             {
@@ -21,7 +29,10 @@ static class BackendScopeOwnershipValidator
                 yield return diagnostic;
             }
         }
+    }
 
+    static IEnumerable<GenerationDiagnostic> ValidateUsages(GenerationFact[] facts, HashSet<FactId> rejected)
+    {
         var entries = facts.OfType<EntryPointFact>().ToLookup(
             entry => entry.Definition.Method,
             entry => new Candidate(entry.Definition.Artifact, entry));
@@ -38,15 +49,21 @@ static class BackendScopeOwnershipValidator
         }
     }
 
+    // An opted-in observation is not a target assertion. Scope declarations and explicit bindings still validate normally.
+    static bool RequiresTarget(GenerationFact fact, IReadOnlyList<GenerationFact> facts) =>
+        fact is not ArtifactMemberTypeUseFact || !TypeUseBindingPolicies.OptedIn(fact, facts);
+
     static IEnumerable<Endpoint> Endpoints(GenerationFact fact) => fact switch
     {
-        ArtifactFact artifact => artifact.Definition.Properties.Where(property => property.Type.Subject is not null)
-            .Select(property => new Endpoint(property.Type.Subject!, property.Type.Scope, property.Type.TargetArtifactKind)),
+        ArtifactFact artifact => ArtifactEndpoints(artifact),
         ArtifactMemberTypeUseFact use when use.Definition.Type.ObservedTypeSubject is { } subject => [new Endpoint(subject, use.Definition.Type.ObservedScope)],
         TypeUseBindingFact binding => [new Endpoint(binding.Definition.Target.Subject, binding.Definition.Target.Scope, binding.Definition.Target.Kind)],
         RelationshipFact relationship => [new Endpoint(relationship.Definition.Key.Source, relationship.Definition.Key.SourceScope), new Endpoint(relationship.Definition.Key.Target, relationship.Definition.Key.TargetScope)],
         _ => FacetEndpoints(fact)
     };
+
+    static IEnumerable<Endpoint> ArtifactEndpoints(ArtifactFact artifact) => artifact.Definition.Properties.Where(property => property.Type.Subject is not null)
+        .Select(property => new Endpoint(property.Type.Subject!, property.Type.Scope, property.Type.TargetArtifactKind));
 
     static IEnumerable<Endpoint> FacetEndpoints(GenerationFact fact) => fact switch
     {
@@ -86,12 +103,7 @@ static class BackendScopeOwnershipValidator
 
     static GenerationDiagnostic? CheckSelection(GenerationFact fact, BackendScopeKey? selector, Candidate[] candidates)
     {
-        if (candidates.Any(candidate => candidate.Key.Scope == selector))
-        {
-            return null;
-        }
-
-        if (selector is null && !candidates.Any(candidate => candidate.Key.Scope is not null))
+        if (HasSelection(selector, candidates))
         {
             return null;
         }
@@ -110,6 +122,10 @@ static class BackendScopeOwnershipValidator
             Facts = [.. inputs.Select(input => input.Id)]
         };
     }
+
+    static bool HasSelection(BackendScopeKey? selector, Candidate[] candidates) =>
+        candidates.Any(candidate => candidate.Key.Scope == selector) ||
+        (selector is null && !candidates.Any(candidate => candidate.Key.Scope is not null));
 
     sealed record Endpoint(SubjectId Subject, BackendScopeKey? Scope, ArtifactKind? Kind = null);
     sealed record Candidate(ArtifactKey Key, GenerationFact Fact);

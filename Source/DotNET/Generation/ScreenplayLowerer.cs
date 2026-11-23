@@ -50,7 +50,7 @@ public sealed class ScreenplayLowerer
             .Select(_ => _.Variants.Single().Definition)
             .ToArray();
         var (concepts, conceptNames) = ConceptLowering.Lower(graph, definitions, sink);
-        var artifactsWithMissingConceptReferences = ReportMissingConceptReferences(definitions, conceptNames, sink);
+        var artifactsWithMissingConceptReferences = ReportMissingConceptReferences(definitions, conceptNames, graph.ConceptOnlyMembers, sink);
         var context = new LoweringContext(graph, conceptNames, sink);
         OmitUnplaced(graph, definitions, placements, sink);
         var artifacts = PlaceArtifacts(graph, definitions, placements, artifactsWithMissingConceptReferences);
@@ -127,11 +127,12 @@ public sealed class ScreenplayLowerer
     static HashSet<string> ReportMissingConceptReferences(
         IReadOnlyList<ArtifactDefinition> definitions,
         IReadOnlyDictionary<string, string> conceptNames,
+        IReadOnlySet<ArtifactMemberKey> conceptOnlyMembers,
         LoweringSink sink)
     {
         var missing = definitions
             .SelectMany(definition => definition.Properties
-                .Where(property => property.Type.Subject is not null && !conceptNames.ContainsKey(property.Type.Subject.Value))
+                .Where(property => MissingConcept(definition, property, conceptNames, conceptOnlyMembers))
                 .Select(property => new { Artifact = definition, property.Type }))
             .ToArray();
         foreach (var type in missing
@@ -161,6 +162,9 @@ public sealed class ScreenplayLowerer
 
         return [.. missing.Select(_ => Structural.ArtifactKey(_.Artifact.Key))];
     }
+
+    static bool MissingConcept(ArtifactDefinition artifact, PropertyDefinition property, IReadOnlyDictionary<string, string> names, IReadOnlySet<ArtifactMemberKey> conceptOnlyMembers) =>
+        property.Type.Subject is not null && !names.ContainsKey(property.Type.Subject.Value) && !conceptOnlyMembers.Contains(new() { Artifact = artifact.Key, Name = property.Name });
 
     static void ReportUnsupportedRelationships(ResolvedApplicationGraph graph, LoweringSink sink)
     {

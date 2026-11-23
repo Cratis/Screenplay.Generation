@@ -91,7 +91,7 @@ static class AdapterRunCanonicalizer
     {
         TypeUseBindingPolicyFact policy => policy with
         {
-            Definition = policy.Definition with { Diagnostic = Diagnostic(policy.Definition.Diagnostic) }
+            Definition = policy.Definition with { TypeUse = new() { Value = policy.Definition.TypeUse.Value } }
         },
         MethodDiagnosticProjectionFact projection => Projection(projection),
         OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),

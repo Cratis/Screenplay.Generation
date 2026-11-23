@@ -78,7 +78,7 @@ static class BackendScopeLowering
             changed = false;
             foreach (var artifact in graph.Artifacts.Where(artifact => !suppressed.Contains(artifact.Key)))
             {
-                if (artifact.Variants.SelectMany(variant => variant.Definition.Properties).Any(property => MissingScopedTarget(property.Type, graph, suppressed)))
+                if (artifact.Variants.SelectMany(variant => variant.Definition.Properties).Any(property => MissingScopedTarget(artifact.Key, property, graph, suppressed)))
                 {
                     changed |= suppressed.Add(artifact.Key);
                 }
@@ -87,8 +87,14 @@ static class BackendScopeLowering
         while (changed);
     }
 
-    static bool MissingScopedTarget(TypeReferenceDefinition type, ResolvedApplicationGraph graph, HashSet<ArtifactKey> suppressed)
+    static bool MissingScopedTarget(ArtifactKey owner, PropertyDefinition property, ResolvedApplicationGraph graph, HashSet<ArtifactKey> suppressed)
     {
+        var type = property.Type;
+        if (ConceptOnlyUnbound(owner, property, graph))
+        {
+            return false;
+        }
+
         var targets = graph.Artifacts.Where(artifact => artifact.Key.Subject == type.Subject).ToArray();
         if (!targets.Any(artifact => artifact.Key.Scope is not null) && type.Scope is null)
         {
@@ -99,6 +105,9 @@ static class BackendScopeLowering
                                         (type.TargetArtifactKind is null || artifact.Key.Kind == type.TargetArtifactKind) &&
                                         !suppressed.Contains(artifact.Key));
     }
+
+    static bool ConceptOnlyUnbound(ArtifactKey owner, PropertyDefinition property, ResolvedApplicationGraph graph) =>
+        property.Type.Subject is null && graph.ConceptOnlyMembers.Contains(new() { Artifact = owner, Name = property.Name });
 
     static void Omit(ResolvedArtifact artifact, ResolvedArtifact[] participants, ResolvedApplicationGraph graph, LoweringSink sink)
     {

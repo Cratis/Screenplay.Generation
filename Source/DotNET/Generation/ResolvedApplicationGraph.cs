@@ -340,4 +340,6 @@ public sealed record ResolvedApplicationGraph
     /// Gets adapter and resolution diagnostics in canonical order.
     /// </summary>
     public IReadOnlyList<GenerationDiagnostic> Diagnostics { get; init; } = [];
+
+    internal IReadOnlySet<ArtifactMemberKey> ConceptOnlyMembers { get; init; } = new HashSet<ArtifactMemberKey>();
 }

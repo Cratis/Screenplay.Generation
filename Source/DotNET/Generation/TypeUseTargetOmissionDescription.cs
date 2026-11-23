@@ -8,7 +8,7 @@ static class TypeUseTargetOmissionDescription
     public static SubjectId DiagnosticSubject(GenerationFact fact, SubjectId fallback) =>
         fact switch
         {
-            TypeUseBindingPolicyFact policy => policy.Definition.Member.Artifact.Subject,
+            TypeUseBindingPolicyFact policy => policy.Subject,
             TypeUseTargetOmittedFact omission => omission.Definition.Member.Artifact.Subject,
             DeclarationInputMemberTargetOmittedFact omission => omission.Definition.Member.Declaration,
             _ => fallback
