@@ -22,7 +22,7 @@ public sealed record GenerationDerivationRuleIdentity
 }
 
 /// <summary>
-/// Describes the producer, canonical inputs, and complete evidence lineage of one derived fact.
+/// Describes the producer, canonical inputs, and complete evidence lineage of one derived fact or diagnostic.
 /// </summary>
 public sealed record GenerationFactLineage
 {

@@ -38,20 +38,15 @@ public static class GenerationFactDerivation
         var typeUseBindings = TypeUseBindingDerivation.Derive(baseFacts);
         var artifactUsages = ArtifactUsageDerivation.Derive(baseFacts);
         var inputMembers = EntryPointInputMemberDerivation.Derive(baseFacts);
-        ImmutableArray<GenerationDerivationRuleRecord> inputMemberRules = inputMembers.Inputs.IsEmpty ? [] :
-        [
-            new GenerationDerivationRuleRecord
-            {
-                Rule = EntryPointInputMemberDerivation.Rule,
-                Inputs = inputMembers.Inputs,
-                Outputs = [.. inputMembers.Facts.Select(record => record.Fact.Id)],
-                Diagnostics = inputMembers.Diagnostics
-            }
-        ];
+        var diagnosticProjections = MethodDiagnosticProjectionDerivation.Derive(baseFacts, effective);
+        var occurrenceOmissions = OccurrenceOmissionDiagnosticDerivation.Derive(baseFacts, effective);
+        var inputMemberRules = InputMemberRules(inputMembers);
         var diagnostics = validationDiagnostics
             .Concat(typeUseBindings.Diagnostics)
             .Concat(artifactUsages.Diagnostics)
             .Concat(inputMembers.Diagnostics)
+            .Concat(diagnosticProjections.SelectMany(rule => rule.Diagnostics))
+            .Concat(occurrenceOmissions.SelectMany(rule => rule.Diagnostics))
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .ToImmutableArray();
         ImmutableArray<GenerationDerivationRuleRecord> usageRules = baseFacts.Any(record => record.Fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
@@ -79,6 +74,8 @@ public static class GenerationFactDerivation
                 },
                 .. usageRules,
                 .. inputMemberRules,
+                .. diagnosticProjections,
+                .. occurrenceOmissions,
                 .. MethodEligibilityLineage.Rules(effective),
                 .. effective.NameYieldRules
             ],
@@ -88,4 +85,13 @@ public static class GenerationFactDerivation
 
         return AdapterRunCanonicalizer.Derivation(derivation);
     }
+
+    static ImmutableArray<GenerationDerivationRuleRecord> InputMemberRules(EntryPointInputMemberDerivationResult inputMembers) => inputMembers.Inputs.IsEmpty ? [] :
+    [
+        new()
+        {
+            Rule = EntryPointInputMemberDerivation.Rule, Inputs = inputMembers.Inputs,
+            Outputs = [.. inputMembers.Facts.Select(record => record.Fact.Id)], Diagnostics = inputMembers.Diagnostics
+        }
+    ];
 }

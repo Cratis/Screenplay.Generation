@@ -94,4 +94,8 @@ public sealed record GenerationDiagnostic
     /// Gets the affected subject, when the diagnostic concerns one source-level subject.
     /// </summary>
     public SubjectId? Subject { get; init; }
+
+    /// <summary>Gets engine-owned derivation provenance; adapters must leave this null.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public GenerationFactLineage? Lineage { get; init; }
 }
