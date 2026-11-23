@@ -330,6 +330,9 @@ public static class GenerationDiagnosticCodes
     /// <summary>The input does not satisfy the strict canonical ESM contract.</summary>
     public const string InvalidCanonicalEsm = "GEN0066";
 
+    /// <summary>A binding policy does not match a producer-owned type use or the supported concept-only policy.</summary>
+    public const string InvalidTypeUseBindingPolicy = "GEN0085";
+
     /// <summary>A source-owner candidate is invalid or lacks independent ownership proof.</summary>
     public const string InvalidSourceOwnerCandidate = "GEN0075";
 

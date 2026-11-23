@@ -68,6 +68,17 @@ static class EntryPointInputMemberDerivation
     static GenerationFact[] Inputs(IEnumerable<GenerationFact> facts) =>
         [.. facts.DistinctBy(fact => (fact.Id, Structural.FactDefinition(fact), Structural.Evidence(fact.Evidence))).OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).ThenBy(Structural.FactDefinition, StringComparer.Ordinal)];
 
+    static GenerationFact[] PolicyOutputs(ArtifactMemberTypeUseFact typeUse, ArtifactMemberKey member, bool conceptOnly) => conceptOnly ?
+    [
+        new TypeUseBindingPolicyFact
+        {
+            Id = Id(member, "policy"),
+            Subject = typeUse.Subject,
+            Evidence = typeUse.Evidence,
+            Definition = new() { TypeUse = typeUse.Id, Policy = TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback }
+        }
+    ] : [];
+
     static FactId Id(ArtifactMemberKey member, string facet) => new()
     {
         Value = $"generation:derive:entry-point-input-members:1:{facet}:{Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(Structural.ArtifactMemberKey(member)))}"
@@ -259,7 +270,7 @@ static class EntryPointInputMemberDerivation
         GenerationFactRecord[] CreateMember(Candidate candidate, int order)
         {
             var member = new ArtifactMemberKey { Artifact = endpoint, Name = candidate.Member.Name };
-            var proof = Inputs(_endpointInputs.Concat(candidate.Inputs));
+            var (conceptOnly, proof) = MemberProof(candidate);
             var typeUse = new ArtifactMemberTypeUseFact
             {
                 Id = candidate.Inputs.OfType<DeclarationInputMemberTypeUseFact>().OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First().Id,
@@ -267,8 +278,8 @@ static class EntryPointInputMemberDerivation
                 Evidence = proof[0].Evidence,
                 Definition = new ArtifactMemberTypeUseDefinition { Member = member, Type = candidate.Type }
             };
-            var binding = TypeUseBindingDerivation.BindTransferredType(typeUse, baseFacts);
-            var omissions = binding.Diagnostic?.Code == GenerationDiagnosticCodes.MissingTypeUseTarget
+            var binding = TypeUseBindingDerivation.BindTransferredType(typeUse, baseFacts, conceptOnly);
+            var omissions = binding.Diagnostic?.Code == GenerationDiagnosticCodes.MissingTypeUseTarget || (conceptOnly && binding.Target is null)
                 ? DeclarationInputMemberTargetOmissions.For(candidate.Inputs)
                 : [];
             if (omissions.Length > 0)
@@ -291,7 +302,9 @@ static class EntryPointInputMemberDerivation
                 Evidence = typeUse.Evidence,
                 Definition = new ArtifactMemberDeclarationDefinition { Member = member, DeclarationOrder = order }
             };
-            List<GenerationFact> outputs = [declaration, typeUse with { Id = Id(member, "type") }];
+            var outputTypeUse = typeUse with { Id = Id(member, "type") };
+            List<GenerationFact> outputs = [declaration, outputTypeUse];
+            outputs.AddRange(PolicyOutputs(outputTypeUse, member, conceptOnly));
             outputs.AddRange(omissions.Select(omission => DeclarationInputMemberTargetOmissions.Transfer(omission, typeUse, Id(member, $"omission:{omission.Id.Value}"))));
             if (binding.Target is { } target)
             {
@@ -311,6 +324,13 @@ static class EntryPointInputMemberDerivation
                     Lineage = new GenerationFactLineage { Producer = Rule, Inputs = [.. proof.Select(input => input.Id)], Evidence = [.. proof.Select(input => input.Evidence)] }
                 },
                 _facts))];
+        }
+
+        (bool ConceptOnly, GenerationFact[] Proof) MemberProof(Candidate candidate)
+        {
+            var observations = candidate.Inputs.OfType<DeclarationInputMemberTypeUseFact>().ToArray();
+            var policies = _facts.OfType<TypeUseBindingPolicyFact>().Where(policy => observations.Any(observation => observation.Id == policy.Definition.TypeUse)).ToArray();
+            return (observations.All(observation => TypeUseBindingPolicies.OptedIn(observation, _facts)), Inputs(_endpointInputs.Concat(candidate.Inputs).Concat(policies)));
         }
 
         void Error(IEnumerable<GenerationFact> facts, string message, GenerationDiagnosticOutcome outcome = GenerationDiagnosticOutcome.Unknown)

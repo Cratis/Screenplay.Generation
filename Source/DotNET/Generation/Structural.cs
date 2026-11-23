@@ -268,6 +268,7 @@ static class Structural
         MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
         OccurrenceOmissionDiagnosticFact => (int)GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
+        TypeUseBindingPolicyFact => (int)GenerationFactCapability.TypeUseBindingPolicy,
         DeclarationInputMemberTargetOmittedFact => (int)GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         _ => UsageFamily(fact)
     };
@@ -307,6 +308,7 @@ static class Structural
         MethodDiagnosticProjectionFact projection => DiagnosticProjection(projection),
         OccurrenceOmissionDiagnosticFact candidate => OmissionDiagnostic(candidate),
         TypeUseTargetOmittedFact omission => Node("type-use-target-omitted", ArtifactMemberKey(omission.Definition.Member), Diagnostic(omission.Definition.Diagnostic)),
+        TypeUseBindingPolicyFact policy => Node("type-use-binding-policy", policy.Definition.TypeUse.Value, Integer((int)policy.Definition.Policy)),
         _ => ObservationFactDefinition(fact)
     };
 

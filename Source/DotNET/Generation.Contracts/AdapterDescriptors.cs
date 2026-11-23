@@ -231,7 +231,10 @@ public enum GenerationFactCapability
     OccurrenceOmissionDiagnostic = 29,
 
     /// <summary><see cref="DeclarationInputMemberTargetOmittedFact"/> facts.</summary>
-    DeclarationInputMemberTargetOmitted = 32
+    DeclarationInputMemberTargetOmitted = 32,
+
+    /// <summary><see cref="TypeUseBindingPolicyFact"/> facts.</summary>
+    TypeUseBindingPolicy = 30
 }
 
 /// <summary>

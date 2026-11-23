@@ -31,6 +31,7 @@ static class GranularArtifactResolver
             .ToHashSet();
         var variants = DeclarationVariants(legacy, granularDeclarations);
         var effective = new List<ArtifactFact>();
+        var conceptOnlyMembers = TypeUseBindingPolicies.Members(facts);
         foreach (var variant in variants
                      .OrderBy(candidate => Structural.ArtifactKey(candidate.Definition.Key), StringComparer.Ordinal)
                      .ThenBy(candidate => Structural.Artifact(candidate.Definition), StringComparer.Ordinal))
@@ -40,7 +41,7 @@ static class GranularArtifactResolver
                 continue;
             }
 
-            var overlaid = ApplyMembers(variant, granular, declaredArtifacts, diagnostics);
+            var overlaid = ApplyMembers(variant, granular, declaredArtifacts, conceptOnlyMembers, diagnostics);
             if (overlaid is not null)
             {
                 effective.AddRange(EffectiveFacts(overlaid));
@@ -122,6 +123,7 @@ static class GranularArtifactResolver
         ArtifactVariant variant,
         IReadOnlyList<GenerationFact> granular,
         HashSet<ArtifactKey> declaredArtifacts,
+        IReadOnlySet<ArtifactMemberKey> conceptOnlyMembers,
         List<GenerationDiagnostic> diagnostics)
     {
         var key = variant.Definition.Key;
@@ -151,6 +153,7 @@ static class GranularArtifactResolver
                 [.. memberFacts.Where(fact => MemberFor(fact)!.Name == memberName)],
                 existing,
                 declaredArtifacts,
+                conceptOnlyMembers.Contains(new() { Artifact = key, Name = memberName }),
                 diagnostics);
             var resolved = ResolveMember(member);
             if (resolved is null)
@@ -277,6 +280,12 @@ static class GranularArtifactResolver
     {
         var type = typeUses.Type!;
         var bindings = member.Facts.OfType<TypeUseBindingFact>().ToArray();
+        if (PolicyConflict(member, type, bindings))
+        {
+            member.Conflict(bindings, "contradicts its concept-only binding policy");
+            return null;
+        }
+
         var bindingVariants = bindings
             .GroupBy(fact => Structural.ArtifactKey(fact.Definition.Target), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
@@ -297,6 +306,11 @@ static class GranularArtifactResolver
             return type;
         }
 
+        if (member.ConceptOnly)
+        {
+            return type;
+        }
+
         if (TypeUseTargetOmissions.ForMissingTarget(typeUses.Facts, member.Facts.OfType<TypeUseTargetOmittedFact>(), member.Declared).Length == 0)
         {
             member.Incomplete(
@@ -307,6 +321,9 @@ static class GranularArtifactResolver
 
         return type;
     }
+
+    static bool PolicyConflict(MemberContext member, TypeReferenceDefinition type, TypeUseBindingFact[] bindings) =>
+        member.ConceptOnly && (type.TargetArtifactKind is not (null or ArtifactKind.Concept) || bindings.Any(binding => binding.Definition.Target.Kind != ArtifactKind.Concept));
 
     static TypeReferenceDefinition? ApplyBinding(
         MemberContext member,
@@ -585,6 +602,7 @@ static class GranularArtifactResolver
         GenerationFact[] Facts,
         OrderedProperty? Existing,
         HashSet<ArtifactKey> Declared,
+        bool ConceptOnly,
         List<GenerationDiagnostic> Diagnostics)
     {
         public bool Conflict(IEnumerable<GenerationFact> facts, string description) =>

@@ -66,6 +66,7 @@ public class a_contribution : Specification
         GenerationFactCapability.MethodDiagnosticProjection,
         GenerationFactCapability.OccurrenceOmissionDiagnostic,
         GenerationFactCapability.DeclarationInputMemberTargetOmitted,
+        GenerationFactCapability.TypeUseBindingPolicy,
         GenerationFactCapability.Artifact
     ];
 
@@ -277,6 +278,18 @@ public class a_contribution : Specification
             }
         ];
     }
+
+    protected static TypeUseBindingPolicyFact BindingPolicy() => new()
+    {
+        Id = Id("binding-policy"),
+        Subject = ArtifactSubject,
+        Evidence = Evidence(),
+        Definition = new()
+        {
+            TypeUse = Id("artifact-member-type-use"),
+            Policy = TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback
+        }
+    };
 
     protected static AdapterContribution Contribution(
         IReadOnlyList<GenerationFact>? facts = null,
