@@ -49,6 +49,7 @@ static class BackendScopeFactReferences
     static IEnumerable<BackendScopeKey?> DiagnosticScopes(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact projection => [projection.Definition.Scope],
+        OccurrenceOmissionDiagnosticFact candidate => [candidate.Definition?.Occurrence?.Scope],
         _ => ObservationScopes(fact)
     };
 

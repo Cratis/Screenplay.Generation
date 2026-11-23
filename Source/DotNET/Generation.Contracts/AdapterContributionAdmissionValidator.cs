@@ -17,6 +17,7 @@ static class AdapterContributionAdmissionValidator
         ValidateDuplicateFactIds(input.Facts, context);
         MethodEligibilityAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         TypeUseTargetOmissionAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
+        OccurrenceOmissionDiagnosticAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         DiagnosticIntentAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         DiagnosticIntentAdmissionValidator.ValidateOrdinary(input.Facts, input.Diagnostics, context);
         ConceptNameYieldAdmission.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
@@ -647,6 +648,7 @@ static class AdapterContributionAdmissionValidator
     static GenerationFactCapability TypeUseOmissionCapability(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact => GenerationFactCapability.MethodDiagnosticProjection,
+        OccurrenceOmissionDiagnosticFact => GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageCapability(fact)
     };

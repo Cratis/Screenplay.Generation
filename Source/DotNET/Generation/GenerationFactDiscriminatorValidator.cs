@@ -61,6 +61,7 @@ static class GenerationFactDiscriminatorValidator
     static GenerationDiagnostic? DiagnosticIntentError(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact projection when !DiagnosticIntentValidation.Valid(projection) => DiagnosticIntentValidation.Invalid(fact),
+        OccurrenceOmissionDiagnosticFact candidate when !OccurrenceOmissionDiagnosticValidation.Valid(candidate) => OccurrenceOmissionDiagnosticValidation.Invalid(fact),
         _ => null
     };
 

@@ -90,6 +90,7 @@ static class AdapterRunCanonicalizer
     static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact projection => Projection(projection),
+        OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),
         TypeUseTargetOmittedFact omission => omission with
         {
             Definition = omission.Definition with { Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
@@ -177,6 +178,14 @@ static class AdapterRunCanonicalizer
         Definition = fact.Definition with
         {
             Method = Subject(fact.Definition.Method), Scope = Scope(fact.Definition.Scope), Diagnostic = Diagnostic(fact.Definition.Diagnostic)
+        }
+    };
+
+    static OccurrenceOmissionDiagnosticFact Omission(OccurrenceOmissionDiagnosticFact fact) => !OccurrenceOmissionDiagnosticValidation.Valid(fact) ? fact : fact with
+    {
+        Definition = fact.Definition with
+        {
+            Family = new() { Value = fact.Definition.Family.Value }, Occurrence = ArtifactKey(fact.Definition.Occurrence), Diagnostic = Diagnostic(fact.Definition.Diagnostic)
         }
     };
 

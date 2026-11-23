@@ -39,12 +39,14 @@ public static class GenerationFactDerivation
         var artifactUsages = ArtifactUsageDerivation.Derive(baseFacts);
         var inputMembers = EntryPointInputMemberDerivation.Derive(baseFacts);
         var diagnosticProjections = MethodDiagnosticProjectionDerivation.Derive(baseFacts, effective);
+        var occurrenceOmissions = OccurrenceOmissionDiagnosticDerivation.Derive(baseFacts, effective);
         var inputMemberRules = InputMemberRules(inputMembers);
         var diagnostics = validationDiagnostics
             .Concat(typeUseBindings.Diagnostics)
             .Concat(artifactUsages.Diagnostics)
             .Concat(inputMembers.Diagnostics)
             .Concat(diagnosticProjections.SelectMany(rule => rule.Diagnostics))
+            .Concat(occurrenceOmissions.SelectMany(rule => rule.Diagnostics))
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .ToImmutableArray();
         ImmutableArray<GenerationDerivationRuleRecord> usageRules = baseFacts.Any(record => record.Fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
@@ -73,6 +75,7 @@ public static class GenerationFactDerivation
                 .. usageRules,
                 .. inputMemberRules,
                 .. diagnosticProjections,
+                .. occurrenceOmissions,
                 .. MethodEligibilityLineage.Rules(effective),
                 .. effective.NameYieldRules
             ],

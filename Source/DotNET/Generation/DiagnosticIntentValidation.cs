@@ -12,6 +12,9 @@ static class DiagnosticIntentValidation
         Payload(fact, definition.Diagnostic);
 
     public static bool Payload(GenerationFact fact, GenerationDiagnostic? diagnostic) =>
+        fact.Evidence.Strength == EvidenceStrength.Exact && LocatedPayload(fact, diagnostic);
+
+    public static bool LocatedPayload(GenerationFact fact, GenerationDiagnostic? diagnostic) =>
         diagnostic is { Source: not null, Lineage: null } && Metadata(diagnostic) && Located(fact, diagnostic) && LocalReferences(fact, diagnostic);
 
     public static bool Subject(SubjectId? subject) => Text(subject?.Value) && Uri.TryCreate(subject!.Value, UriKind.Absolute, out _);
@@ -34,7 +37,7 @@ static class DiagnosticIntentValidation
         (diagnostic.Outcome is null || Enum.IsDefined(diagnostic.Outcome.Value));
 
     static bool Located(GenerationFact fact, GenerationDiagnostic diagnostic) => diagnostic.Subject == fact.Subject &&
-        fact.Evidence.Strength == EvidenceStrength.Exact && diagnostic.Source == fact.Evidence.Source;
+        diagnostic.Source == fact.Evidence.Source;
 
     static bool LocalReferences(GenerationFact fact, GenerationDiagnostic diagnostic) =>
         !diagnostic.Facts.IsDefaultOrEmpty && !diagnostic.Facts.Contains(fact.Id) &&

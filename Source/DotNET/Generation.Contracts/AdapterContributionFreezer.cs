@@ -355,7 +355,7 @@ static class AdapterContributionFreezer
         AdapterContributionAdmissionContext context) => fact switch
         {
             TypeUseTargetOmittedFact omission => GranularFactFreezer.Freeze(omission, envelope, context),
-            _ => DiagnosticIntentFreezer.Freeze(fact, envelope, context) ?? MethodEligibilityFreezer.Freeze(fact, envelope, context) ?? UnsupportedFact(fact, envelope.Path, context)
+            _ => OccurrenceOmissionDiagnosticFreezer.Freeze(fact, envelope, context) ?? DiagnosticIntentFreezer.Freeze(fact, envelope, context) ?? MethodEligibilityFreezer.Freeze(fact, envelope, context) ?? UnsupportedFact(fact, envelope.Path, context)
         };
 
     static FactId MissingFactId(string path, AdapterContributionAdmissionContext context)
@@ -1026,6 +1026,7 @@ static class AdapterContributionFreezer
     static int TypeUseOmissionFamily(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
+        OccurrenceOmissionDiagnosticFact => (int)GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageFamily(fact)
     };
