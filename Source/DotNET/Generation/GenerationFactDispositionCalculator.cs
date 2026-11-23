@@ -76,7 +76,7 @@ internal static class GenerationFactDispositionCalculator
             return Conflicted(fact, context);
         }
 
-        return NeutralDisposition(fact, context) ?? GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+        return NeutralDisposition(fact, context) ?? PlacementNormalization.Disposition(fact, context.Graph) ?? GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
     }
 
     static GenerationFactRecord DiagnosticIntentDisposition(GenerationFact fact, CalculationContext context)
@@ -114,8 +114,7 @@ internal static class GenerationFactDispositionCalculator
 
     static bool IsConflicted(GenerationFact fact, CalculationContext context) =>
         GenerationFactConflictDetector.IsConflicted(fact, context.Graph, context.Coverage) ||
-        context.Coverage.Conflicted.Contains(SemanticKey(fact, context.Graph) ?? string.Empty) ||
-        AssociatedDiagnostics(fact, context).Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict && !PlacementNormalization.IsRepairWarning(diagnostic, fact, context.Graph));
+        PlacementNormalization.IsConflicted(fact, context.Graph, context.Coverage, AssociatedDiagnostics(fact, context));
 
     static GenerationFactRecord ClassifiedBySemanticKey(GenerationFact fact, CalculationContext context)
     {
@@ -124,12 +123,7 @@ internal static class GenerationFactDispositionCalculator
             return Record(fact, GenerationFactDisposition.ProvenanceOnly);
         }
 
-        if (fact is ArtifactPlacementFact original && PlacementNormalization.Superseded(original, context.Graph))
-        {
-            return Record(fact, GenerationFactDisposition.ProvenanceOnly);
-        }
-
-        var key = SemanticKey(fact, context.Graph);
+        var key = PlacementNormalization.SemanticKey(fact, context.Graph);
         if (key is not null && context.Coverage.Lowered.Contains(key))
         {
             return Record(fact, GenerationFactDisposition.Lowered);
@@ -143,17 +137,6 @@ internal static class GenerationFactDispositionCalculator
         return key is not null
             ? Omitted(fact, context)
             : Unclassified(fact);
-    }
-
-    static string? SemanticKey(GenerationFact fact, ResolvedApplicationGraph graph)
-    {
-        if (fact is ArtifactPlacementFact placement && graph.PlacementNormalizations.FirstOrDefault(normalization =>
-                normalization.Artifact == placement.Artifact && Structural.Placement(normalization.Original) == Structural.Placement(placement.Placement)) is { } normalized)
-        {
-            return GenerationFactSemanticKey.Placement(placement.Artifact, normalized.Final);
-        }
-
-        return GenerationFactSemanticKey.For(fact);
     }
 
     static GenerationFactRecord Record(GenerationFact fact, GenerationFactDisposition disposition) => new()
@@ -265,7 +248,7 @@ internal static class GenerationFactDispositionCalculator
 
     static IEnumerable<GenerationDiagnostic> AssociatedDiagnostics(GenerationFact fact, CalculationContext context)
     {
-        var key = SemanticKey(fact, context.Graph);
+        var key = PlacementNormalization.SemanticKey(fact, context.Graph);
         if (key is not null && context.Coverage.Diagnostics.TryGetValue(key, out var loweringDiagnostics))
         {
             foreach (var diagnostic in loweringDiagnostics)

@@ -12,8 +12,8 @@ static class PlacementNormalization
     public static (ResolvedApplicationGraph Graph, GenerationDerivationSnapshot Derivation) Complete(ResolvedApplicationGraph graph, GenerationDerivationSnapshot derivation, IReadOnlyList<GenerationFact> baseFacts)
     {
         if (graph.PlacementNormalizations.Count == 0) return (graph, derivation);
-        var originals = baseFacts.ToDictionary(fact => fact.Id);
-        var derived = derivation.Facts.Where(record => record.Lineage is not null).ToDictionary(record => record.Fact.Id);
+        var originals = baseFacts.ToLookup(fact => fact.Id);
+        var derived = derivation.Facts.Where(record => record.Lineage is not null).ToLookup(record => record.Fact.Id);
         var records = graph.PlacementNormalizations.Select(record => Flatten(record, originals, derived)).ToArray();
         var effective = records.Select(EffectiveRecord).ToArray();
         var warnings = graph.Diagnostics.Select(diagnostic => (diagnostic.Code == GenerationDiagnosticCodes.MixedSliceKindsSplit || diagnostic.Code == GenerationDiagnosticCodes.ConflictingMixedSliceSplit) ? diagnostic with { Facts = [.. Expand(diagnostic.Facts, derived)] } : diagnostic).ToArray();
@@ -26,22 +26,39 @@ static class PlacementNormalization
             });
     }
 
-    public static bool Superseded(ArtifactPlacementFact placement, ResolvedApplicationGraph graph) => graph.PlacementNormalizations.Any(record => record.Artifact == placement.Artifact && Structural.Placement(record.Original) == Structural.Placement(placement.Placement));
+    public static GenerationFactRecord? Disposition(GenerationFact fact, ResolvedApplicationGraph graph) => Original(fact, graph) is not null
+        ? new() { Fact = fact, Disposition = GenerationFactDisposition.ProvenanceOnly }
+        : null;
 
-    public static bool IsRepairWarning(GenerationDiagnostic diagnostic, GenerationFact fact, ResolvedApplicationGraph graph) =>
-        diagnostic.Code == GenerationDiagnosticCodes.MixedSliceKindsSplit && diagnostic.Severity == GenerationDiagnosticSeverity.Warning && diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict && graph.PlacementNormalizations.Any(record => record.Inputs.Contains(fact.Id) && record.Inputs.Any(diagnostic.Facts.Contains));
+    public static string? SemanticKey(GenerationFact fact, ResolvedApplicationGraph graph) => Original(fact, graph) is { } normalized
+        ? GenerationFactSemanticKey.Placement(normalized.Artifact, normalized.Final)
+        : GenerationFactSemanticKey.For(fact);
 
-    static PlacementNormalizationRecord Flatten(PlacementNormalizationRecord record, Dictionary<FactId, GenerationFact> originals, Dictionary<FactId, GenerationFactRecord> derived)
+    public static bool IsConflicted(GenerationFact fact, ResolvedApplicationGraph graph, ScreenplayLoweringCoverage coverage, IEnumerable<GenerationDiagnostic> diagnostics) =>
+        coverage.Conflicted.Contains(SemanticKey(fact, graph) ?? string.Empty) ||
+        diagnostics.Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict && !IsRepairWarning(diagnostic, fact, graph));
+
+    static PlacementNormalizationRecord? Original(GenerationFact fact, ResolvedApplicationGraph graph) => fact is ArtifactPlacementFact placement
+        ? graph.PlacementNormalizations.FirstOrDefault(record => record.Artifact == placement.Artifact && Structural.Placement(record.Original) == Structural.Placement(placement.Placement))
+        : null;
+
+    static bool IsRepairWarning(GenerationDiagnostic diagnostic, GenerationFact fact, ResolvedApplicationGraph graph) =>
+        diagnostic.Code == GenerationDiagnosticCodes.MixedSliceKindsSplit && diagnostic.Severity == GenerationDiagnosticSeverity.Warning && diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict && graph.PlacementNormalizations.Any(record => IncludesRepairInput(record, diagnostic, fact));
+
+    static bool IncludesRepairInput(PlacementNormalizationRecord record, GenerationDiagnostic diagnostic, GenerationFact fact) =>
+        record.Inputs.Contains(fact.Id) && record.Inputs.Any(diagnostic.Facts.Contains) && record.Evidence.Any(evidence => evidence.Adapter == fact.Evidence.Adapter);
+
+    static PlacementNormalizationRecord Flatten(PlacementNormalizationRecord record, ILookup<FactId, GenerationFact> originals, ILookup<FactId, GenerationFactRecord> derived)
     {
         var inputs = Expand(record.Inputs, derived);
         return record with
         {
             Inputs = inputs,
-            Evidence = [.. record.Evidence.Concat(record.Inputs.Where(derived.ContainsKey).SelectMany(id => derived[id].Lineage!.Evidence)).Concat(inputs.Where(originals.ContainsKey).Select(id => originals[id].Evidence)).DistinctBy(Structural.Evidence).OrderBy(Structural.Evidence, StringComparer.Ordinal)]
+            Evidence = [.. record.Evidence.Concat(record.Inputs.SelectMany(id => derived[id]).SelectMany(input => input.Lineage!.Evidence)).Concat(inputs.SelectMany(id => originals[id]).Select(input => input.Evidence)).DistinctBy(Structural.Evidence).OrderBy(Structural.Evidence, StringComparer.Ordinal)]
         };
     }
 
-    static FactId[] Expand(IEnumerable<FactId> ids, Dictionary<FactId, GenerationFactRecord> derived) => [.. ids.SelectMany(id => derived.TryGetValue(id, out var record) ? record.Lineage!.Inputs : [id]).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)];
+    static FactId[] Expand(IEnumerable<FactId> ids, ILookup<FactId, GenerationFactRecord> derived) => [.. ids.SelectMany(id => derived.Contains(id) ? derived[id].SelectMany(record => record.Lineage!.Inputs) : [id]).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)];
 
     static GenerationFactRecord EffectiveRecord(PlacementNormalizationRecord record) => new()
     {
