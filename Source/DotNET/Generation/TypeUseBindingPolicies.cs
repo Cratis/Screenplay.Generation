@@ -9,8 +9,8 @@ static class TypeUseBindingPolicies
 
     public static bool OptedIn(GenerationFact observation, IReadOnlyList<GenerationFact> facts)
     {
-        var policies = facts.OfType<TypeUseBindingPolicyFact>().Where(policy => policy.Definition?.TypeUse == observation.Id).ToArray();
-        return policies.Length == 1 && Valid(policies[0], facts);
+        var policies = facts.OfType<TypeUseBindingPolicyFact>().Where(policy => policy.Definition?.TypeUse == observation.Id && policy.Evidence.Adapter == observation.Evidence.Adapter).ToArray();
+        return policies.Length == 1 && Matches(policies[0], observation) && Valid(policies[0], facts);
     }
 
     public static IReadOnlySet<ArtifactMemberKey> Members(IReadOnlyList<GenerationFact> facts) => facts.OfType<ArtifactMemberTypeUseFact>()

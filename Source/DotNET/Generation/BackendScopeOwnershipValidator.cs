@@ -21,9 +21,9 @@ static class BackendScopeOwnershipValidator
 
     static IEnumerable<GenerationDiagnostic> ValidateEndpoints(GenerationFact[] facts, HashSet<FactId> rejected, Candidate[] artifacts)
     {
-        foreach (var reference in facts.Where(fact => RequiresTarget(fact, facts)).SelectMany(fact => Endpoints(fact).Select(endpoint => (Fact: fact, Endpoint: endpoint))))
+        foreach (var reference in facts.SelectMany(fact => Endpoints(fact).Select(endpoint => (Fact: fact, Endpoint: endpoint))))
         {
-            if (Check(reference.Fact, reference.Endpoint, artifacts) is { } diagnostic)
+            if (Check(reference.Fact, reference.Endpoint, artifacts) is { } diagnostic && ShouldReport(reference.Fact, diagnostic, facts))
             {
                 rejected.Add(reference.Fact.Id);
                 yield return diagnostic;
@@ -49,9 +49,9 @@ static class BackendScopeOwnershipValidator
         }
     }
 
-    // An opted-in observation is not a target assertion. Scope declarations and explicit bindings still validate normally.
-    static bool RequiresTarget(GenerationFact fact, IReadOnlyList<GenerationFact> facts) =>
-        fact is not ArtifactMemberTypeUseFact || !TypeUseBindingPolicies.OptedIn(fact, facts);
+    // An opted-in observation may lack a target, but ambiguous scope ownership still fails.
+    static bool ShouldReport(GenerationFact fact, GenerationDiagnostic diagnostic, IReadOnlyList<GenerationFact> facts) =>
+        diagnostic.Code != GenerationDiagnosticCodes.UnknownBackendScope || fact is not ArtifactMemberTypeUseFact || !TypeUseBindingPolicies.OptedIn(fact, facts);
 
     static IEnumerable<Endpoint> Endpoints(GenerationFact fact) => fact switch
     {
