@@ -170,7 +170,7 @@ public static class DotNetTypeShapes
     static (ITypeSymbol Type, bool IsCollection) CollectionElementOf(ITypeSymbol type) =>
         DotNetSymbols.CollectionElementOf(type);
 
-    static string TypeName(ITypeSymbol type) => type.SpecialType switch
+    internal static string TypeName(ITypeSymbol type) => type.SpecialType switch
     {
         SpecialType.System_String => "String",
         SpecialType.System_Boolean => "Bool",

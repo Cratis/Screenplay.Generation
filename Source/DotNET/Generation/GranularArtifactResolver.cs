@@ -41,7 +41,7 @@ static class GranularArtifactResolver
                 continue;
             }
 
-            var overlaid = ApplyMembers(variant, granular, declaredArtifacts, conceptOnlyMembers, diagnostics);
+            var overlaid = ApplyMembers(variant, granular, declaredArtifacts, conceptOnlyMembers, facts, diagnostics);
             if (overlaid is not null)
             {
                 effective.AddRange(EffectiveFacts(overlaid));
@@ -124,6 +124,7 @@ static class GranularArtifactResolver
         IReadOnlyList<GenerationFact> granular,
         HashSet<ArtifactKey> declaredArtifacts,
         IReadOnlySet<ArtifactMemberKey> conceptOnlyMembers,
+        IReadOnlyList<GenerationFact> allFacts,
         List<GenerationDiagnostic> diagnostics)
     {
         var key = variant.Definition.Key;
@@ -154,6 +155,7 @@ static class GranularArtifactResolver
                 existing,
                 declaredArtifacts,
                 conceptOnlyMembers.Contains(new() { Artifact = key, Name = memberName }),
+                allFacts,
                 diagnostics);
             var resolved = ResolveMember(member);
             if (resolved is null)
@@ -164,6 +166,7 @@ static class GranularArtifactResolver
 
             properties[memberName] = resolved;
             supports.AddRange(member.Facts);
+            supports.AddRange(TypeUseCompatibilityProjections.Supports(member.Facts, allFacts));
         }
 
         failed |= ReportDuplicateOrders(variant, memberFacts, properties.Values, diagnostics);
@@ -215,18 +218,25 @@ static class GranularArtifactResolver
     {
         var typeUseFacts = member.Facts.OfType<ArtifactMemberTypeUseFact>().ToArray();
         var typeUseVariants = typeUseFacts
-            .GroupBy(fact => Structural.TypeUse(fact.Definition.Type), StringComparer.Ordinal)
+            .GroupBy(fact => TypeUseCompatibilityProjections.ExactKey(fact.Definition.Type), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToArray();
         typeUses = null;
-        if (typeUseVariants.Length > 1)
+        if (typeUseVariants.Length > 1 || !TypeUseCompatibilityProjections.Agree(typeUseFacts.Select(fact => fact.Definition.Type)))
         {
             return member.Conflict(typeUseFacts, "has incompatible exact type uses");
         }
 
         var selected = typeUseVariants.Length == 1 ? typeUseVariants[0] : null;
         var selectedFact = selected?.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
-        var candidate = new MemberTypeUses(typeUseFacts, selected, selectedFact, member.Existing?.Property.Type);
+        var projected = typeUseFacts.Select(fact => TypeUseCompatibilityProjections.Select((GenerationFact)fact, member.AllFacts));
+        if (!TypeUseCompatibilityProjections.Agree(projected))
+        {
+            return member.Conflict(typeUseFacts.Concat(TypeUseCompatibilityProjections.Supports(typeUseFacts, member.AllFacts)), "has incompatible printable views");
+        }
+
+        var effective = selectedFact is null ? null : TypeUseCompatibilityProjections.Select(selectedFact, member.AllFacts);
+        var candidate = new MemberTypeUses(typeUseFacts, selected, effective, member.Existing?.Property.Type);
         if (selected is not null)
         {
             var overlaid = OverlayTypeUse(member, candidate);
@@ -603,6 +613,7 @@ static class GranularArtifactResolver
         OrderedProperty? Existing,
         HashSet<ArtifactKey> Declared,
         bool ConceptOnly,
+        IReadOnlyList<GenerationFact> AllFacts,
         List<GenerationDiagnostic> Diagnostics)
     {
         public bool Conflict(IEnumerable<GenerationFact> facts, string description) =>

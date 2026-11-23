@@ -18,6 +18,7 @@ static class AdapterContributionAdmissionValidator
         MethodEligibilityAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         TypeUseTargetOmissionAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         TypeUseBindingPolicyAdmission.Validate(input.Facts, context);
+        TypeUseCompatibilityProjectionAdmission.Validate(input.Facts, context);
         DeclarationInputMemberTargetOmissionAdmission.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         OccurrenceOmissionDiagnosticAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         DiagnosticIntentAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
@@ -655,6 +656,7 @@ static class AdapterContributionAdmissionValidator
         MethodDiagnosticProjectionFact => GenerationFactCapability.MethodDiagnosticProjection,
         OccurrenceOmissionDiagnosticFact => GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => GenerationFactCapability.TypeUseTargetOmitted,
+        TypeUseCompatibilityProjectionFact => GenerationFactCapability.TypeUseCompatibilityProjection,
         TypeUseBindingPolicyFact => GenerationFactCapability.TypeUseBindingPolicy,
         DeclarationInputMemberTargetOmittedFact => GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         _ => UsageCapability(fact)

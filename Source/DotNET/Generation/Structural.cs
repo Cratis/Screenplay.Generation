@@ -45,9 +45,24 @@ static class Structural
 
     public static string TypeUse(TypeUseDefinition definition)
     {
-        var legacy = Node(definition.Name, definition.ObservedTypeSubject?.Value, Sequence(definition.Shape, node => Integer((int)node)));
-        return WithScopes(legacy, definition.ObservedScope);
+        var legacy = Node(definition.Name, definition.ObservedTypeSubject?.Value, Shape(definition.Shape));
+        var scoped = WithScopes(legacy, definition.ObservedScope);
+        return definition.Nodes is { } nodes ? Node(scoped, "type-use-nodes", Sequence(nodes, TypeUseNode)) : scoped;
     }
+
+    static string Shape(IReadOnlyList<TypeUseShapeKind>? shape) => shape is null
+        ? Node("invalid-type-use-shape")
+        : Sequence(shape, node => Integer((int)node));
+
+    public static string TypeUseProjection(TypeUseCompatibilityProjectionDefinition? definition) => definition is null
+        ? Node("invalid-type-use-compatibility-projection")
+        : Node("type-use-compatibility-projection", definition.TypeUse?.Value, Integer((int)definition.Profile), Integer(definition.Version), Integer(definition.SourceNodeIndex), ProjectedType(definition.Type));
+
+    static string? ProjectedType(TypeUseDefinition? type) => type is null ? null : TypeUse(type);
+
+    static string TypeUseNode(TypeUseNodeObservation? node) => node is null
+        ? Node("invalid-type-use-node")
+        : WithScopes(Node(node.Name, node.Subject?.Value), node.Scope);
 
     public static string TypeUseBinding(TypeUseBindingDefinition definition) =>
         Node(ArtifactMemberKey(definition.Member), ArtifactKey(definition.Target));
@@ -239,6 +254,11 @@ static class Structural
         ArtifactPlacementFact => (int)GenerationFactCapability.ArtifactPlacement,
         ArtifactSourcePlacementCandidateFact => (int)GenerationFactCapability.ArtifactSourcePlacementCandidate,
         RelationshipFact => (int)GenerationFactCapability.Relationship,
+        _ => ConceptFamily(fact)
+    };
+
+    static int ConceptFamily(GenerationFact fact) => fact switch
+    {
         ConceptRepresentationFact => (int)GenerationFactCapability.ConceptRepresentation,
         ConceptAttributeFact => (int)GenerationFactCapability.ConceptAttribute,
         ConceptValidationRuleFact => (int)GenerationFactCapability.ConceptValidationRule,
@@ -268,6 +288,12 @@ static class Structural
         MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
         OccurrenceOmissionDiagnosticFact => (int)GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
+        _ => ProjectionFamily(fact)
+    };
+
+    static int ProjectionFamily(GenerationFact fact) => fact switch
+    {
+        TypeUseCompatibilityProjectionFact => (int)GenerationFactCapability.TypeUseCompatibilityProjection,
         TypeUseBindingPolicyFact => (int)GenerationFactCapability.TypeUseBindingPolicy,
         DeclarationInputMemberTargetOmittedFact => (int)GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         _ => UsageFamily(fact)
@@ -308,6 +334,7 @@ static class Structural
         MethodDiagnosticProjectionFact projection => DiagnosticProjection(projection),
         OccurrenceOmissionDiagnosticFact candidate => OmissionDiagnostic(candidate),
         TypeUseTargetOmittedFact omission => Node("type-use-target-omitted", ArtifactMemberKey(omission.Definition.Member), Diagnostic(omission.Definition.Diagnostic)),
+        TypeUseCompatibilityProjectionFact projection => TypeUseProjection(projection.Definition),
         TypeUseBindingPolicyFact policy => Node("type-use-binding-policy", policy.Definition.TypeUse.Value, Integer((int)policy.Definition.Policy)),
         _ => ObservationFactDefinition(fact)
     };
@@ -320,14 +347,25 @@ static class Structural
 
     static string ObservationFactDefinition(GenerationFact fact) => fact switch
     {
-        MethodExecutionClassificationFact classification => WithScopes(Node("method-execution", classification.Definition?.Method?.Value, Integer((int)(classification.Definition?.Kind ?? MethodExecutionKind.Unknown)), classification.Definition?.OmissionReason is { } reason ? Diagnostic(reason) : null), classification.Definition?.Scope),
+        MethodExecutionClassificationFact classification => MethodExecutionDefinition(classification),
         DeclarationInputMemberDeclarationFact declaration => Node("declaration-input-member", DeclarationMember(declaration.Definition.Member), Integer(declaration.Definition.DeclarationOrder)),
         DeclarationInputMemberTargetOmittedFact omission => Node("declaration-input-target-omitted", DeclarationMember(omission.Definition.Member), Diagnostic(omission.Definition.Diagnostic)),
         DeclarationInputMemberTypeUseFact typeUse => Node("declaration-input-type", DeclarationMember(typeUse.Definition.Member), TypeUse(typeUse.Definition.Type)),
+        _ => ExecutionFactDefinition(fact)
+    };
+
+    static string MethodExecutionDefinition(MethodExecutionClassificationFact fact) => WithScopes(
+        Node("method-execution", fact.Definition?.Method?.Value, Integer((int)(fact.Definition?.Kind ?? MethodExecutionKind.Unknown)), fact.Definition?.OmissionReason is { } reason ? Diagnostic(reason) : null), fact.Definition?.Scope);
+
+    static string ExecutionFactDefinition(GenerationFact fact) => fact switch
+    {
         EntryPointInputTransferFact transfer => Node("entry-input-transfer", transfer.Definition.Method.Value, ArtifactKey(transfer.Definition.Artifact), Integer((int)transfer.Definition.Kind)),
-        MethodFactSupportFact support => Node("method-support", support.Definition?.Candidate?.Value, Sequence((support.Definition?.Alternatives ?? []).Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value)),
+        MethodFactSupportFact support => MethodSupportDefinition(support),
         _ => DomainFactDefinition(fact)
     };
+
+    static string MethodSupportDefinition(MethodFactSupportFact fact) => Node("method-support", fact.Definition?.Candidate?.Value,
+        Sequence((fact.Definition?.Alternatives ?? []).Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value));
 
     static string DomainFactDefinition(GenerationFact fact) => fact switch
     {
@@ -335,6 +373,11 @@ static class Structural
         ConceptRepresentationFact representation => Node("concept-representation", ConceptRepresentation(representation.Definition)),
         ConceptAttributeFact attribute => Node("concept-attribute", ConceptAttribute(attribute.Definition)),
         ConceptValidationRuleFact validation => Node("concept-validation-rule", ConceptValidationRule(validation.Definition)),
+        _ => SpecificationFactDefinition(fact)
+    };
+
+    static string SpecificationFactDefinition(GenerationFact fact) => fact switch
+    {
         SpecificationScenarioFact scenario => Node("specification-scenario", SpecificationScenario(scenario.Definition)),
         SpecificationStepFact step => Node("specification-step", SpecificationStep(step.Definition)),
         SpecificationValueFact value => Node("specification-value", SpecificationValue(value.Definition)),

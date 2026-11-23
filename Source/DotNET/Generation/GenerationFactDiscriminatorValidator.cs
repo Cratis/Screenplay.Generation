@@ -35,6 +35,7 @@ static class GenerationFactDiscriminatorValidator
             ValidateFact(fact, diagnostics);
             DeclarationInputMemberTargetOmissions.Validate(fact, input, diagnostics);
             TypeUseBindingPolicies.Validate(fact, input, diagnostics);
+            TypeUseCompatibilityProjections.Validate(fact, input, diagnostics);
 
             if (diagnostics.Count == diagnosticCount)
             {

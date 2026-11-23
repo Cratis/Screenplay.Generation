@@ -84,7 +84,10 @@ static class EntryPointInputMemberDerivation
         Value = $"generation:derive:entry-point-input-members:1:{facet}:{Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(Structural.ArtifactMemberKey(member)))}"
     };
 
-    sealed record Candidate(string Execution, int? ExecutionOrder, DeclarationMemberKey Member, int MemberOrder, TypeUseDefinition Type, GenerationFact[] Inputs);
+    sealed record Candidate(string Execution, int? ExecutionOrder, DeclarationMemberKey Member, int MemberOrder, TypeUseDefinition Type, GenerationFact[] Inputs)
+    {
+        public TypeUseDefinition? PrintableType { get; init; }
+    }
 
     sealed class EndpointSelection(ImmutableArray<GenerationFactRecord> baseFacts, ArtifactKey endpoint, EntryPointInputTransferFact[] intents)
     {
@@ -142,7 +145,7 @@ static class EntryPointInputMemberDerivation
             candidate.Inputs.OfType<DeclarationInputMemberDeclarationFact>().Any() && candidate.Inputs.OfType<DeclarationInputMemberTypeUseFact>().Any();
 
         static bool ConsistentMember(int[] orders, DeclarationInputMemberTypeUseFact[] types) => orders.Length == 1 &&
-            orders[0] >= 0 && types.Select(fact => Structural.TypeUse(fact.Definition.Type)).Distinct(StringComparer.Ordinal).Count() == 1;
+            orders[0] >= 0 && TypeUseCompatibilityProjections.Agree(types.Select(fact => fact.Definition.Type));
 
         static bool SurfaceMember(GenerationFact fact, MethodArtifactUsageDefinition usage, HashSet<string> directNames) => DeclarationMember(fact) is { } member &&
             member.Declaration == usage.Declaration && member.Scope == usage.TargetScope && !directNames.Contains(member.Name);
@@ -224,14 +227,22 @@ static class EntryPointInputMemberDerivation
                 return;
             }
 
-            var type = typeUses[0].Definition.Type;
+            var views = typeUses.Select(typeUse => TypeUseCompatibilityProjections.Select(typeUse, _facts)).ToArray();
+            if (!TypeUseCompatibilityProjections.Agree(views))
+            {
+                Error(candidate.Inputs.Concat(TypeUseCompatibilityProjections.Supports(typeUses, _facts)), "Declaration input members disagree on printable view", GenerationDiagnosticOutcome.Conflict);
+                return;
+            }
+
+            var type = views[0];
             if (!ValidType(type))
             {
                 Error(candidate.Inputs, "Declaration input member has an incomplete type shape");
                 return;
             }
 
-            _candidates.Add(candidate with { MemberOrder = orders[0], Type = type });
+            var exact = typeUses.Select(typeUse => typeUse.Definition.Type).OrderByDescending(observation => observation.Nodes is not null).First();
+            _candidates.Add(candidate with { MemberOrder = orders[0], Type = exact, PrintableType = type });
         }
 
         bool ProveOrder()
@@ -278,7 +289,8 @@ static class EntryPointInputMemberDerivation
                 Evidence = proof[0].Evidence,
                 Definition = new ArtifactMemberTypeUseDefinition { Member = member, Type = candidate.Type }
             };
-            var binding = TypeUseBindingDerivation.BindTransferredType(typeUse, baseFacts, conceptOnly);
+            var printable = typeUse with { Definition = typeUse.Definition with { Type = candidate.PrintableType ?? candidate.Type } };
+            var binding = TypeUseBindingDerivation.BindTransferredType(printable, baseFacts, conceptOnly);
             var omissions = binding.Diagnostic?.Code == GenerationDiagnosticCodes.MissingTypeUseTarget || (conceptOnly && binding.Target is null)
                 ? DeclarationInputMemberTargetOmissions.For(candidate.Inputs)
                 : [];
@@ -305,6 +317,7 @@ static class EntryPointInputMemberDerivation
             var outputTypeUse = typeUse with { Id = Id(member, "type") };
             List<GenerationFact> outputs = [declaration, outputTypeUse];
             outputs.AddRange(PolicyOutputs(outputTypeUse, member, conceptOnly));
+            outputs.AddRange(ProjectionOutputs(outputTypeUse, member, candidate));
             outputs.AddRange(omissions.Select(omission => DeclarationInputMemberTargetOmissions.Transfer(omission, typeUse, Id(member, $"omission:{omission.Id.Value}"))));
             if (binding.Target is { } target)
             {
@@ -326,11 +339,24 @@ static class EntryPointInputMemberDerivation
                 _facts))];
         }
 
+        GenerationFact[] ProjectionOutputs(ArtifactMemberTypeUseFact output, ArtifactMemberKey member, Candidate candidate)
+        {
+            var views = TypeUseCompatibilityProjections.Supports(candidate.Inputs, _facts).OfType<TypeUseCompatibilityProjectionFact>().ToArray();
+            return views.Length == 0 ? [] :
+            [
+                new TypeUseCompatibilityProjectionFact
+                {
+                    Id = Id(member, "projection"), Subject = output.Subject, Evidence = output.Evidence,
+                    Definition = views[0].Definition with { TypeUse = output.Id }
+                }
+            ];
+        }
+
         (bool ConceptOnly, GenerationFact[] Proof) MemberProof(Candidate candidate)
         {
             var observations = candidate.Inputs.OfType<DeclarationInputMemberTypeUseFact>().ToArray();
             var policies = _facts.OfType<TypeUseBindingPolicyFact>().Where(policy => observations.Any(observation => observation.Id == policy.Definition.TypeUse)).ToArray();
-            return (observations.All(observation => TypeUseBindingPolicies.OptedIn(observation, _facts)), Inputs(_endpointInputs.Concat(candidate.Inputs).Concat(policies)));
+            return (observations.All(observation => TypeUseBindingPolicies.OptedIn(observation, _facts)), Inputs(_endpointInputs.Concat(candidate.Inputs).Concat(policies).Concat(TypeUseCompatibilityProjections.Supports(observations, _facts))));
         }
 
         void Error(IEnumerable<GenerationFact> facts, string message, GenerationDiagnosticOutcome outcome = GenerationDiagnosticOutcome.Unknown)

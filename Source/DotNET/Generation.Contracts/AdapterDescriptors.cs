@@ -234,7 +234,10 @@ public enum GenerationFactCapability
     DeclarationInputMemberTargetOmitted = 32,
 
     /// <summary><see cref="TypeUseBindingPolicyFact"/> facts.</summary>
-    TypeUseBindingPolicy = 30
+    TypeUseBindingPolicy = 30,
+
+    /// <summary><see cref="TypeUseCompatibilityProjectionFact"/> opt-in versioned printable views.</summary>
+    TypeUseCompatibilityProjection = 31
 }
 
 /// <summary>
