@@ -20,7 +20,7 @@ public static class GenerationFactDerivation
 
     internal static GenerationDerivationSnapshot Derive(EffectiveGenerationInputs effective)
     {
-        var canonicalInput = AdapterRunCanonicalizer.FactRecords(effective.Facts.Select(fact => new GenerationFactRecord { Fact = fact }));
+        var canonicalInput = AdapterRunCanonicalizer.FactRecords(effective.BindingFacts.Select(fact => new GenerationFactRecord { Fact = fact }));
         var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(
             canonicalInput.Select(record => record.Fact));
         var validationDiagnostics = discriminatorValidation.Diagnostics.Concat(effective.Diagnostics).ToList();
@@ -79,9 +79,10 @@ public static class GenerationFactDerivation
                 },
                 .. usageRules,
                 .. inputMemberRules,
-                .. MethodEligibilityLineage.Rules(effective)
+                .. MethodEligibilityLineage.Rules(effective),
+                .. effective.NameYieldRules
             ],
-            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts], effective),
+            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts, .. effective.NameYieldFallbacks], effective),
             Diagnostics = diagnostics
         };
 

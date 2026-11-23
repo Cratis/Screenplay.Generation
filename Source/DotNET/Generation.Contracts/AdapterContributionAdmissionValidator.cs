@@ -17,6 +17,7 @@ static class AdapterContributionAdmissionValidator
         ValidateDuplicateFactIds(input.Facts, context);
         MethodEligibilityAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         TypeUseTargetOmissionAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
+        ConceptNameYieldAdmission.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
 
         foreach (var fact in input.Facts)
         {

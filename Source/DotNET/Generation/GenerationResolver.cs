@@ -22,7 +22,7 @@ public sealed class GenerationResolver
         var effective = EffectiveGenerationInputs.FromContributions(orderedContributions);
         var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics).Concat(effective.Diagnostics);
 
-        return ResolveFacts(effective.Facts, diagnostics, effective.OmittedFacts);
+        return ResolveFacts(effective.BindingFacts, diagnostics, effective.OmittedFacts);
     }
 
     internal ResolvedApplicationGraph ResolveFacts(

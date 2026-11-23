@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Text.Json.Serialization;
+
 namespace Cratis.Screenplay.Generation;
 
 /// <summary>
@@ -43,6 +45,12 @@ public sealed record ArtifactDeclarationDefinition
     /// Gets the repository-relative source file realizing the artifact.
     /// </summary>
     public string? File { get; init; }
+
+    /// <summary>
+    /// Gets the optional, producer-owned instruction to omit this concept when its name is ambiguous.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ConceptNameYieldDefinition? NameConflictYield { get; init; }
 }
 
 /// <summary>
