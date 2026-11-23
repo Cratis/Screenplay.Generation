@@ -9,7 +9,7 @@ namespace Cratis.Screenplay.Generation;
 internal static class GenerationFactDiscriminators
 {
     public static bool AreSupported(GenerationFact fact) =>
-        Supported(fact.Evidence.Strength, EvidenceStrength.Unknown) && FamilySupported(fact);
+        Supported(fact.Evidence.Strength, EvidenceStrength.Unknown) && FamilySupported(fact) && MixedSliceFallbackStructure.ForFact(fact);
 
     static bool FamilySupported(GenerationFact fact) => fact switch
     {
@@ -34,6 +34,7 @@ internal static class GenerationFactDiscriminators
 
     static bool UsageFamilySupported(GenerationFact fact) => fact switch
     {
+        ArtifactSourcePlacementCandidateFact candidate => SourcePlacementCandidateStructure.Supported(candidate.Definition),
         ArtifactUsageDeclarationFact declaration => Supported(declaration.Definition.Artifact.Kind, ArtifactKind.Unknown),
         EntryPointFact entry => Supported(entry.Definition.Artifact.Kind, ArtifactKind.Unknown),
         MethodArtifactUsageFact usage => Supported(usage.Definition.Kind, RelationshipKind.Unknown),

@@ -333,6 +333,21 @@ public static class GenerationDiagnosticCodes
     /// <summary>A binding policy does not match a producer-owned type use or the supported concept-only policy.</summary>
     public const string InvalidTypeUseBindingPolicy = "GEN0085";
 
+    /// <summary>A source-owner candidate is invalid or lacks independent ownership proof.</summary>
+    public const string InvalidSourceOwnerCandidate = "GEN0075";
+
+    /// <summary>Equally strong source-owner selection inputs conflict.</summary>
+    public const string ConflictingSourceOwnerCandidates = "GEN0076";
+
+    /// <summary>The host did not supply the required fixed source mapper.</summary>
+    public const string SourcePlacementResolverUnavailable = "GEN0077";
+
+    /// <summary>An opted-in mixed-kind source group was split into effective slice names.</summary>
+    public const string MixedSliceKindsSplit = "GEN0079";
+
+    /// <summary>A split name still collides incompatibly after exactly two normalization stages.</summary>
+    public const string ConflictingMixedSliceSplit = "GEN0078";
+
     /// <summary>A declaration input target omission does not match its producer-owned type use or warning.</summary>
     public const string InvalidDeclarationInputMemberTargetOmission = "GEN0095";
 }

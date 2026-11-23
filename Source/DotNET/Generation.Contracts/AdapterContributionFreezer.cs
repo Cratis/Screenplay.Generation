@@ -34,6 +34,19 @@ static class AdapterContributionFreezer
         return new(frozenDescriptor, adapter, facts, diagnostics);
     }
 
+    internal static Evidence FreezeNestedEvidence(Evidence? evidence, string path, AdapterContributionAdmissionContext context) => FreezeEvidence(evidence, path, context);
+
+    internal static ArtifactKey FreezeArtifactKey(ArtifactKey? key, string path, AdapterContributionAdmissionContext context)
+    {
+        if (key is null)
+        {
+            context.Missing(path);
+            return new ArtifactKey { Subject = new SubjectId { Value = string.Empty }, Kind = ArtifactKind.Unknown };
+        }
+
+        return new ArtifactKey { Subject = FreezeSubject(key.Subject, $"{path}.Subject", context), Kind = key.Kind, Scope = BackendScopeFreezer.Key(key.Scope, $"{path}.Scope", context) };
+    }
+
     internal static ImmutableArray<GenerationDiagnostic> FreezeMethodDiagnostics(IReadOnlyList<GenerationDiagnostic>? diagnostics, AdapterContributionAdmissionContext context) => FreezeDiagnostics(diagnostics, context);
 
     internal static GenerationDiagnostic FreezeMethodDiagnostic(GenerationDiagnostic diagnostic, string path, AdapterContributionAdmissionContext context) => FreezeDiagnostic(diagnostic, path, context);
@@ -200,8 +213,10 @@ static class AdapterContributionFreezer
                 Subject = subject,
                 Evidence = evidence,
                 Artifact = FreezeArtifactKey(placement.Artifact, $"{path}.Artifact", context),
-                Placement = FreezePlacement(placement.Placement, $"{path}.Placement", context)
+                Placement = FreezePlacement(placement.Placement, $"{path}.Placement", context),
+                MixedSliceFallback = MixedSliceFallbackAdmission.Freeze(placement.MixedSliceFallback, $"{path}.MixedSliceFallback", context)
             },
+            ArtifactSourcePlacementCandidateFact candidate => SourcePlacementCandidateFreezer.Freeze(candidate, envelope, context),
             RelationshipFact relationship => new RelationshipFact
             {
                 Id = id,
@@ -460,29 +475,6 @@ static class AdapterContributionFreezer
             Scope = BackendScopeFreezer.Key(type.Scope, $"{path}.Scope", context),
             IsCollection = type.IsCollection,
             IsOptional = type.IsOptional
-        };
-    }
-
-    static ArtifactKey FreezeArtifactKey(
-        ArtifactKey? key,
-        string path,
-        AdapterContributionAdmissionContext context)
-    {
-        if (key is null)
-        {
-            context.Missing(path);
-            return new ArtifactKey
-            {
-                Subject = new SubjectId { Value = string.Empty },
-                Kind = ArtifactKind.Unknown
-            };
-        }
-
-        return new ArtifactKey
-        {
-            Subject = FreezeSubject(key.Subject, $"{path}.Subject", context),
-            Kind = key.Kind,
-            Scope = BackendScopeFreezer.Key(key.Scope, $"{path}.Scope", context)
         };
     }
 
@@ -995,6 +987,7 @@ static class AdapterContributionFreezer
     {
         ArtifactFact => (int)GenerationFactCapability.Artifact,
         ArtifactPlacementFact => (int)GenerationFactCapability.ArtifactPlacement,
+        ArtifactSourcePlacementCandidateFact => (int)GenerationFactCapability.ArtifactSourcePlacementCandidate,
         RelationshipFact => (int)GenerationFactCapability.Relationship,
         _ => ConceptFamily(fact)
     };

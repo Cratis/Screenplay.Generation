@@ -79,7 +79,12 @@ static class AdapterRunCanonicalizer
     static GenerationFact ArtifactFactDefinition(GenerationFact fact) => fact switch
     {
         ArtifactFact artifact => artifact with { Definition = Artifact(artifact.Definition) },
-        ArtifactPlacementFact placement => placement with { Artifact = ArtifactKey(placement.Artifact), Placement = Placement(placement.Placement) },
+        ArtifactPlacementFact placement => placement with { Artifact = ArtifactKey(placement.Artifact), Placement = Placement(placement.Placement), MixedSliceFallback = MixedSliceFallbackStructure.Copy(placement.MixedSliceFallback) },
+        _ => MemberFactDefinition(fact)
+    };
+
+    static GenerationFact MemberFactDefinition(GenerationFact fact) => fact switch
+    {
         ArtifactDeclarationFact declaration => declaration with { Definition = ArtifactDeclaration(declaration.Definition) },
         ArtifactMemberDeclarationFact member => member with { Definition = ArtifactMemberDeclaration(member.Definition) },
         ArtifactMemberTypeUseFact typeUse => typeUse with { Definition = ArtifactMemberTypeUse(typeUse.Definition) },
@@ -93,6 +98,7 @@ static class AdapterRunCanonicalizer
         {
             Definition = policy.Definition with { TypeUse = new() { Value = policy.Definition.TypeUse.Value } }
         },
+        ArtifactSourcePlacementCandidateFact candidate => candidate with { Definition = SourcePlacementCandidateStructure.Copy(candidate.Definition, ArtifactKey) },
         MethodDiagnosticProjectionFact projection => Projection(projection),
         OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),
         TypeUseTargetOmittedFact omission => omission with
@@ -125,6 +131,13 @@ static class AdapterRunCanonicalizer
     {
         MethodExecutionClassificationFact classification => Classification(classification),
         MethodFactSupportFact support => Support(support),
+        EntryPointInputTransferFact transfer => transfer with { Definition = transfer.Definition with { Method = Subject(transfer.Definition.Method), Artifact = ArtifactKey(transfer.Definition.Artifact) } },
+        RelationshipFact relationship => relationship with { Definition = Relationship(relationship.Definition) },
+        _ => DeclarationInputFactDefinition(fact)
+    };
+
+    static GenerationFact DeclarationInputFactDefinition(GenerationFact fact) => fact switch
+    {
         DeclarationInputMemberTargetOmittedFact omission => omission with
         {
             Definition = omission.Definition with { Member = DeclarationMember(omission.Definition.Member), Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
@@ -138,8 +151,6 @@ static class AdapterRunCanonicalizer
                 Type = typeUse.Definition.Type with { ObservedTypeSubject = typeUse.Definition.Type.ObservedTypeSubject is { } subject ? Subject(subject) : null, ObservedScope = Scope(typeUse.Definition.Type.ObservedScope), Shape = [.. typeUse.Definition.Type.Shape] }
             }
         },
-        EntryPointInputTransferFact transfer => transfer with { Definition = transfer.Definition with { Method = Subject(transfer.Definition.Method), Artifact = ArtifactKey(transfer.Definition.Artifact) } },
-        RelationshipFact relationship => relationship with { Definition = Relationship(relationship.Definition) },
         _ => DomainFactDefinition(fact)
     };
 
@@ -148,6 +159,11 @@ static class AdapterRunCanonicalizer
         ConceptRepresentationFact representation => representation with { Definition = ConceptRepresentation(representation.Definition) },
         ConceptAttributeFact attribute => attribute with { Definition = ConceptAttribute(attribute.Definition) },
         ConceptValidationRuleFact validation => validation with { Definition = ConceptValidationRule(validation.Definition) },
+        _ => SpecificationFactDefinition(fact)
+    };
+
+    static GenerationFact SpecificationFactDefinition(GenerationFact fact) => fact switch
+    {
         SpecificationScenarioFact scenario => scenario with { Definition = SpecificationScenario(scenario.Definition) },
         SpecificationStepFact step => step with { Definition = SpecificationStep(step.Definition) },
         SpecificationValueFact value => value with { Definition = SpecificationValue(value.Definition) },

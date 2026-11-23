@@ -76,7 +76,7 @@ internal static class GenerationFactDispositionCalculator
             return Conflicted(fact, context);
         }
 
-        return NeutralDisposition(fact, context) ?? GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+        return NeutralDisposition(fact, context) ?? PlacementNormalization.Disposition(fact, context.Graph) ?? GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
     }
 
     static GenerationFactRecord DiagnosticIntentDisposition(GenerationFact fact, CalculationContext context)
@@ -101,7 +101,7 @@ internal static class GenerationFactDispositionCalculator
 
     static GenerationFactRecord? NeutralDisposition(GenerationFact fact, CalculationContext context)
     {
-        if (fact is not (TypeUseBindingPolicyFact or DeclarationInputMemberTargetOmittedFact or TypeUseTargetOmittedFact or BackendScopeFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact or MethodExecutionClassificationFact or MethodFactSupportFact or DeclarationInputMemberDeclarationFact or DeclarationInputMemberTypeUseFact or EntryPointInputTransferFact))
+        if (fact is not (TypeUseBindingPolicyFact or ArtifactSourcePlacementCandidateFact or DeclarationInputMemberTargetOmittedFact or TypeUseTargetOmittedFact or BackendScopeFact or ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact or MethodExecutionClassificationFact or MethodFactSupportFact or DeclarationInputMemberDeclarationFact or DeclarationInputMemberTypeUseFact or EntryPointInputTransferFact))
         {
             return null;
         }
@@ -114,7 +114,7 @@ internal static class GenerationFactDispositionCalculator
 
     static bool IsConflicted(GenerationFact fact, CalculationContext context) =>
         GenerationFactConflictDetector.IsConflicted(fact, context.Graph, context.Coverage) ||
-        AssociatedDiagnostics(fact, context).Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict);
+        PlacementNormalization.IsConflicted(fact, context.Graph, context.Coverage, AssociatedDiagnostics(fact, context));
 
     static GenerationFactRecord ClassifiedBySemanticKey(GenerationFact fact, CalculationContext context)
     {
@@ -123,7 +123,7 @@ internal static class GenerationFactDispositionCalculator
             return Record(fact, GenerationFactDisposition.ProvenanceOnly);
         }
 
-        var key = GenerationFactSemanticKey.For(fact);
+        var key = PlacementNormalization.SemanticKey(fact, context.Graph);
         if (key is not null && context.Coverage.Lowered.Contains(key))
         {
             return Record(fact, GenerationFactDisposition.Lowered);
@@ -248,7 +248,7 @@ internal static class GenerationFactDispositionCalculator
 
     static IEnumerable<GenerationDiagnostic> AssociatedDiagnostics(GenerationFact fact, CalculationContext context)
     {
-        var key = GenerationFactSemanticKey.For(fact);
+        var key = PlacementNormalization.SemanticKey(fact, context.Graph);
         if (key is not null && context.Coverage.Diagnostics.TryGetValue(key, out var loweringDiagnostics))
         {
             foreach (var diagnostic in loweringDiagnostics)

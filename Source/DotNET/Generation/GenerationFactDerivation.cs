@@ -18,7 +18,14 @@ public static class GenerationFactDerivation
     public static GenerationDerivationSnapshot Derive(AdapterRunSnapshot snapshot) =>
         Derive(EffectiveGenerationInputs.FromFacts(snapshot.Facts.Select(record => record.Fact)));
 
-    internal static GenerationDerivationSnapshot Derive(EffectiveGenerationInputs effective)
+    /// <summary>Derives facts with a host-owned fixed source placement resolver.</summary>
+    /// <param name="snapshot">The fixed admitted base snapshot.</param>
+    /// <param name="resolver">The fixed source mapper.</param>
+    /// <returns>The canonical derived facts and lineage.</returns>
+    public static GenerationDerivationSnapshot Derive(AdapterRunSnapshot snapshot, IArtifactSourcePlacementResolver resolver) =>
+        Derive(EffectiveGenerationInputs.FromFacts(snapshot.Facts.Select(record => record.Fact)), resolver);
+
+    internal static GenerationDerivationSnapshot Derive(EffectiveGenerationInputs effective, IArtifactSourcePlacementResolver? sourceResolver = null)
     {
         var canonicalInput = AdapterRunCanonicalizer.FactRecords(effective.BindingFacts.Select(fact => new GenerationFactRecord { Fact = fact }));
         var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(
@@ -38,6 +45,11 @@ public static class GenerationFactDerivation
         var typeUseBindings = TypeUseBindingDerivation.Derive(baseFacts);
         var artifactUsages = ArtifactUsageDerivation.Derive(baseFacts);
         var inputMembers = EntryPointInputMemberDerivation.Derive(baseFacts);
+        var sourcePlacements = SourcePlacementCandidateDerivation.Derive(baseFacts, sourceResolver);
+        ImmutableArray<GenerationDerivationRuleRecord> sourceRules = sourcePlacements.Inputs.IsEmpty ? [] :
+        [
+            new GenerationDerivationRuleRecord { Rule = SourcePlacementCandidateDerivation.Rule, Inputs = sourcePlacements.Inputs, Outputs = [.. sourcePlacements.Facts.Select(record => record.Fact.Id)], Diagnostics = sourcePlacements.Diagnostics }
+        ];
         var diagnosticProjections = MethodDiagnosticProjectionDerivation.Derive(baseFacts, effective);
         var occurrenceOmissions = OccurrenceOmissionDiagnosticDerivation.Derive(baseFacts, effective);
         var inputMemberRules = InputMemberRules(inputMembers);
@@ -45,6 +57,7 @@ public static class GenerationFactDerivation
             .Concat(typeUseBindings.Diagnostics)
             .Concat(artifactUsages.Diagnostics)
             .Concat(inputMembers.Diagnostics)
+            .Concat(sourcePlacements.Diagnostics)
             .Concat(diagnosticProjections.SelectMany(rule => rule.Diagnostics))
             .Concat(occurrenceOmissions.SelectMany(rule => rule.Diagnostics))
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
@@ -74,12 +87,13 @@ public static class GenerationFactDerivation
                 },
                 .. usageRules,
                 .. inputMemberRules,
+                .. sourceRules,
                 .. diagnosticProjections,
                 .. occurrenceOmissions,
                 .. MethodEligibilityLineage.Rules(effective),
                 .. effective.NameYieldRules
             ],
-            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts, .. effective.NameYieldFallbacks], effective),
+            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts, .. sourcePlacements.Facts, .. effective.NameYieldFallbacks], effective),
             Diagnostics = diagnostics
         };
 

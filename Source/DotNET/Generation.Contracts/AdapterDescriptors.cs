@@ -218,6 +218,12 @@ public enum GenerationFactCapability
     /// <summary><see cref="TypeUseTargetOmittedFact"/> facts.</summary>
     TypeUseTargetOmitted = 23,
 
+    /// <summary><see cref="ArtifactSourcePlacementCandidateFact"/> facts.</summary>
+    ArtifactSourcePlacementCandidate = 26,
+
+    /// <summary>Explicit mixed-kind slice fallback metadata on placement facts or candidates.</summary>
+    MixedSlicePlacementFallback = 27,
+
     /// <summary><see cref="MethodDiagnosticProjectionFact"/> opt-in diagnostic projection intents.</summary>
     MethodDiagnosticProjection = 28,
 
