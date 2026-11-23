@@ -89,6 +89,10 @@ static class AdapterRunCanonicalizer
 
     static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
+        TypeUseBindingPolicyFact policy => policy with
+        {
+            Definition = policy.Definition with { Diagnostic = Diagnostic(policy.Definition.Diagnostic) }
+        },
         MethodDiagnosticProjectionFact projection => Projection(projection),
         OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),
         TypeUseTargetOmittedFact omission => omission with

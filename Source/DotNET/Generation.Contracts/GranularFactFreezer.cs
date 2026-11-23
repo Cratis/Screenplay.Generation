@@ -103,6 +103,28 @@ static class GranularFactFreezer
             Definition = FreezeMemberRole(fact.Definition, $"{path}.Definition", context)
         };
 
+    internal static ArtifactMemberKey FreezeMemberKey(
+        ArtifactMemberKey? member,
+        string path,
+        AdapterContributionAdmissionContext context)
+    {
+        if (member is null)
+        {
+            context.Missing(path);
+            return new ArtifactMemberKey
+            {
+                Artifact = FreezeArtifactKey(null, $"{path}.Artifact", context),
+                Name = string.Empty
+            };
+        }
+
+        return new ArtifactMemberKey
+        {
+            Artifact = FreezeArtifactKey(member.Artifact, $"{path}.Artifact", context),
+            Name = member.Name ?? string.Empty
+        };
+    }
+
     internal static ArtifactKey FreezeArtifactKey(
         ArtifactKey? key,
         string path,
@@ -272,28 +294,6 @@ static class GranularFactFreezer
         {
             Member = FreezeMemberKey(definition.Member, $"{path}.Member", context),
             Role = definition.Role
-        };
-    }
-
-    static ArtifactMemberKey FreezeMemberKey(
-        ArtifactMemberKey? member,
-        string path,
-        AdapterContributionAdmissionContext context)
-    {
-        if (member is null)
-        {
-            context.Missing(path);
-            return new ArtifactMemberKey
-            {
-                Artifact = FreezeArtifactKey(null, $"{path}.Artifact", context),
-                Name = string.Empty
-            };
-        }
-
-        return new ArtifactMemberKey
-        {
-            Artifact = FreezeArtifactKey(member.Artifact, $"{path}.Artifact", context),
-            Name = member.Name ?? string.Empty
         };
     }
 

@@ -34,6 +34,7 @@ static class GenerationFactDiscriminatorValidator
             var diagnosticCount = diagnostics.Count;
             ValidateFact(fact, diagnostics);
             DeclarationInputMemberTargetOmissions.Validate(fact, input, diagnostics);
+            TypeUseBindingPolicies.Validate(fact, input, diagnostics);
 
             if (diagnostics.Count == diagnosticCount)
             {

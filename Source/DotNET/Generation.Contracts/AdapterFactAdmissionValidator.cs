@@ -49,6 +49,10 @@ static class AdapterFactAdmissionValidator
         {
             DeclarationInputMemberTargetOmissionAdmission.Validate(declarationOmission, path, context);
         }
+        else if (fact is TypeUseBindingPolicyFact policy)
+        {
+            TypeUseBindingPolicyAdmission.ValidateShape(policy, path, context);
+        }
         else if (IsDiagnosticIntent(fact))
         {
             ValidateDiagnosticIntent(fact, path, context);

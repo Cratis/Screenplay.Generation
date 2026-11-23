@@ -290,6 +290,7 @@ static class AdapterContributionFreezer
                 Evidence = envelope.Evidence,
                 Definition = ArtifactUsageFreezer.Declaration(declaration.Definition, $"{envelope.Path}.Definition", context)
             },
+            TypeUseBindingPolicyFact policy => TypeUseBindingPolicyAdmission.Freeze(policy, envelope, context),
             _ => FreezeInputMemberFact(fact, envelope, context)
         };
 

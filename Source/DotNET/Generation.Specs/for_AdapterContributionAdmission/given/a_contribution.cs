@@ -64,6 +64,7 @@ public class a_contribution : Specification
         GenerationFactCapability.MethodDiagnosticProjection,
         GenerationFactCapability.OccurrenceOmissionDiagnostic,
         GenerationFactCapability.DeclarationInputMemberTargetOmitted,
+        GenerationFactCapability.TypeUseBindingPolicy,
         GenerationFactCapability.Artifact
     ];
 
@@ -275,6 +276,29 @@ public class a_contribution : Specification
             }
         ];
     }
+
+    protected static TypeUseBindingPolicyFact BindingPolicy() => new()
+    {
+        Id = Id("binding-policy"),
+        Subject = ArtifactSubject,
+        Evidence = Evidence(),
+        Definition = new()
+        {
+            Member = MemberKey("second"),
+            AllowedTargetKind = ArtifactKind.Concept,
+            Fallback = TypeUseBindingFallback.PreserveObservedTypeWithoutTarget,
+            Diagnostic = new()
+            {
+                Code = "atomic.ConceptUnavailable",
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Outcome = GenerationDiagnosticOutcome.Unsupported,
+                Message = "No concept is contributed for this type",
+                Subject = ArtifactSubject,
+                Source = Source(),
+                Facts = [Id("artifact-member-type-use")]
+            }
+        }
+    };
 
     protected static AdapterContribution Contribution(
         IReadOnlyList<GenerationFact>? facts = null,
