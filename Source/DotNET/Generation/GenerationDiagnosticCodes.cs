@@ -8,6 +8,21 @@ namespace Cratis.Screenplay.Generation;
 /// </summary>
 public static class GenerationDiagnosticCodes
 {
+    /// <summary>Diagnostic intent metadata is invalid; no adapter payload was emitted.</summary>
+    public const string InvalidDiagnosticIntent = "GEN0080";
+
+    /// <summary>No compatible exact entry-point mapping exists for a diagnostic intent.</summary>
+    public const string MissingDiagnosticEntryPoint = "GEN0081";
+
+    /// <summary>Several distinct compatible exact entry-point mappings exist for a diagnostic intent.</summary>
+    public const string AmbiguousDiagnosticEntryPoint = "GEN0082";
+
+    /// <summary>Occurrence omission candidate metadata or local support is invalid.</summary>
+    public const string InvalidOccurrenceOmissionDiagnostic = "GEN0083";
+
+    /// <summary>One omission family and occurrence have incompatible semantic payloads.</summary>
+    public const string ConflictingOccurrenceOmissionDiagnostic = "GEN0084";
+
     /// <summary>Entry-point input transfer lacks exact declaration, type, or precedence proof.</summary>
     public const string InvalidEntryPointInputTransfer = "GEN0069";
 
@@ -329,4 +344,7 @@ public static class GenerationDiagnosticCodes
 
     /// <summary>A split name still collides incompatibly after exactly two normalization stages.</summary>
     public const string ConflictingMixedSliceSplit = "GEN0078";
+
+    /// <summary>A declaration input target omission does not match its producer-owned type use or warning.</summary>
+    public const string InvalidDeclarationInputMemberTargetOmission = "GEN0095";
 }

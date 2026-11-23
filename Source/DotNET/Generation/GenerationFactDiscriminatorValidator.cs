@@ -28,10 +28,12 @@ static class GenerationFactDiscriminatorValidator
         var rejectedFacts = new List<GenerationFact>();
         var diagnostics = new List<GenerationDiagnostic>();
 
-        foreach (var fact in facts)
+        var input = facts.ToArray();
+        foreach (var fact in input)
         {
             var diagnosticCount = diagnostics.Count;
             ValidateFact(fact, diagnostics);
+            DeclarationInputMemberTargetOmissions.Validate(fact, input, diagnostics);
 
             if (diagnostics.Count == diagnosticCount)
             {
@@ -50,6 +52,23 @@ static class GenerationFactDiscriminatorValidator
     {
         Validate(fact, fact.Evidence.Strength, _evidenceStrength, diagnostics);
 
+        if (DiagnosticIntentError(fact) is { } diagnostic)
+        {
+            diagnostics.Add(diagnostic);
+        }
+
+        ValidateOtherFact(fact, diagnostics);
+    }
+
+    static GenerationDiagnostic? DiagnosticIntentError(GenerationFact fact) => fact switch
+    {
+        MethodDiagnosticProjectionFact projection when !DiagnosticIntentValidation.Valid(projection) => DiagnosticIntentValidation.Invalid(fact),
+        OccurrenceOmissionDiagnosticFact candidate when !OccurrenceOmissionDiagnosticValidation.Valid(candidate) => OccurrenceOmissionDiagnosticValidation.Invalid(fact),
+        _ => null
+    };
+
+    static void ValidateOtherFact(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
         switch (fact)
         {
             case ArtifactFact or

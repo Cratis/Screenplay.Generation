@@ -48,10 +48,31 @@ static class AdapterFactAdmissionValidator
         {
             GranularFactAdmissionValidator.Validate(omission, path, context);
         }
+        else if (fact is DeclarationInputMemberTargetOmittedFact declarationOmission)
+        {
+            DeclarationInputMemberTargetOmissionAdmission.Validate(declarationOmission, path, context);
+        }
+        else if (IsDiagnosticIntent(fact))
+        {
+            ValidateDiagnosticIntent(fact, path, context);
+        }
         else
         {
             ValidateDomainFamily(fact, path, context);
         }
+    }
+
+    static bool IsDiagnosticIntent(GenerationFact fact) => fact is MethodDiagnosticProjectionFact or OccurrenceOmissionDiagnosticFact;
+
+    static void ValidateDiagnosticIntent(GenerationFact fact, string path, AdapterContributionAdmissionContext context)
+    {
+        if (fact is OccurrenceOmissionDiagnosticFact candidate)
+        {
+            OccurrenceOmissionDiagnosticAdmissionValidator.ValidateShape(candidate, path, context);
+            return;
+        }
+
+        DiagnosticIntentAdmissionValidator.ValidateShape(fact, path, context);
     }
 
     static void ValidateDomainFamily(GenerationFact fact, string path, AdapterContributionAdmissionContext context)

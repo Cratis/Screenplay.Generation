@@ -90,6 +90,8 @@ static class AdapterRunCanonicalizer
     static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
         ArtifactSourcePlacementCandidateFact candidate => candidate with { Definition = SourcePlacementCandidateStructure.Copy(candidate.Definition, ArtifactKey) },
+        MethodDiagnosticProjectionFact projection => Projection(projection),
+        OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),
         TypeUseTargetOmittedFact omission => omission with
         {
             Definition = omission.Definition with { Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
@@ -120,6 +122,10 @@ static class AdapterRunCanonicalizer
     {
         MethodExecutionClassificationFact classification => Classification(classification),
         MethodFactSupportFact support => Support(support),
+        DeclarationInputMemberTargetOmittedFact omission => omission with
+        {
+            Definition = omission.Definition with { Member = DeclarationMember(omission.Definition.Member), Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
+        },
         DeclarationInputMemberDeclarationFact declaration => declaration with { Definition = declaration.Definition with { Member = DeclarationMember(declaration.Definition.Member) } },
         DeclarationInputMemberTypeUseFact typeUse => typeUse with
         {
@@ -169,6 +175,22 @@ static class AdapterRunCanonicalizer
                 EnclosingExecutables = [.. alternative.EnclosingExecutables.Select(Subject).Distinct().OrderBy(subject => subject.Value, StringComparer.Ordinal)],
                 Diagnostics = Diagnostics(alternative.Diagnostics)
             }).GroupBy(Structural.MethodSupport, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())]
+        }
+    };
+
+    static MethodDiagnosticProjectionFact Projection(MethodDiagnosticProjectionFact fact) => fact.Definition is not { Method: not null, Diagnostic: not null } ? fact : fact with
+    {
+        Definition = fact.Definition with
+        {
+            Method = Subject(fact.Definition.Method), Scope = Scope(fact.Definition.Scope), Diagnostic = Diagnostic(fact.Definition.Diagnostic)
+        }
+    };
+
+    static OccurrenceOmissionDiagnosticFact Omission(OccurrenceOmissionDiagnosticFact fact) => !OccurrenceOmissionDiagnosticValidation.Valid(fact) ? fact : fact with
+    {
+        Definition = fact.Definition with
+        {
+            Family = new() { Value = fact.Definition.Family.Value }, Occurrence = ArtifactKey(fact.Definition.Occurrence), Diagnostic = Diagnostic(fact.Definition.Diagnostic)
         }
     };
 
@@ -317,7 +339,8 @@ static class AdapterRunCanonicalizer
                 .OrderBy(fact => fact.Value, StringComparer.Ordinal)
         ],
         Source = diagnostic.Source is null ? null : Source(diagnostic.Source),
-        Subject = diagnostic.Subject is null ? null : Subject(diagnostic.Subject)
+        Subject = diagnostic.Subject is null ? null : Subject(diagnostic.Subject),
+        Lineage = diagnostic.Lineage is { } lineage ? DiagnosticLineage(lineage) : null
     };
 
     static Evidence Evidence(Evidence evidence) => new()
@@ -343,6 +366,17 @@ static class AdapterRunCanonicalizer
         EndLine = source.EndLine,
         EndColumn = source.EndColumn
     };
+
+    static GenerationFactLineage DiagnosticLineage(GenerationFactLineage lineage)
+    {
+        var dependencies = lineage.Inputs.Zip(lineage.Evidence, (id, evidence) => (Id: id, Evidence: evidence))
+            .OrderBy(dependency => dependency.Id.Value, StringComparer.Ordinal).ThenBy(dependency => Structural.Evidence(dependency.Evidence), StringComparer.Ordinal).ToArray();
+        return new()
+        {
+            Producer = Rule(lineage.Producer), Inputs = [.. dependencies.Select(dependency => new FactId { Value = dependency.Id.Value })],
+            Evidence = [.. dependencies.Select(dependency => Evidence(dependency.Evidence))]
+        };
+    }
 
     static SubjectId Subject(SubjectId subject) => new() { Value = subject.Value };
 
@@ -387,7 +421,8 @@ static class AdapterRunCanonicalizer
         Artifact = ArtifactKey(definition.Artifact),
         Name = definition.Name,
         Description = definition.Description,
-        File = definition.File
+        File = definition.File,
+        NameConflictYield = definition.NameConflictYield is { } marker ? marker with { Diagnostic = Diagnostic(marker.Diagnostic) } : null
     };
 
     static ArtifactMemberKey ArtifactMemberKey(ArtifactMemberKey member) => new()

@@ -222,7 +222,16 @@ public enum GenerationFactCapability
     ArtifactSourcePlacementCandidate = 26,
 
     /// <summary>Explicit mixed-kind slice fallback metadata on placement facts or candidates.</summary>
-    MixedSlicePlacementFallback = 27
+    MixedSlicePlacementFallback = 27,
+
+    /// <summary><see cref="MethodDiagnosticProjectionFact"/> opt-in diagnostic projection intents.</summary>
+    MethodDiagnosticProjection = 28,
+
+    /// <summary><see cref="OccurrenceOmissionDiagnosticFact"/> opt-in per-occurrence omission candidates.</summary>
+    OccurrenceOmissionDiagnostic = 29,
+
+    /// <summary><see cref="DeclarationInputMemberTargetOmittedFact"/> facts.</summary>
+    DeclarationInputMemberTargetOmitted = 32
 }
 
 /// <summary>

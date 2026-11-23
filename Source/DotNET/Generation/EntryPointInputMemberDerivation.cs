@@ -25,7 +25,7 @@ static class EntryPointInputMemberDerivation
         return new(
             intents.Length == 0 ? [] : [.. facts.Select(fact => fact.Id).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)],
             [.. records],
-            [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]);
+            [.. diagnostics.DistinctBy(Canonical.Diagnostic).OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)]);
     }
 
     static ArtifactKey? Artifact(GenerationFact fact) => fact switch
@@ -48,6 +48,7 @@ static class EntryPointInputMemberDerivation
     {
         DeclarationInputMemberDeclarationFact declaration => declaration.Definition.Member,
         DeclarationInputMemberTypeUseFact typeUse => typeUse.Definition.Member,
+        DeclarationInputMemberTargetOmittedFact omission => omission.Definition.Member,
         _ => null
     };
 
@@ -252,7 +253,7 @@ static class EntryPointInputMemberDerivation
                 records.AddRange(CreateMember(selected[index], lastOrder + index + 1));
             }
 
-            return _diagnostics.Count == 0 ? [.. records] : [];
+            return _diagnostics.TrueForAll(diagnostic => diagnostic.Severity != GenerationDiagnosticSeverity.Error) ? [.. records] : [];
         }
 
         GenerationFactRecord[] CreateMember(Candidate candidate, int order)
@@ -267,6 +268,15 @@ static class EntryPointInputMemberDerivation
                 Definition = new ArtifactMemberTypeUseDefinition { Member = member, Type = candidate.Type }
             };
             var binding = TypeUseBindingDerivation.BindTransferredType(typeUse, baseFacts);
+            var omissions = binding.Diagnostic?.Code == GenerationDiagnosticCodes.MissingTypeUseTarget
+                ? DeclarationInputMemberTargetOmissions.For(candidate.Inputs)
+                : [];
+            if (omissions.Length > 0)
+            {
+                binding = (null, binding.Inputs, null);
+                _diagnostics.AddRange(omissions.Select(omission => omission.Definition.Diagnostic));
+            }
+
             if (binding.Diagnostic is { } diagnostic)
             {
                 _diagnostics.Add(diagnostic with { Facts = [.. proof.Select(fact => fact.Id).Concat(diagnostic.Facts).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)] });
@@ -282,6 +292,7 @@ static class EntryPointInputMemberDerivation
                 Definition = new ArtifactMemberDeclarationDefinition { Member = member, DeclarationOrder = order }
             };
             List<GenerationFact> outputs = [declaration, typeUse with { Id = Id(member, "type") }];
+            outputs.AddRange(omissions.Select(omission => DeclarationInputMemberTargetOmissions.Transfer(omission, typeUse, Id(member, $"omission:{omission.Id.Value}"))));
             if (binding.Target is { } target)
             {
                 outputs.Add(new TypeUseBindingFact

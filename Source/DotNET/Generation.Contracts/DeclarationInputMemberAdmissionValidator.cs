@@ -5,6 +5,21 @@ namespace Cratis.Screenplay.Generation;
 
 static class DeclarationInputMemberAdmissionValidator
 {
+    public static void Member(DeclarationMemberKey member, GenerationFact fact, string path, AdapterContributionAdmissionContext context)
+    {
+        if (!AdapterContributionText.IsNormalized(member.Declaration.Value, true) || member.Declaration != fact.Subject)
+        {
+            Invalid(fact, $"{path}.Definition.Member.Declaration", "Declaration must equal the exact fact subject", context);
+        }
+
+        if (!ValidName(member.Name))
+        {
+            Invalid(fact, $"{path}.Definition.Member.Name", "Member name must be a normalized Screenplay identifier", context);
+        }
+
+        BackendScopeFactAdmissionValidator.ValidateKey(member.Scope, $"{path}.Definition.Member.Scope", (fact.Id, fact.Subject), context);
+    }
+
     public static void Validate(GenerationFact fact, string path, AdapterContributionAdmissionContext context)
     {
         switch (fact)
@@ -48,21 +63,6 @@ static class DeclarationInputMemberAdmissionValidator
 
     static void Invalid(GenerationFact fact, string path, string message, AdapterContributionAdmissionContext context) =>
         context.Add(AdapterContributionAdmissionDiagnosticCode.OwnershipMismatch, path, message, fact.Id, fact.Subject);
-
-    static void Member(DeclarationMemberKey member, GenerationFact fact, string path, AdapterContributionAdmissionContext context)
-    {
-        if (!AdapterContributionText.IsNormalized(member.Declaration.Value, true) || member.Declaration != fact.Subject)
-        {
-            Invalid(fact, $"{path}.Definition.Member.Declaration", "Declaration must equal the exact fact subject", context);
-        }
-
-        if (!ValidName(member.Name))
-        {
-            Invalid(fact, $"{path}.Definition.Member.Name", "Member name must be a normalized Screenplay identifier", context);
-        }
-
-        BackendScopeFactAdmissionValidator.ValidateKey(member.Scope, $"{path}.Definition.Member.Scope", (fact.Id, fact.Subject), context);
-    }
 
     static void Transfer(EntryPointInputTransferFact fact, string path, AdapterContributionAdmissionContext context)
     {

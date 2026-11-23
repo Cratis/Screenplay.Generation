@@ -182,7 +182,8 @@ static class GranularFactFreezer
             Artifact = FreezeArtifactKey(definition.Artifact, $"{path}.Artifact", context),
             Name = definition.Name ?? string.Empty,
             Description = definition.Description,
-            File = definition.File
+            File = definition.File,
+            NameConflictYield = ConceptNameYieldAdmission.Freeze(definition.NameConflictYield, $"{path}.NameConflictYield", context)
         };
     }
 
