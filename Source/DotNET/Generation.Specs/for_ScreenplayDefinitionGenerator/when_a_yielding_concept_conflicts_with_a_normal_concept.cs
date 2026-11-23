@@ -6,8 +6,14 @@ namespace Cratis.Screenplay.Generation.for_ScreenplayDefinitionGenerator;
 public class when_a_yielding_concept_conflicts_with_a_normal_concept : given.yielding_concepts
 {
     GeneratedScreenplayDefinition _result = null!;
+    ResolvedApplicationGraph _resolved = null!;
 
-    void Because() => _result = Generate([.. Command(TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named), .. Candidate("enum", true), .. Candidate("vogen", false, true)]);
+    void Because()
+    {
+        GenerationFact[] facts = [.. Command(TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named), .. Candidate("enum", true), .. Candidate("vogen", false, true)];
+        _result = Generate(facts);
+        _resolved = new GenerationResolver().Resolve([Contribution(facts)]);
+    }
 
     [Fact] void should_succeed() => _result.IsSuccess.ShouldBeTrue();
     [Fact] void should_keep_the_normal_concept() => _result.Source.ShouldContain("concept Permissions : Int");
@@ -16,6 +22,8 @@ public class when_a_yielding_concept_conflicts_with_a_normal_concept : given.yie
     [Fact] void should_not_bind_the_command_to_the_winning_name() => Member(_result).Type.Subject.ShouldBeNull();
     [Fact] void should_preserve_the_observed_subject() => _result.AdapterRun.Facts.Select(record => record.Fact).OfType<ArtifactMemberTypeUseFact>().Single().Definition.Type.ObservedTypeSubject.ShouldEqual(Target);
     [Fact] void should_report_the_adapter_warning_once() => _result.Diagnostics.Count(IsWarning).ShouldEqual(1);
+    [Fact] void should_preserve_the_adapter_outcome() => _result.Diagnostics.Single(IsWarning).Outcome.ShouldEqual(GenerationDiagnosticOutcome.Unsupported);
+    [Fact] void should_keep_the_resolver_only_fallback() => _resolved.Artifacts.Single(artifact => artifact.Key.Kind == ArtifactKind.Command).Variants.Single().Definition.Properties.Single().Type.Subject.ShouldBeNull();
     [Fact] void should_keep_the_warning_source() => _result.Diagnostics.Single(IsWarning).Source!.Path.ShouldEqual("enum.cs");
     [Fact] void should_omit_the_declaration_with_diagnostic() => _result.AdapterRun.Facts.Single(record => record.Fact.Id == Id("concept-enum")).Disposition.ShouldEqual(GenerationFactDisposition.OmittedWithDiagnostic);
     [Fact] void should_not_report_missing_or_incomplete_targets() => _result.Diagnostics.Any(diagnostic => new[] { GenerationDiagnosticCodes.MissingTypeUseTarget, GenerationDiagnosticCodes.IncompleteArtifact, GenerationDiagnosticCodes.ConflictingConceptName }.Contains(diagnostic.Code, StringComparer.Ordinal)).ShouldBeFalse();

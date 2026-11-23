@@ -22,7 +22,7 @@ static class ConceptNameYieldSelection
             .Where(group => group.Select(concept => concept.Key.Subject).Distinct().Count() > 1)
             .Select(group => group.Key).Concat(reservations.Select(reservation => reservation.Name)).ToHashSet(StringComparer.Ordinal);
         var conflicts = concepts.Where(concept => conflictNames.Contains(concept.Name)).ToArray();
-        var yielded = conflicts.Where(concept => IsYielding(concept.Fact) && !HasStructuralConflict(concept, concepts)).ToArray();
+        var yielded = conflicts.Where(concept => ShouldYield(concept, concepts)).ToArray();
         if (yielded.Length == 0)
         {
             return input;
@@ -42,7 +42,7 @@ static class ConceptNameYieldSelection
 
         return input with
         {
-            Facts = [.. facts, .. fallbacks.Select(record => record.Fact)],
+            Facts = facts,
             Diagnostics = [.. input.Diagnostics, .. diagnostics],
             Dispositions = dispositions.ToImmutable(),
             NameYieldFallbacks = fallbacks,
@@ -59,13 +59,18 @@ static class ConceptNameYieldSelection
         };
     }
 
+    static bool ShouldYield(ConceptDeclaration concept, ConceptDeclaration[] concepts) =>
+        IsYielding(concept.Fact) && !HasStructuralConflict(concept, concepts) &&
+        !concepts.Any(other => other.Key == concept.Key && !IsYielding(other.Fact));
+
     static bool HasStructuralConflict(ConceptDeclaration concept, ConceptDeclaration[] concepts) =>
         concepts.Any(other => other.Key == concept.Key && (other.Name != concept.Name || other.Description != concept.Description));
 
     static bool IsYielding(GenerationFact fact) => fact is ArtifactDeclarationFact
     {
         Definition.NameConflictYield.Diagnostic: { } diagnostic
-    } declaration && diagnostic.Subject == declaration.Subject && diagnostic.Facts.Contains(declaration.Id);
+    } declaration && diagnostic.Outcome == GenerationDiagnosticOutcome.Unsupported &&
+        diagnostic.Subject == declaration.Subject && diagnostic.Facts.Contains(declaration.Id);
 
     static ConceptDeclaration? Concept(GenerationFact fact) => fact switch
     {
@@ -81,7 +86,6 @@ static class ConceptNameYieldSelection
         var marker = ((ArtifactDeclarationFact)concept.Fact).Definition.NameConflictYield!;
         return marker.Diagnostic with
         {
-            Outcome = GenerationDiagnosticOutcome.Unsupported,
             Facts = [.. marker.Diagnostic.Facts.Concat(facts.Where(fact => IsConceptFacet(fact, concept)).Select(fact => fact.Id)).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)]
         };
     }
@@ -109,7 +113,7 @@ static class ConceptNameYieldSelection
 
     static bool Matches(ArtifactMemberTypeUseFact typeUse, ConceptDeclaration concept, HashSet<ArtifactKey> retained) =>
         typeUse.Definition.Type.ObservedTypeSubject == concept.Key.Subject &&
-        typeUse.Definition.Member.Artifact.Scope == concept.Key.Scope && !retained.Contains(concept.Key);
+        typeUse.Definition.Type.ObservedScope == concept.Key.Scope && !retained.Contains(concept.Key);
 
     static GenerationFactRecord Fallback(ArtifactMemberTypeUseFact typeUse, ConceptDeclaration concept, GenerationDiagnostic diagnostic, ConceptNameReservations.Reservation[] conflictInputs)
     {

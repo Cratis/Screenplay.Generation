@@ -21,7 +21,8 @@ static class ConceptNameReservations
                 .Where(fact => !bindings.Contains(fact.Definition.Member))
                 .Select(fact => new Reservation(fact.Definition.Type.Name, fact)),
             .. facts.OfType<ArtifactFact>().SelectMany(fact => fact.Definition.Properties
-                .Where(property => property.Type.Subject is not { } subject || !conceptSubjects.Contains(subject))
+                .Where(property => !bindings.Contains(new ArtifactMemberKey { Artifact = fact.Definition.Key, Name = property.Name }) &&
+                    (property.Type.Subject is not { } subject || !conceptSubjects.Contains(subject)))
                 .Select(property => new Reservation(property.Type.Name, fact)))
         ];
     }

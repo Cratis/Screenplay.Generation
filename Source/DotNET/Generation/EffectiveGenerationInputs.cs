@@ -16,6 +16,8 @@ sealed record EffectiveGenerationInputs(
 
     public ImmutableArray<GenerationDerivationRuleRecord> NameYieldRules { get; init; } = [];
 
+    public IEnumerable<GenerationFact> BindingFacts => Facts.Concat(NameYieldFallbacks.Select(record => record.Fact));
+
     public IEnumerable<GenerationFact> OmittedFacts => OriginalFacts.Where(HasDisposition);
 
     public bool HasDisposition(GenerationFact fact) => Dispositions.ContainsKey(GenerationFactInstance.Of(fact));

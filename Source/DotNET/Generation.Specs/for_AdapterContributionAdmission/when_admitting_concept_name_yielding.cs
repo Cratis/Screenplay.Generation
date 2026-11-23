@@ -11,6 +11,8 @@ public class when_admitting_concept_name_yielding : given.a_contribution
     AdapterContributionAdmissionResult _foreignDeclaration = null!;
     AdapterContributionAdmissionResult _foreignSubject = null!;
     AdapterContributionAdmissionResult _notConcept = null!;
+    AdapterContributionAdmissionResult _missingOutcome = null!;
+    AdapterContributionAdmissionResult _conflictingOutcome = null!;
     ArtifactDeclarationFact _declaration = null!;
 
     void Because()
@@ -22,6 +24,8 @@ public class when_admitting_concept_name_yielding : given.a_contribution
         _foreignDeclaration = WithDiagnostic(_declaration.Definition.NameConflictYield!.Diagnostic with { Facts = [Id("not-in-this-contribution")] });
         _foreignSubject = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Subject = ExternalSubject });
         _notConcept = Admit(contribution: Contribution([_declaration with { Definition = _declaration.Definition with { Artifact = ArtifactKey(ArtifactSubject, ArtifactKind.Command) } }]));
+        _missingOutcome = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Outcome = null });
+        _conflictingOutcome = WithDiagnostic(_declaration.Definition.NameConflictYield.Diagnostic with { Outcome = GenerationDiagnosticOutcome.Conflict });
     }
 
     [Fact] void should_admit_the_producer_owned_marker() => _valid.IsAdmitted.ShouldBeTrue();
@@ -33,6 +37,9 @@ public class when_admitting_concept_name_yielding : given.a_contribution
     [Fact] void should_reject_a_declaration_outside_the_contribution() => _foreignDeclaration.IsAdmitted.ShouldBeFalse();
     [Fact] void should_reject_another_subjects_diagnostic() => _foreignSubject.IsAdmitted.ShouldBeFalse();
     [Fact] void should_reject_markers_on_non_concepts() => _notConcept.IsAdmitted.ShouldBeFalse();
+    [Fact] void should_reject_a_missing_diagnostic_outcome() => _missingOutcome.IsAdmitted.ShouldBeFalse();
+    [Fact] void should_reject_a_conflicting_diagnostic_outcome() => _conflictingOutcome.IsAdmitted.ShouldBeFalse();
+    [Fact] void should_preserve_the_diagnostic_outcome() => _valid.Snapshot!.Facts.OfType<ArtifactDeclarationFact>().Single().Definition.NameConflictYield!.Diagnostic.Outcome.ShouldEqual(GenerationDiagnosticOutcome.Unsupported);
 
     AdapterContributionAdmissionResult WithDiagnostic(GenerationDiagnostic diagnostic) => Admit(contribution: Contribution(
     [
@@ -54,6 +61,7 @@ public class when_admitting_concept_name_yielding : given.a_contribution
                 {
                     Code = "example.EnumConceptNameConflict",
                     Severity = GenerationDiagnosticSeverity.Warning,
+                    Outcome = GenerationDiagnosticOutcome.Unsupported,
                     Message = "The concept yields when its name conflicts",
                     Subject = ArtifactSubject,
                     Source = Source(),

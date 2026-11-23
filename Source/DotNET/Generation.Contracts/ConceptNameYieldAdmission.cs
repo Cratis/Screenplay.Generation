@@ -42,6 +42,16 @@ static class ConceptNameYieldAdmission
                     declaration.Subject);
             }
 
+            if (diagnostic.Outcome != GenerationDiagnosticOutcome.Unsupported)
+            {
+                context.Add(
+                    AdapterContributionAdmissionDiagnosticCode.InvalidContributionDiagnostic,
+                    $"Contribution.Facts[{declaration.Id}].Definition.NameConflictYield.Diagnostic.Outcome",
+                    "A name-conflict yield diagnostic must have the Unsupported outcome",
+                    declaration.Id,
+                    declaration.Subject);
+            }
+
             AdapterContributionAdmissionValidator.ValidateMethodDiagnostic((adapter, ids, authority), diagnostic, context);
         }
     }
