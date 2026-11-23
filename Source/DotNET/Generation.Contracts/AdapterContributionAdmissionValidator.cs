@@ -656,9 +656,14 @@ static class AdapterContributionAdmissionValidator
         MethodDiagnosticProjectionFact => GenerationFactCapability.MethodDiagnosticProjection,
         OccurrenceOmissionDiagnosticFact => GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => GenerationFactCapability.TypeUseTargetOmitted,
-        TypeUseCompatibilityProjectionFact => GenerationFactCapability.TypeUseCompatibilityProjection,
         TypeUseBindingPolicyFact => GenerationFactCapability.TypeUseBindingPolicy,
         DeclarationInputMemberTargetOmittedFact => GenerationFactCapability.DeclarationInputMemberTargetOmitted,
+        _ => ProjectionCapability(fact)
+    };
+
+    static GenerationFactCapability ProjectionCapability(GenerationFact fact) => fact switch
+    {
+        TypeUseCompatibilityProjectionFact => GenerationFactCapability.TypeUseCompatibilityProjection,
         _ => UsageCapability(fact)
     };
 

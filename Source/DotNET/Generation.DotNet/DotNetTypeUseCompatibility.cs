@@ -23,9 +23,18 @@ public static class DotNetTypeUseCompatibility
     /// <param name="context">The analyzed authored source context.</param>
     /// <param name="observationId">The identifier of the original type-use fact.</param>
     /// <returns>The lossless observation and the explicit printable projection.</returns>
-    public static DotNetTypeUseCompatibilityResult Project(ITypeSymbol type, DotNetAnalysisContext context, FactId observationId)
+    public static DotNetTypeUseCompatibilityResult Project(ITypeSymbol type, DotNetAnalysisContext context, FactId observationId) =>
+        Project(type, context, observationId, null);
+
+    /// <summary>Observes an exact type and its explicitly supplied per-symbol scopes before selecting its printable symbol.</summary>
+    /// <param name="type">The exact source type symbol.</param>
+    /// <param name="context">The analyzed authored source context.</param>
+    /// <param name="observationId">The identifier of the original type-use fact.</param>
+    /// <param name="scopeForType">Optional scope lookup for authored named types; unowned symbols never receive a scope.</param>
+    /// <returns>The lossless scoped observation and the explicit printable projection.</returns>
+    public static DotNetTypeUseCompatibilityResult Project(ITypeSymbol type, DotNetAnalysisContext context, FactId observationId, Func<INamedTypeSymbol, BackendScopeKey?>? scopeForType = null)
     {
-        var exact = Observe(type, context);
+        var exact = Observe(type, context, scopeForType);
         var optional = exact.Shape[0] == TypeUseShapeKind.Optional;
         var index = optional ? 1 : 0;
         var collection = exact.Shape[index] == TypeUseShapeKind.Collection;
@@ -44,25 +53,26 @@ public static class DotNetTypeUseCompatibility
                 {
                     Name = selected.Name,
                     ObservedTypeSubject = selected.Subject,
+                    ObservedScope = selected.Scope,
                     Shape = [.. optional ? new[] { TypeUseShapeKind.Optional } : [], .. collection ? new[] { TypeUseShapeKind.Collection } : [], TypeUseShapeKind.Named]
                 }
             }
         };
     }
 
-    static TypeUseDefinition Observe(ITypeSymbol type, DotNetAnalysisContext context)
+    static TypeUseDefinition Observe(ITypeSymbol type, DotNetAnalysisContext context, Func<INamedTypeSymbol, BackendScopeKey?>? scopeForType)
     {
         var shape = new List<TypeUseShapeKind>();
         var nodes = new List<TypeUseNodeObservation>();
         var current = type;
         while (true)
         {
-            nodes.Add(NodeFor(current, context));
+            nodes.Add(NodeFor(current, context, scopeForType));
             var (kind, next) = Next(current);
             shape.Add(kind);
             if (next is null)
             {
-                return new() { Name = nodes[^1].Name, ObservedTypeSubject = nodes[^1].Subject, Shape = [.. shape], Nodes = [.. nodes] };
+                return new() { Name = nodes[^1].Name, ObservedTypeSubject = nodes[^1].Subject, ObservedScope = nodes[^1].Scope, Shape = [.. shape], Nodes = [.. nodes] };
             }
 
             current = next;
@@ -85,9 +95,19 @@ public static class DotNetTypeUseCompatibility
         return collection ? (TypeUseShapeKind.Collection, element) : (TypeUseShapeKind.Named, null);
     }
 
-    static TypeUseNodeObservation NodeFor(ITypeSymbol type, DotNetAnalysisContext context) => new()
+    static TypeUseNodeObservation NodeFor(ITypeSymbol type, DotNetAnalysisContext context, Func<INamedTypeSymbol, BackendScopeKey?>? scopeForType)
     {
-        Name = type is IArrayTypeSymbol ? type.ToDisplayString() : DotNetTypeShapes.TypeName(type),
-        Subject = type is INamedTypeSymbol named ? context.SubjectForType(named) : null
-    };
+        if (type is not INamedTypeSymbol named)
+        {
+            return new() { Name = DotNetTypeShapes.TypeName(type) };
+        }
+
+        var subject = context.SubjectForType(named);
+        return new()
+        {
+            Name = DotNetTypeShapes.TypeName(type),
+            Subject = subject,
+            Scope = subject is null ? null : scopeForType?.Invoke(named)
+        };
+    }
 }

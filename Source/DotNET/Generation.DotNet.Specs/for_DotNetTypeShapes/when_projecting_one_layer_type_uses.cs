@@ -21,6 +21,7 @@ public class when_projecting_one_layer_type_uses : given.a_compilation
                 string? Optional,
                 int? NullableNamed,
                 System.Collections.Generic.List<string> Collection,
+                System.Collections.Generic.List<int[]> ArrayElements,
                 System.Collections.Generic.List<string>? OptionalCollection,
                 System.Collections.Generic.List<string?> OptionalElements,
                 System.Collections.Generic.List<string?>? BothOptional,
@@ -42,6 +43,9 @@ public class when_projecting_one_layer_type_uses : given.a_compilation
     [Fact] void should_preserve_optional_parity() => Parity("Optional").ShouldBeTrue();
     [Fact] void should_preserve_nullable_named_parity() => Parity("NullableNamed").ShouldBeTrue();
     [Fact] void should_preserve_collection_parity() => Parity("Collection").ShouldBeTrue();
+    [Fact] void should_preserve_array_element_parity() => Parity("ArrayElements").ShouldBeTrue();
+    [Fact] void should_not_invent_an_array_node_name() => _results["ArrayElements"].Observation.Nodes![1].Name.ShouldEqual(_legacy["ArrayElements"].Name);
+    [Fact] void should_reject_a_legacy_array_name_that_cannot_be_printed() => TypeUseCompatibilityProjectionValidation.Valid(_results["ArrayElements"].Projection, _results["ArrayElements"].Observation).ShouldBeFalse();
     [Fact] void should_preserve_optional_collection_parity() => Parity("OptionalCollection").ShouldBeTrue();
     [Fact] void should_preserve_optional_element_parity() => Parity("OptionalElements").ShouldBeTrue();
     [Fact] void should_preserve_both_optional_parity() => Parity("BothOptional").ShouldBeTrue();

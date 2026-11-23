@@ -194,6 +194,10 @@ var projection = new TypeUseCompatibilityProjectionFact
 
 Here `symbol`, `context`, `owner`, `member`, and exact `evidence` are the adapter's existing source-analysis values. Contribute both facts, not a replacement observation. For example, `List<List<Value>>` retains `Collection → Collection → Named` and the terminal `Value` subject, but prints the intermediate `List` with one collection flag. It must never bind to the hidden `Value` concept.
 
+For scoped source types, pass the optional fourth `scopeForType` callback (`Func<INamedTypeSymbol, BackendScopeKey?>`). The helper calls it only for authored symbols with an observed subject and consistently records its result on that node, the exact terminal when applicable, and the selected printable type. The callback can return different scopes for a container and its element. Existing three-argument calls remain unscoped. Do not patch only `Observation.ObservedScope`: supplied terminal node evidence must agree with it.
+
+Array symbols have no legacy printable `Name`. Their nodes retain that name rather than substituting `ToDisplayString()`; compatibility evidence containing an unnamed array node is rejected, including `List<int[]>`, instead of guessing an identity or flattening another collection. The existing exact `TypeUseFor` path remains available for directly representable array shapes.
+
 | Source type | Exact shape (outermost first) | Version 1 printable type |
 | --- | --- | --- |
 | `string` | `Named` | `String` |
@@ -204,6 +208,7 @@ Here `symbol`, `context`, `owner`, `member`, and exact `evidence` are the adapte
 | `List<string?>` | `Collection, Optional, Named` | `String[]` |
 | `List<string?>?` | `Optional, Collection, Optional, Named` | `String[] optional` |
 | `List<int?>` | `Collection, Optional, Named` | `Nullable[]` |
+| `List<int[]>` | `Collection, Collection, Named` | No legacy printable name; rejected |
 | `List<List<string>>` | `Collection, Collection, Named` | `List[]` |
 | `List<Container<Value>>` with an authored enumerable container | `Collection, Collection, Named` | `Container[]`, using the container's subject |
 
