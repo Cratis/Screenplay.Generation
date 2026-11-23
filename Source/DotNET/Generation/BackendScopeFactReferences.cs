@@ -43,6 +43,13 @@ static class BackendScopeFactReferences
     {
         ArtifactUsageDeclarationFact declaration => [declaration.Definition.Artifact.Scope],
         EntryPointFact entry => [entry.Definition.Artifact.Scope],
+        _ => DiagnosticScopes(fact)
+    };
+
+    static IEnumerable<BackendScopeKey?> DiagnosticScopes(GenerationFact fact) => fact switch
+    {
+        MethodDiagnosticProjectionFact projection => [projection.Definition.Scope],
+        OccurrenceOmissionDiagnosticFact candidate => [candidate.Definition?.Occurrence?.Scope],
         _ => ObservationScopes(fact)
     };
 

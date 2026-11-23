@@ -356,7 +356,7 @@ static class AdapterContributionFreezer
         AdapterContributionAdmissionContext context) => fact switch
         {
             TypeUseTargetOmittedFact omission => GranularFactFreezer.Freeze(omission, envelope, context),
-            _ => MethodEligibilityFreezer.Freeze(fact, envelope, context) ?? UnsupportedFact(fact, envelope.Path, context)
+            _ => OccurrenceOmissionDiagnosticFreezer.Freeze(fact, envelope, context) ?? DiagnosticIntentFreezer.Freeze(fact, envelope, context) ?? MethodEligibilityFreezer.Freeze(fact, envelope, context) ?? UnsupportedFact(fact, envelope.Path, context)
         };
 
     static FactId MissingFactId(string path, AdapterContributionAdmissionContext context)
@@ -916,7 +916,8 @@ static class AdapterContributionFreezer
             Outcome = diagnostic.Outcome,
             Facts = FreezeDiagnosticFacts(diagnostic.Facts, $"{path}.Facts", context),
             Source = diagnostic.Source is null ? null : FreezeSource(diagnostic.Source),
-            Subject = diagnostic.Subject is null ? null : FreezeSubject(diagnostic.Subject, $"{path}.Subject", context)
+            Subject = diagnostic.Subject is null ? null : FreezeSubject(diagnostic.Subject, $"{path}.Subject", context),
+            Lineage = diagnostic.Lineage
         };
 
     static ImmutableArray<FactId> FreezeDiagnosticFacts(
@@ -1025,6 +1026,8 @@ static class AdapterContributionFreezer
 
     static int TypeUseOmissionFamily(GenerationFact fact) => fact switch
     {
+        MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
+        OccurrenceOmissionDiagnosticFact => (int)GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageFamily(fact)
     };

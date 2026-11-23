@@ -134,7 +134,7 @@ static class Canonical
         var identity = diagnostic.Source?.FileIdentity;
         int? outcome = diagnostic.Outcome is null ? null : (int)diagnostic.Outcome.Value;
 
-        return Structural(
+        var key = Structural(
             Invariant((int)diagnostic.Severity, "D2"),
             diagnostic.Code,
             diagnostic.Source?.Path,
@@ -149,6 +149,7 @@ static class Canonical
             identity is null ? "0" : "1",
             identity?.Project,
             identity?.Path);
+        return diagnostic.Lineage is null ? key : Structural(key, global::Cratis.Screenplay.Generation.Structural.DiagnosticLineage(diagnostic.Lineage));
     }
 
     static string? TypeReference(TypeReferenceDefinition? type)

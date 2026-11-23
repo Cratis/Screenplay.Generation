@@ -218,6 +218,12 @@ public enum GenerationFactCapability
     /// <summary><see cref="TypeUseTargetOmittedFact"/> facts.</summary>
     TypeUseTargetOmitted = 23,
 
+    /// <summary><see cref="MethodDiagnosticProjectionFact"/> opt-in diagnostic projection intents.</summary>
+    MethodDiagnosticProjection = 28,
+
+    /// <summary><see cref="OccurrenceOmissionDiagnosticFact"/> opt-in per-occurrence omission candidates.</summary>
+    OccurrenceOmissionDiagnostic = 29,
+
     /// <summary><see cref="DeclarationInputMemberTargetOmittedFact"/> facts.</summary>
     DeclarationInputMemberTargetOmitted = 32
 }
