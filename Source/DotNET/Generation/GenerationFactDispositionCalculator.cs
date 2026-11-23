@@ -38,7 +38,7 @@ internal static class GenerationFactDispositionCalculator
             .Select(group => group.Key)
             .ToHashSet(StringComparer.Ordinal);
         var validScopeFacts = BackendScopeFactResolver.ValidFacts(admitted, []).Select(fact => fact.Id).ToHashSet();
-        var context = new CalculationContext(graph, coverage, diagnostics, validScopeFacts);
+        var context = new CalculationContext(graph, coverage, [.. diagnostics.Concat(OmissionDiagnosticGroupValidation.Validate(admitted))], validScopeFacts);
 
         return
         [
@@ -61,6 +61,11 @@ internal static class GenerationFactDispositionCalculator
 
     static GenerationFactRecord CalculateStructural(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
     {
+        if (fact is OmittedFactDiagnosticGroupFact group)
+        {
+            return OmissionGroupDisposition(group, context);
+        }
+
         if (fact is MethodDiagnosticProjectionFact)
         {
             return DiagnosticIntentDisposition(fact, context);
@@ -77,6 +82,12 @@ internal static class GenerationFactDispositionCalculator
         }
 
         return NeutralDisposition(fact, context) ?? GranularDisposition(fact, context) ?? ClassifiedBySemanticKey(fact, context);
+    }
+
+    static GenerationFactRecord OmissionGroupDisposition(OmittedFactDiagnosticGroupFact group, CalculationContext context)
+    {
+        var diagnostics = CanonicalDiagnostics(context.Diagnostics.Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.InvalidOmissionDiagnosticGroup && diagnostic.Facts.Contains(group.Id)));
+        return new() { Fact = group, Disposition = diagnostics.IsEmpty ? GenerationFactDisposition.ProvenanceOnly : GenerationFactDisposition.OmittedWithDiagnostic, Diagnostics = diagnostics };
     }
 
     static GenerationFactRecord DiagnosticIntentDisposition(GenerationFact fact, CalculationContext context)

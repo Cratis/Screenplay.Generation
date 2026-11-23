@@ -219,7 +219,10 @@ public enum GenerationFactCapability
     TypeUseTargetOmitted = 23,
 
     /// <summary><see cref="MethodDiagnosticProjectionFact"/> opt-in diagnostic projection intents.</summary>
-    MethodDiagnosticProjection = 28
+    MethodDiagnosticProjection = 28,
+
+    /// <summary><see cref="OmittedFactDiagnosticGroupFact"/> fallback diagnostic groups.</summary>
+    OmittedFactDiagnosticGroup = 29
 }
 
 /// <summary>

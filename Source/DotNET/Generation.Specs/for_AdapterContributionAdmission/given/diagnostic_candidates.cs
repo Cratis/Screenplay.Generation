@@ -8,7 +8,7 @@ public class diagnostic_candidates : for_GenerationFactDerivation.given.diagnost
     protected static AdapterDescriptor Descriptor() => new()
     {
         Identity = Observer, SourceLanguage = AdapterSourceLanguage.CSharp, Category = AdapterCategory.EventStore,
-        EmittedFactCapabilities = [GenerationFactCapability.ArtifactDeclaration, GenerationFactCapability.MethodFactSupport, GenerationFactCapability.MethodDiagnosticProjection]
+        EmittedFactCapabilities = [GenerationFactCapability.ArtifactDeclaration, GenerationFactCapability.MethodFactSupport, GenerationFactCapability.MethodDiagnosticProjection, GenerationFactCapability.OmittedFactDiagnosticGroup]
     };
 
     protected static AdapterContributionAdmissionResult Admit(MethodDiagnosticProjectionFact intent, MethodFactSupportFact? support = null, IReadOnlyList<GenerationDiagnostic>? diagnostics = null, AdapterDescriptor? descriptor = null) =>
@@ -17,7 +17,7 @@ public class diagnostic_candidates : for_GenerationFactDerivation.given.diagnost
             new() { Adapter = Observer, Facts = [Observation(), intent, support ?? Support()], Diagnostics = diagnostics ?? [] },
             new Authority());
 
-    sealed class Authority : ISourceAuthorityValidator
+    protected sealed class Authority : ISourceAuthorityValidator
     {
         public bool IsAuthoritative(SourceRange source) => source.Path == Invocation.Path;
     }

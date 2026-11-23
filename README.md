@@ -42,6 +42,7 @@ See [Build a .NET source adapter](Documentation/guides/build-source-adapter.md) 
 | Exact method eligibility with conditional observation support | No | Yes |
 | Opt-in query input transfer from declaration-owned surfaces | No | Yes |
 | Opt-in method diagnostic projection with diagnostic lineage | No | Yes |
+| Opt-in coalescing of generic omission diagnostics | No | Yes |
 
 Current `main` also supports [query input derivation from declaration surfaces](Documentation/guides/query-input-member-derivation.md): explicit transfer intent and proved execution/source order add exact inputs without turning source declarations into artifacts. Ordinary `Reads` facts retain their original meaning. Method-dependent observations are selected before all derivation and resolution; the adapter guide documents the source-neutral eligibility proof contract.
 

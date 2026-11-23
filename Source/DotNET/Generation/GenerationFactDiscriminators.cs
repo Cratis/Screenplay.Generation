@@ -14,6 +14,7 @@ internal static class GenerationFactDiscriminators
     static bool FamilySupported(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact projection => DiagnosticIntentValidation.Valid(projection),
+        OmittedFactDiagnosticGroupFact group => OmissionDiagnosticGroupValidation.Valid(group),
         ArtifactFact or
         ArtifactPlacementFact or
         ArtifactDeclarationFact or
