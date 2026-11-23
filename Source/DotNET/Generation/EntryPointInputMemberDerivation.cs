@@ -84,10 +84,7 @@ static class EntryPointInputMemberDerivation
         Value = $"generation:derive:entry-point-input-members:1:{facet}:{Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(Structural.ArtifactMemberKey(member)))}"
     };
 
-    sealed record Candidate(string Execution, int? ExecutionOrder, DeclarationMemberKey Member, int MemberOrder, TypeUseDefinition Type, GenerationFact[] Inputs)
-    {
-        public TypeUseDefinition? PrintableType { get; init; }
-    }
+    sealed record Candidate(string Execution, int? ExecutionOrder, DeclarationMemberKey Member, int MemberOrder, TypeUseDefinition Type, GenerationFact[] Inputs);
 
     sealed class EndpointSelection(ImmutableArray<GenerationFactRecord> baseFacts, ArtifactKey endpoint, EntryPointInputTransferFact[] intents)
     {
@@ -242,7 +239,7 @@ static class EntryPointInputMemberDerivation
             }
 
             var exact = typeUses.Select(typeUse => typeUse.Definition.Type).OrderByDescending(observation => observation.Nodes is not null).First();
-            _candidates.Add(candidate with { MemberOrder = orders[0], Type = exact, PrintableType = type });
+            _candidates.Add(candidate with { MemberOrder = orders[0], Type = exact });
         }
 
         bool ProveOrder()
@@ -289,7 +286,7 @@ static class EntryPointInputMemberDerivation
                 Evidence = proof[0].Evidence,
                 Definition = new ArtifactMemberTypeUseDefinition { Member = member, Type = candidate.Type }
             };
-            var printable = typeUse with { Definition = typeUse.Definition with { Type = candidate.PrintableType ?? candidate.Type } };
+            var printable = typeUse with { Definition = typeUse.Definition with { Type = PrintableType(candidate) } };
             var binding = TypeUseBindingDerivation.BindTransferredType(printable, baseFacts, conceptOnly);
             var omissions = binding.Diagnostic?.Code == GenerationDiagnosticCodes.MissingTypeUseTarget || (conceptOnly && binding.Target is null)
                 ? DeclarationInputMemberTargetOmissions.For(candidate.Inputs)
@@ -351,6 +348,9 @@ static class EntryPointInputMemberDerivation
                 }
             ];
         }
+
+        TypeUseDefinition PrintableType(Candidate candidate) => candidate.Inputs.OfType<DeclarationInputMemberTypeUseFact>()
+            .Select(observation => TypeUseCompatibilityProjections.Select(observation, _facts)).FirstOrDefault() ?? candidate.Type;
 
         (bool ConceptOnly, GenerationFact[] Proof) MemberProof(Candidate candidate)
         {

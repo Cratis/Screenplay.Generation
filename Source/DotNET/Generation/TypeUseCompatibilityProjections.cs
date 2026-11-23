@@ -38,6 +38,15 @@ static class TypeUseCompatibilityProjections
 
     public static void Validate(GenerationFact fact, IReadOnlyList<GenerationFact> facts, List<GenerationDiagnostic> diagnostics)
     {
+        ValidateNodes(fact, diagnostics);
+        if (fact is TypeUseCompatibilityProjectionFact projection)
+        {
+            ValidateProjection(projection, facts, diagnostics);
+        }
+    }
+
+    static void ValidateNodes(GenerationFact fact, List<GenerationDiagnostic> diagnostics)
+    {
         if (Observation(fact) is { Nodes: not null } type && !TypeUseCompatibilityProjectionValidation.ValidObservation(type))
         {
             diagnostics.Add(new()
@@ -49,24 +58,24 @@ static class TypeUseCompatibilityProjections
                 Facts = [fact.Id], Subject = fact.Subject, Source = fact.Evidence.Source
             });
         }
+    }
 
-        if (fact is not TypeUseCompatibilityProjectionFact projection)
-        {
-            return;
-        }
-
+    static void ValidateProjection(TypeUseCompatibilityProjectionFact projection, IReadOnlyList<GenerationFact> facts, List<GenerationDiagnostic> diagnostics)
+    {
         var observations = facts.Where(candidate => candidate.Id == projection.Definition?.TypeUse && Matches(projection, candidate)).ToArray();
         var siblings = facts.OfType<TypeUseCompatibilityProjectionFact>().Count(candidate =>
             candidate.Definition?.TypeUse == projection.Definition?.TypeUse && Matches(projection, candidate));
-        if (observations.Length != 1 || siblings != 1 ||
-            !TypeUseCompatibilityProjectionValidation.Valid(projection.Definition, Observation(observations[0])))
+        if (!ValidLocalView(projection, observations, siblings))
         {
             diagnostics.Add(Invalid(projection, observations));
         }
     }
 
+    static bool ValidLocalView(TypeUseCompatibilityProjectionFact projection, GenerationFact[] observations, int count) =>
+        count == 1 && observations.Length == 1 && TypeUseCompatibilityProjectionValidation.Valid(projection.Definition, Observation(observations[0]));
+
     static IEnumerable<TypeUseCompatibilityProjectionFact> ForObservation(GenerationFact observation, IReadOnlyList<GenerationFact> facts) =>
-        facts.OfType<TypeUseCompatibilityProjectionFact>().Where(projection => projection.Definition.TypeUse == observation.Id && Matches(projection, observation));
+        facts.OfType<TypeUseCompatibilityProjectionFact>().Where(projection => projection.Definition?.TypeUse == observation.Id && Matches(projection, observation));
 
     static bool Matches(GenerationFact projection, GenerationFact observation) =>
         projection.Subject == observation.Subject && projection.Evidence.Adapter == observation.Evidence.Adapter &&

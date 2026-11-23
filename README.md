@@ -165,6 +165,54 @@ Adapters can contribute `ArtifactKind.Concept` together with independently prove
 
 Adapters that establish different facets independently can emit `ArtifactDeclarationFact`, `ArtifactMemberDeclarationFact`, `ArtifactMemberTypeUseFact`, and `ArtifactMemberRoleFact` without repeating a complete `ArtifactFact`. `TypeUseDefinition.Shape` orders optional and collection wrappers from outermost to the terminal `Named` node, so optional elements, optional collections, and nested collections remain distinct.
 
+### Versioned printable type-use views
+
+Exact observations stay strict by default: the SDK does not flatten nested collections or treat element nullability as outer optionality. An adapter that needs the legacy one-layer printing behavior explicitly contributes a `TypeUseCompatibilityProjectionFact` alongside the original observation and declares `GenerationFactCapability.TypeUseCompatibilityProjection` (31).
+
+Its definition references the local observation's `FactId` in `TypeUse`, selects `Profile = TypeUseCompatibilityProfile.OneLayerCollection` and `Version = 1`, and carries a separate printable `TypeUseDefinition` in `Type`. `SourceNodeIndex` is the zero-based index of the source symbol being printed. Version 1 consumes outer optionality and at most one collection; it does not recursively unwrap the selected symbol.
+
+`TypeUseDefinition.Nodes` is optional supplemental evidence aligned with every node of the exact `Shape`. Each node records its source name, optional subject, and optional backend scope. When supplied, the entire sequence must be present and its last node must agree with the original terminal name, subject, and scope. Intermediate selection requires this evidence; selection of the original terminal can use the existing terminal fields without `Nodes`. Missing supplemental evidence on another equivalent observation is not a competing type assertion; conflicting supplied evidence is a conflict.
+
+The .NET opt-in helper observes Roslyn symbols in one traversal and returns both views without changing `DotNetTypeShapes.TypeUseFor` or `TypeReferenceFor`:
+
+```csharp
+var id = new FactId { Value = "adapter:member-type" };
+var result = DotNetTypeUseCompatibility.Project(symbol, context, id);
+
+var observation = new ArtifactMemberTypeUseFact
+{
+    Id = id, Subject = owner, Evidence = evidence,
+    Definition = new() { Member = member, Type = result.Observation }
+};
+var projection = new TypeUseCompatibilityProjectionFact
+{
+    Id = new() { Value = "adapter:member-view" },
+    Subject = owner, Evidence = evidence,
+    Definition = result.Projection
+};
+```
+
+Here `symbol`, `context`, `owner`, `member`, and exact `evidence` are the adapter's existing source-analysis values. Contribute both facts, not a replacement observation. For example, `List<List<Value>>` retains `Collection → Collection → Named` and the terminal `Value` subject, but prints the intermediate `List` with one collection flag. It must never bind to the hidden `Value` concept.
+
+| Source type | Exact shape (outermost first) | Version 1 printable type |
+| --- | --- | --- |
+| `string` | `Named` | `String` |
+| `string?` | `Optional, Named` | `String optional` |
+| `int?` | `Optional, Named` | `Int optional` |
+| `List<string>` | `Collection, Named` | `String[]` |
+| `List<string>?` | `Optional, Collection, Named` | `String[] optional` |
+| `List<string?>` | `Collection, Optional, Named` | `String[]` |
+| `List<string?>?` | `Optional, Collection, Optional, Named` | `String[] optional` |
+| `List<int?>` | `Collection, Optional, Named` | `Nullable[]` |
+| `List<List<string>>` | `Collection, Collection, Named` | `List[]` |
+| `List<Container<Value>>` with an authored enumerable container | `Collection, Collection, Named` | `Container[]`, using the container's subject |
+
+The selected node's subject and scope govern binding before lowering; the original terminal never substitutes for an intermediate symbol. Concept-only binding remains a separate opt-in: contribute `TypeUseBindingPolicyFact` against the original observation to combine the view with concept-only matching and unbound fallback. Declaration-input transfer preserves the exact type and node evidence, emits a separate endpoint projection, and includes the original observation and projection in transferred lineage.
+
+Projection references must match the observation's adapter identity, owner subject, exact evidence, and source location. A reused fact ID from another adapter receives no projection. Unknown versions/profiles, missing or foreign references, duplicate views, invalid printable flags, and mismatched source-node evidence fail closed with located diagnostics (`GEN0090` on raw generation). Different exact assertions remain conflicts even when their printable views agree. No profile, scope, identity, or primitive fallback is guessed.
+
+### Binding exact observations
+
 Generation runs the built-in `cratis.screenplay.type-use-binding@1.0.0` rule once over one fixed admitted base snapshot. It joins only exact artifact keys and subjects, never display names, adapter IDs, registration order, Roslyn symbols, or another adapter instance. A derived `TypeUseBindingFact` retains canonical input `FactId` values and complete evidence in `GenerationFactLineage`; resolved compatibility references retain the exact target role in `TypeReferenceDefinition.TargetArtifactKind`. Conflicting, incomplete, foreign-owned, malformed, or unsupported inputs omit the affected artifact without a winner, flattened fallback, or partial output.
 
 When an adapter deliberately contributes no target for an authored member type (for example, an unsupported flags enum), emit `TypeUseTargetOmittedFact` alongside that member's `ArtifactMemberTypeUseFact`. Its `Definition.Member` uses the same `ArtifactMemberKey`; `Definition.Diagnostic` carries the adapter's warning and source location. Declare `GenerationFactCapability.TypeUseTargetOmitted` in the adapter descriptor. Admission requires the same producer and member subject, an observed type subject, and valid diagnostic references. The omission cannot waive another adapter's type use.

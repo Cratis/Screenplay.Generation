@@ -222,20 +222,17 @@ static class GranularArtifactResolver
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToArray();
         typeUses = null;
-        if (typeUseVariants.Length > 1 || !TypeUseCompatibilityProjections.Agree(typeUseFacts.Select(fact => fact.Definition.Type)))
+        if (!ConsistentObservations(typeUseVariants, typeUseFacts))
         {
             return member.Conflict(typeUseFacts, "has incompatible exact type uses");
         }
 
         var selected = typeUseVariants.Length == 1 ? typeUseVariants[0] : null;
         var selectedFact = selected?.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First();
-        var projected = typeUseFacts.Select(fact => TypeUseCompatibilityProjections.Select((GenerationFact)fact, member.AllFacts));
-        if (!TypeUseCompatibilityProjections.Agree(projected))
+        if (!TrySelectPrintableView(member, typeUseFacts, selectedFact, out var effective))
         {
-            return member.Conflict(typeUseFacts.Concat(TypeUseCompatibilityProjections.Supports(typeUseFacts, member.AllFacts)), "has incompatible printable views");
+            return false;
         }
-
-        var effective = selectedFact is null ? null : TypeUseCompatibilityProjections.Select(selectedFact, member.AllFacts);
         var candidate = new MemberTypeUses(typeUseFacts, selected, effective, member.Existing?.Property.Type);
         if (selected is not null)
         {
@@ -254,6 +251,22 @@ static class GranularArtifactResolver
         }
 
         typeUses = candidate;
+        return true;
+    }
+
+    static bool ConsistentObservations(IGrouping<string, ArtifactMemberTypeUseFact>[] variants, ArtifactMemberTypeUseFact[] facts) =>
+        variants.Length <= 1 && TypeUseCompatibilityProjections.Agree(facts.Select(fact => fact.Definition.Type));
+
+    static bool TrySelectPrintableView(MemberContext member, ArtifactMemberTypeUseFact[] facts, ArtifactMemberTypeUseFact? selected, out ArtifactMemberTypeUseFact? effective)
+    {
+        effective = null;
+        var views = facts.Select(fact => TypeUseCompatibilityProjections.Select((GenerationFact)fact, member.AllFacts));
+        if (!TypeUseCompatibilityProjections.Agree(views))
+        {
+            return member.Conflict(facts.Concat(TypeUseCompatibilityProjections.Supports(facts, member.AllFacts)), "has incompatible printable views");
+        }
+
+        effective = selected is null ? null : TypeUseCompatibilityProjections.Select(selected, member.AllFacts);
         return true;
     }
 

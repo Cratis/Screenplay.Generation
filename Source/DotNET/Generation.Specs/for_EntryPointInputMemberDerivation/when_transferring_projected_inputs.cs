@@ -8,6 +8,8 @@ public class when_transferring_projected_inputs : given.omitted_input_members
     GeneratedScreenplayDefinition _absent = null!;
     GeneratedScreenplayDefinition _present = null!;
     GeneratedScreenplayDefinition _reverse = null!;
+    GeneratedScreenplayDefinition _conflict = null!;
+    GeneratedScreenplayDefinition _reverseConflict = null!;
     static readonly SubjectId Container = new() { Value = "library://Container" };
 
     void Because()
@@ -15,6 +17,9 @@ public class when_transferring_projected_inputs : given.omitted_input_members
         var facts = Facts();
         _absent = Generate(facts);
         _reverse = Generate(facts.Reverse());
+        var conflicting = ConflictingFacts(facts);
+        _conflict = Generate(conflicting);
+        _reverseConflict = Generate(conflicting.Reverse());
         _present = Generate([.. facts,
             new ArtifactDeclarationFact
             {
@@ -43,6 +48,29 @@ public class when_transferring_projected_inputs : given.omitted_input_members
     [Fact] void should_keep_order_independent_source() => _reverse.Source.ShouldEqual(_absent.Source);
     [Fact] void should_keep_order_independent_diagnostics() => Projection(_reverse.Diagnostics).ShouldEqual(Projection(_absent.Diagnostics));
     [Fact] void should_keep_order_independent_lineage() => Projection(_reverse.AdapterRun!.Derivation).ShouldEqual(Projection(_absent.AdapterRun!.Derivation));
+
+    [Fact] void should_reject_conflicting_exact_inputs_despite_equal_views() => _conflict.IsSuccess.ShouldBeFalse();
+    [Fact] void should_not_transfer_a_winning_projection_for_conflicting_exact_inputs() => _conflict.AdapterRun!.Derivation.Facts.Any(record => record.Fact is TypeUseCompatibilityProjectionFact).ShouldBeFalse();
+    [Fact] void should_keep_conflict_diagnostics_order_independent() => Projection(_reverseConflict.Diagnostics).ShouldEqual(Projection(_conflict.Diagnostics));
+
+    static GenerationFact[] ConflictingFacts(GenerationFact[] facts)
+    {
+        var original = facts.OfType<DeclarationInputMemberTypeUseFact>().Single();
+        var nodes = original.Definition.Type.Nodes!;
+        var alternate = original with
+        {
+            Id = new() { Value = "library:alternate-input" },
+            Definition = original.Definition with
+            {
+                Type = original.Definition.Type with
+                {
+                    Shape = [TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named],
+                    Nodes = [nodes[0], nodes[1], nodes[2], nodes[2], nodes[3]]
+                }
+            }
+        };
+        return [.. facts, alternate, View() with { Id = new() { Value = "library:alternate-view" }, Definition = View().Definition with { TypeUse = alternate.Id } }];
+    }
 
     static string Projection(object value) => System.Text.Json.JsonSerializer.Serialize(value);
 

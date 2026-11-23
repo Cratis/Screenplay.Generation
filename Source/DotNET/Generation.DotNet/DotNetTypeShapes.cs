@@ -133,6 +133,24 @@ public static class DotNetTypeShapes
         ? name
         : $"{char.ToLowerInvariant(name[0])}{name[1..]}";
 
+    internal static string TypeName(ITypeSymbol type) => type.SpecialType switch
+    {
+        SpecialType.System_String => "String",
+        SpecialType.System_Boolean => "Bool",
+        SpecialType.System_Byte or
+        SpecialType.System_SByte or
+        SpecialType.System_Int16 or
+        SpecialType.System_UInt16 or
+        SpecialType.System_Int32 or
+        SpecialType.System_UInt32 or
+        SpecialType.System_Int64 or
+        SpecialType.System_UInt64 => "Int",
+        SpecialType.System_Decimal or
+        SpecialType.System_Double or
+        SpecialType.System_Single => "Decimal",
+        _ => NamedTypeName(type)
+    };
+
     static TypeReferenceDefinition CreateTypeReference(
         ITypeSymbol type,
         Func<INamedTypeSymbol, SubjectId?>? subjectForType)
@@ -169,24 +187,6 @@ public static class DotNetTypeShapes
 
     static (ITypeSymbol Type, bool IsCollection) CollectionElementOf(ITypeSymbol type) =>
         DotNetSymbols.CollectionElementOf(type);
-
-    internal static string TypeName(ITypeSymbol type) => type.SpecialType switch
-    {
-        SpecialType.System_String => "String",
-        SpecialType.System_Boolean => "Bool",
-        SpecialType.System_Byte or
-        SpecialType.System_SByte or
-        SpecialType.System_Int16 or
-        SpecialType.System_UInt16 or
-        SpecialType.System_Int32 or
-        SpecialType.System_UInt32 or
-        SpecialType.System_Int64 or
-        SpecialType.System_UInt64 => "Int",
-        SpecialType.System_Decimal or
-        SpecialType.System_Double or
-        SpecialType.System_Single => "Decimal",
-        _ => NamedTypeName(type)
-    };
 
     static string NamedTypeName(ITypeSymbol type)
     {

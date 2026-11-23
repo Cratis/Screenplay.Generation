@@ -21,7 +21,7 @@ static class BackendScopeOwnershipValidator
 
     static IEnumerable<GenerationDiagnostic> ValidateEndpoints(GenerationFact[] facts, HashSet<FactId> rejected, Candidate[] artifacts)
     {
-        foreach (var reference in facts.SelectMany(fact => Endpoints(fact).Select(endpoint => (Fact: fact, Endpoint: endpoint))))
+        foreach (var reference in facts.SelectMany(fact => Endpoints(fact, facts).Select(endpoint => (Fact: fact, Endpoint: endpoint))))
         {
             if (Check(reference.Fact, reference.Endpoint, artifacts) is { } diagnostic && ShouldReport(reference.Fact, diagnostic, facts))
             {
@@ -53,14 +53,20 @@ static class BackendScopeOwnershipValidator
     static bool ShouldReport(GenerationFact fact, GenerationDiagnostic diagnostic, IReadOnlyList<GenerationFact> facts) =>
         diagnostic.Code != GenerationDiagnosticCodes.UnknownBackendScope || fact is not ArtifactMemberTypeUseFact || !TypeUseBindingPolicies.OptedIn(fact, facts);
 
-    static IEnumerable<Endpoint> Endpoints(GenerationFact fact) => fact switch
+    static IEnumerable<Endpoint> Endpoints(GenerationFact fact, IReadOnlyList<GenerationFact> facts) => fact switch
     {
         ArtifactFact artifact => ArtifactEndpoints(artifact),
-        ArtifactMemberTypeUseFact use when use.Definition.Type.ObservedTypeSubject is { } subject => [new Endpoint(subject, use.Definition.Type.ObservedScope)],
+        ArtifactMemberTypeUseFact use => TypeUseEndpoints(use, facts),
         TypeUseBindingFact binding => [new Endpoint(binding.Definition.Target.Subject, binding.Definition.Target.Scope, binding.Definition.Target.Kind)],
         RelationshipFact relationship => [new Endpoint(relationship.Definition.Key.Source, relationship.Definition.Key.SourceScope), new Endpoint(relationship.Definition.Key.Target, relationship.Definition.Key.TargetScope)],
         _ => FacetEndpoints(fact)
     };
+
+    static IEnumerable<Endpoint> TypeUseEndpoints(ArtifactMemberTypeUseFact use, IReadOnlyList<GenerationFact> facts)
+    {
+        var type = TypeUseCompatibilityProjections.Select((GenerationFact)use, facts);
+        return type.ObservedTypeSubject is { } subject ? [new Endpoint(subject, type.ObservedScope)] : [];
+    }
 
     static IEnumerable<Endpoint> ArtifactEndpoints(ArtifactFact artifact) => artifact.Definition.Properties.Where(property => property.Type.Subject is not null)
         .Select(property => new Endpoint(property.Type.Subject!, property.Type.Scope, property.Type.TargetArtifactKind));

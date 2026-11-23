@@ -62,7 +62,7 @@ public static class DotNetTypeUseCompatibility
             shape.Add(kind);
             if (next is null)
             {
-                return new() { Name = nodes[^1].Name, ObservedTypeSubject = nodes[^1].Subject, Shape = shape.ToArray(), Nodes = nodes.ToArray() };
+                return new() { Name = nodes[^1].Name, ObservedTypeSubject = nodes[^1].Subject, Shape = [.. shape], Nodes = [.. nodes] };
             }
 
             current = next;

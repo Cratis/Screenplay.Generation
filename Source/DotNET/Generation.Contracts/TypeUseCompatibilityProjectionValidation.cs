@@ -11,44 +11,63 @@ public static class TypeUseCompatibilityProjectionValidation
     /// <returns>Whether its shape, identity and supplied node evidence are valid.</returns>
     public static bool ValidObservation(TypeUseDefinition? type)
     {
-        if (type is null || !ValidShape(type.Shape) || !ValidNode(new() { Name = type.Name, Subject = type.ObservedTypeSubject, Scope = type.ObservedScope }))
+        if (type is null)
         {
             return false;
         }
 
-        return type.Nodes is not { } nodes ||
-            (nodes.Count == type.Shape.Count && nodes.All(ValidNode) &&
-             nodes[^1] == new TypeUseNodeObservation { Name = type.Name, Subject = type.ObservedTypeSubject, Scope = type.ObservedScope });
+        return ValidHeader(type) && CompleteNodes(type);
     }
 
     /// <summary>Checks a versioned printable view against the exact source-node evidence.</summary>
     /// <param name="projection">The explicit projection.</param>
     /// <param name="observation">The original exact observation.</param>
     /// <returns>Whether the view has the supported profile, stopping node, flags and identity.</returns>
-    public static bool Valid(TypeUseCompatibilityProjectionDefinition? projection, TypeUseDefinition? observation)
-    {
-        if (projection is not { Version: 1, Profile: TypeUseCompatibilityProfile.OneLayerCollection } ||
-            !ValidObservation(observation) || !ValidObservation(projection.Type))
-        {
-            return false;
-        }
+    public static bool Valid(TypeUseCompatibilityProjectionDefinition? projection, TypeUseDefinition? observation) =>
+        SupportedProfile(projection) && ValidPair(projection!.Type, observation) && MatchesSelection(projection, observation!);
 
-        var shape = observation!.Shape;
-        var index = shape[0] == TypeUseShapeKind.Optional ? 1 : 0;
-        var optional = index == 1;
-        var collection = shape[index] == TypeUseShapeKind.Collection;
-        index += collection ? 1 : 0;
-        var node = SourceNode(observation, index);
-        return projection.SourceNodeIndex == index && node is not null &&
-            SameIdentity(projection.Type, node) && projection.Type.Shape.SequenceEqual(PrintableShape(optional, collection)) &&
-            CompatibleProjectedNodes(projection.Type, observation, index, node);
+    static bool SupportedProfile(TypeUseCompatibilityProjectionDefinition? projection) =>
+        projection is { Version: 1, Profile: TypeUseCompatibilityProfile.OneLayerCollection };
+
+    static bool ValidPair(TypeUseDefinition? view, TypeUseDefinition? exact) => ValidObservation(exact) && ValidObservation(view);
+
+    static bool ValidHeader(TypeUseDefinition type) => ValidShape(type.Shape) && ValidNode(Terminal(type));
+
+    static bool CompleteNodes(TypeUseDefinition type) => type.Nodes is not { } nodes ||
+        (nodes.Count == type.Shape.Count && nodes.All(ValidNode) && nodes[^1] == Terminal(type));
+
+    static bool MatchesSelection(TypeUseCompatibilityProjectionDefinition projection, TypeUseDefinition exact)
+    {
+        var selection = Selection(exact.Shape);
+        var node = SourceNode(exact, selection.Index);
+        return projection.SourceNodeIndex == selection.Index && node is not null && MatchesView(projection.Type, exact, node, selection);
     }
+
+    static (int Index, bool Optional, bool Collection) Selection(IReadOnlyList<TypeUseShapeKind> shape)
+    {
+        var optional = shape[0] == TypeUseShapeKind.Optional;
+        var index = optional ? 1 : 0;
+        var collection = shape[index] == TypeUseShapeKind.Collection;
+        return (index + (collection ? 1 : 0), optional, collection);
+    }
+
+    static bool MatchesView(TypeUseDefinition view, TypeUseDefinition exact, TypeUseNodeObservation node, (int Index, bool Optional, bool Collection) selection) =>
+        SameIdentity(view, node) && view.Shape.SequenceEqual(PrintableShape(selection.Optional, selection.Collection)) && CompatibleProjectedNodes(view, exact, selection.Index, node);
 
     static bool CompatibleProjectedNodes(TypeUseDefinition view, TypeUseDefinition exact, int index, TypeUseNodeObservation node) =>
         view.Nodes is not { } nodes || (exact.Nodes is { } source && nodes.SequenceEqual(source.Take(index).Append(node)));
 
-    static bool ValidShape(IReadOnlyList<TypeUseShapeKind>? shape) => shape is { Count: > 0 } &&
-        shape[^1] == TypeUseShapeKind.Named && shape.Take(shape.Count - 1).All(node => node is TypeUseShapeKind.Optional or TypeUseShapeKind.Collection);
+    static bool ValidShape(IReadOnlyList<TypeUseShapeKind>? shape)
+    {
+        if (shape is not { Count: > 0 })
+        {
+            return false;
+        }
+
+        return shape[^1] == TypeUseShapeKind.Named && shape.Take(shape.Count - 1).All(IsWrapper);
+    }
+
+    static bool IsWrapper(TypeUseShapeKind kind) => kind is TypeUseShapeKind.Optional or TypeUseShapeKind.Collection;
 
     static TypeUseNodeObservation? SourceNode(TypeUseDefinition type, int index)
     {
@@ -57,10 +76,10 @@ public static class TypeUseCompatibilityProjectionValidation
             return nodes[index];
         }
 
-        return index == type.Shape.Count - 1
-            ? new() { Name = type.Name, Subject = type.ObservedTypeSubject, Scope = type.ObservedScope }
-            : null;
+        return index == type.Shape.Count - 1 ? Terminal(type) : null;
     }
+
+    static TypeUseNodeObservation Terminal(TypeUseDefinition type) => new() { Name = type.Name, Subject = type.ObservedTypeSubject, Scope = type.ObservedScope };
 
     static bool SameIdentity(TypeUseDefinition type, TypeUseNodeObservation node) =>
         type.Name == node.Name && type.ObservedTypeSubject == node.Subject && type.ObservedScope == node.Scope;
@@ -72,14 +91,22 @@ public static class TypeUseCompatibilityProjectionValidation
         TypeUseShapeKind.Named
     ];
 
-    static bool ValidNode(TypeUseNodeObservation? node) => node is not null && AdapterContributionText.IsNormalized(node.Name, false) &&
-        ValidSubject(node.Subject) && ValidScope(node.Scope, node.Subject);
+    static bool ValidNode(TypeUseNodeObservation? node) => node is not null && ValidNodeIdentity(node);
 
-    static bool ValidSubject(SubjectId? subject) => subject is null ||
-        (AdapterContributionText.IsNormalized(subject.Value, false) && !subject.Value.Contains('\\') &&
-         Uri.TryCreate(subject.Value, UriKind.Absolute, out _) && !subject.Value.Split('/').Any(segment => string.Equals(segment, ".", StringComparison.Ordinal) || string.Equals(segment, "..", StringComparison.Ordinal)));
+    static bool ValidNodeIdentity(TypeUseNodeObservation node) =>
+        AdapterContributionText.IsNormalized(node.Name, false) && ValidSubject(node.Subject) && ValidScope(node.Scope, node.Subject);
 
-    static bool ValidScope(BackendScopeKey? scope, SubjectId? subject) => scope is null ||
-        (subject is not null && scope.Store is not null && ValidSubject(scope.Store) &&
-         (scope.EventModelName is null || AdapterContributionText.IsNormalized(scope.EventModelName, false)));
+    static bool ValidSubject(SubjectId? subject) => subject is null || (NormalizedSubject(subject) && AbsoluteSubject(subject));
+
+    static bool NormalizedSubject(SubjectId subject) => AdapterContributionText.IsNormalized(subject.Value, false) && !subject.Value.Contains('\\');
+
+    static bool AbsoluteSubject(SubjectId subject) => Uri.TryCreate(subject.Value, UriKind.Absolute, out _) && !subject.Value.Split('/').Any(IsRelativeSegment);
+
+    static bool IsRelativeSegment(string segment) => string.Equals(segment, ".", StringComparison.Ordinal) || string.Equals(segment, "..", StringComparison.Ordinal);
+
+    static bool ValidScope(BackendScopeKey? scope, SubjectId? subject) => scope is null || (ValidScopeIdentity(scope, subject) && ValidModelName(scope.EventModelName));
+
+    static bool ValidScopeIdentity(BackendScopeKey scope, SubjectId? subject) => subject is not null && scope.Store is not null && ValidSubject(scope.Store);
+
+    static bool ValidModelName(string? name) => name is null || AdapterContributionText.IsNormalized(name, false);
 }

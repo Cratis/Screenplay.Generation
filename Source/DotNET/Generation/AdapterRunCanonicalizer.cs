@@ -99,6 +99,11 @@ static class AdapterRunCanonicalizer
         {
             Definition = policy.Definition with { TypeUse = new() { Value = policy.Definition.TypeUse.Value } }
         },
+        _ => PlacementOmissionDefinition(fact)
+    };
+
+    static GenerationFact PlacementOmissionDefinition(GenerationFact fact) => fact switch
+    {
         ArtifactSourcePlacementCandidateFact candidate => candidate with { Definition = SourcePlacementCandidateStructure.Copy(candidate.Definition, ArtifactKey) },
         MethodDiagnosticProjectionFact projection => Projection(projection),
         OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),

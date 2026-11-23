@@ -44,25 +44,38 @@ static class TypeUseCompatibilityProjectionAdmission
     {
         foreach (var fact in facts)
         {
-            if (Observation(fact) is { Nodes: not null } type && !TypeUseCompatibilityProjectionValidation.ValidObservation(type))
-            {
-                Invalid(fact, "Supplemental type-use nodes must be complete and agree with the exact terminal", context);
-            }
+            ValidateNodes(fact, context);
         }
 
         foreach (var projection in facts.OfType<TypeUseCompatibilityProjectionFact>())
         {
-            var observations = facts.Where(fact => fact.Id == projection.Definition.TypeUse && Matches(projection, fact)).ToArray();
-            var count = facts.OfType<TypeUseCompatibilityProjectionFact>().Count(candidate => candidate.Definition.TypeUse == projection.Definition.TypeUse);
-            if (count != 1 || observations.Length != 1 || !TypeUseCompatibilityProjectionValidation.Valid(projection.Definition, Observation(observations[0])))
-            {
-                Invalid(projection, "A compatibility projection requires one exact same-producer observation and a valid supported source-node view", context);
-            }
+            ValidateProjection(projection, facts, context);
         }
     }
 
     public static IReadOnlyList<TypeUseNodeObservation>? FreezeNodes(IReadOnlyList<TypeUseNodeObservation>? nodes, string path, AdapterContributionAdmissionContext context) =>
         nodes?.Select((node, index) => FreezeNode(node, $"{path}[{index}]", context)).ToImmutableArray();
+
+    static void ValidateNodes(GenerationFact fact, AdapterContributionAdmissionContext context)
+    {
+        if (Observation(fact) is { Nodes: not null } type && !TypeUseCompatibilityProjectionValidation.ValidObservation(type))
+        {
+            Invalid(fact, "Supplemental type-use nodes must be complete and agree with the exact terminal", context);
+        }
+    }
+
+    static void ValidateProjection(TypeUseCompatibilityProjectionFact projection, IReadOnlyList<GenerationFact> facts, AdapterContributionAdmissionContext context)
+    {
+        var observations = facts.Where(fact => fact.Id == projection.Definition.TypeUse && Matches(projection, fact)).ToArray();
+        var count = facts.OfType<TypeUseCompatibilityProjectionFact>().Count(candidate => candidate.Definition.TypeUse == projection.Definition.TypeUse);
+        if (!ValidLocalView(projection, observations, count))
+        {
+            Invalid(projection, "A compatibility projection requires one exact same-producer observation and a valid supported source-node view", context);
+        }
+    }
+
+    static bool ValidLocalView(TypeUseCompatibilityProjectionFact projection, GenerationFact[] observations, int count) =>
+        count == 1 && observations.Length == 1 && TypeUseCompatibilityProjectionValidation.Valid(projection.Definition, Observation(observations[0]));
 
     static TypeUseNodeObservation FreezeNode(TypeUseNodeObservation? node, string path, AdapterContributionAdmissionContext context)
     {
