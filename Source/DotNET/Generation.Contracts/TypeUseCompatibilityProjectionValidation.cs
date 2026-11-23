@@ -50,11 +50,17 @@ public static class TypeUseCompatibilityProjectionValidation
     static bool ValidShape(IReadOnlyList<TypeUseShapeKind>? shape) => shape is { Count: > 0 } &&
         shape[^1] == TypeUseShapeKind.Named && shape.Take(shape.Count - 1).All(node => node is TypeUseShapeKind.Optional or TypeUseShapeKind.Collection);
 
-    static TypeUseNodeObservation? SourceNode(TypeUseDefinition type, int index) => type.Nodes is { } nodes
-        ? nodes[index]
-        : index == type.Shape.Count - 1
+    static TypeUseNodeObservation? SourceNode(TypeUseDefinition type, int index)
+    {
+        if (type.Nodes is { } nodes)
+        {
+            return nodes[index];
+        }
+
+        return index == type.Shape.Count - 1
             ? new() { Name = type.Name, Subject = type.ObservedTypeSubject, Scope = type.ObservedScope }
             : null;
+    }
 
     static bool SameIdentity(TypeUseDefinition type, TypeUseNodeObservation node) =>
         type.Name == node.Name && type.ObservedTypeSubject == node.Subject && type.ObservedScope == node.Scope;
@@ -71,7 +77,7 @@ public static class TypeUseCompatibilityProjectionValidation
 
     static bool ValidSubject(SubjectId? subject) => subject is null ||
         (AdapterContributionText.IsNormalized(subject.Value, false) && !subject.Value.Contains('\\') &&
-         Uri.TryCreate(subject.Value, UriKind.Absolute, out _) && !subject.Value.Split('/').Any(segment => segment is "." or ".."));
+         Uri.TryCreate(subject.Value, UriKind.Absolute, out _) && !subject.Value.Split('/').Any(segment => string.Equals(segment, ".", StringComparison.Ordinal) || string.Equals(segment, "..", StringComparison.Ordinal)));
 
     static bool ValidScope(BackendScopeKey? scope, SubjectId? subject) => scope is null ||
         (subject is not null && scope.Store is not null && ValidSubject(scope.Store) &&

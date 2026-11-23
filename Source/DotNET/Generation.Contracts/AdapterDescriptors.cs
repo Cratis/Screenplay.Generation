@@ -230,14 +230,14 @@ public enum GenerationFactCapability
     /// <summary><see cref="OccurrenceOmissionDiagnosticFact"/> opt-in per-occurrence omission candidates.</summary>
     OccurrenceOmissionDiagnostic = 29,
 
-    /// <summary><see cref="DeclarationInputMemberTargetOmittedFact"/> facts.</summary>
-    DeclarationInputMemberTargetOmitted = 32,
-
     /// <summary><see cref="TypeUseBindingPolicyFact"/> facts.</summary>
     TypeUseBindingPolicy = 30,
 
     /// <summary><see cref="TypeUseCompatibilityProjectionFact"/> opt-in versioned printable views.</summary>
-    TypeUseCompatibilityProjection = 31
+    TypeUseCompatibilityProjection = 31,
+
+    /// <summary><see cref="DeclarationInputMemberTargetOmittedFact"/> facts.</summary>
+    DeclarationInputMemberTargetOmitted = 32
 }
 
 /// <summary>

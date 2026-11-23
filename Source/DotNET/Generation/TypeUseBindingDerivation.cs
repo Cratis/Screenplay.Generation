@@ -89,8 +89,7 @@ static class TypeUseBindingDerivation
         var selectedTypes = typeUses.Select(typeUse => TypeUseCompatibilityProjections.Select((GenerationFact)typeUse, index.Facts)).ToArray();
         if (!TypeUseCompatibilityProjections.Agree(selectedTypes))
         {
-            return BindingOutcome.Failed(context.Diagnostic(GenerationDiagnosticCodes.ConflictingMemberTypeUse, GenerationDiagnosticOutcome.Conflict,
-                TypeUseCompatibilityProjections.Supports(typeUses, index.Facts), "Incompatible printable views were asserted for the exact type use"));
+            return BindingOutcome.Failed(context.Diagnostic(GenerationDiagnosticCodes.ConflictingMemberTypeUse, GenerationDiagnosticOutcome.Conflict, TypeUseCompatibilityProjections.Supports(typeUses, index.Facts), "Incompatible printable views were asserted for the exact type use"));
         }
 
         context = context with

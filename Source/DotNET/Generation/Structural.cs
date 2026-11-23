@@ -50,19 +50,9 @@ static class Structural
         return definition.Nodes is { } nodes ? Node(scoped, "type-use-nodes", Sequence(nodes, TypeUseNode)) : scoped;
     }
 
-    static string Shape(IReadOnlyList<TypeUseShapeKind>? shape) => shape is null
-        ? Node("invalid-type-use-shape")
-        : Sequence(shape, node => Integer((int)node));
-
     public static string TypeUseProjection(TypeUseCompatibilityProjectionDefinition? definition) => definition is null
         ? Node("invalid-type-use-compatibility-projection")
         : Node("type-use-compatibility-projection", definition.TypeUse?.Value, Integer((int)definition.Profile), Integer(definition.Version), Integer(definition.SourceNodeIndex), ProjectedType(definition.Type));
-
-    static string? ProjectedType(TypeUseDefinition? type) => type is null ? null : TypeUse(type);
-
-    static string TypeUseNode(TypeUseNodeObservation? node) => node is null
-        ? Node("invalid-type-use-node")
-        : WithScopes(Node(node.Name, node.Subject?.Value), node.Scope);
 
     public static string TypeUseBinding(TypeUseBindingDefinition definition) =>
         Node(ArtifactMemberKey(definition.Member), ArtifactKey(definition.Target));
@@ -265,6 +255,16 @@ static class Structural
         _ => SpecificationFamily(fact)
     };
 
+    static string Shape(IReadOnlyList<TypeUseShapeKind>? shape) => shape is null
+        ? Node("invalid-type-use-shape")
+        : Sequence(shape, node => Integer((int)node));
+
+    static string? ProjectedType(TypeUseDefinition? type) => type is null ? null : TypeUse(type);
+
+    static string TypeUseNode(TypeUseNodeObservation? node) => node is null
+        ? Node("invalid-type-use-node")
+        : WithScopes(Node(node.Name, node.Subject?.Value), node.Scope);
+
     static int SpecificationFamily(GenerationFact fact) => fact switch
     {
         SpecificationScenarioFact => (int)GenerationFactCapability.SpecificationScenario,
@@ -354,8 +354,8 @@ static class Structural
         _ => ExecutionFactDefinition(fact)
     };
 
-    static string MethodExecutionDefinition(MethodExecutionClassificationFact fact) => WithScopes(
-        Node("method-execution", fact.Definition?.Method?.Value, Integer((int)(fact.Definition?.Kind ?? MethodExecutionKind.Unknown)), fact.Definition?.OmissionReason is { } reason ? Diagnostic(reason) : null), fact.Definition?.Scope);
+    static string MethodExecutionDefinition(MethodExecutionClassificationFact fact) =>
+        WithScopes(Node("method-execution", fact.Definition?.Method?.Value, Integer((int)(fact.Definition?.Kind ?? MethodExecutionKind.Unknown)), fact.Definition?.OmissionReason is { } reason ? Diagnostic(reason) : null), fact.Definition?.Scope);
 
     static string ExecutionFactDefinition(GenerationFact fact) => fact switch
     {
@@ -364,8 +364,8 @@ static class Structural
         _ => DomainFactDefinition(fact)
     };
 
-    static string MethodSupportDefinition(MethodFactSupportFact fact) => Node("method-support", fact.Definition?.Candidate?.Value,
-        Sequence((fact.Definition?.Alternatives ?? []).Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value));
+    static string MethodSupportDefinition(MethodFactSupportFact fact) =>
+        Node("method-support", fact.Definition?.Candidate?.Value, Sequence((fact.Definition?.Alternatives ?? []).Select(MethodSupport).Distinct().Order(StringComparer.Ordinal), value => value));
 
     static string DomainFactDefinition(GenerationFact fact) => fact switch
     {

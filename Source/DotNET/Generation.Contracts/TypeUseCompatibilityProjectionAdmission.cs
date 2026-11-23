@@ -34,7 +34,6 @@ static class TypeUseCompatibilityProjectionAdmission
     public static void ValidateShape(TypeUseCompatibilityProjectionFact fact, string path, AdapterContributionAdmissionContext context)
     {
         context.Enum(fact.Definition.Profile, TypeUseCompatibilityProfile.Unknown, $"{path}.Definition.Profile", fact.Id, fact.Subject);
-        GranularFactAdmissionValidator.ValidateTypeUse(fact.Definition.Type, $"{path}.Definition.Type", fact.Id, fact.Subject, context);
         if (fact.Definition.Version != 1)
         {
             Invalid(fact, "Only compatibility projection version 1 is supported", context);

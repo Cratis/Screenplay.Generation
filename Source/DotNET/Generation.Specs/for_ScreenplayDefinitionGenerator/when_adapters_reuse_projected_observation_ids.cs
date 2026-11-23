@@ -15,10 +15,19 @@ public class when_adapters_reuse_projected_observation_ids : given.compatibility
         var own = ProjectedCommand();
         var observation = own.OfType<ArtifactMemberTypeUseFact>().Single();
         var evidence = observation.Evidence with { Adapter = new() { Id = "foreign", Version = "1" } };
-        var member = observation.Definition.Member with { Name = "strict" };
+        var foreignArtifact = observation.Definition.Member.Artifact with { Kind = ArtifactKind.ReadModel };
+        var member = observation.Definition.Member with { Artifact = foreignArtifact, Name = "strict" };
         _foreign = observation with { Evidence = evidence, Definition = observation.Definition with { Member = member } };
         var declaration = own.OfType<ArtifactMemberDeclarationFact>().Single();
-        GenerationFact[] foreign = [declaration with { Id = Id("strict-member"), Evidence = evidence, Definition = declaration.Definition with { Member = member, DeclarationOrder = 1 } }, _foreign];
+        var owner = own.OfType<ArtifactDeclarationFact>().Single();
+        var placement = own.OfType<ArtifactPlacementFact>().Single();
+        GenerationFact[] foreign =
+        [
+            owner with { Id = Id("foreign-owner"), Evidence = evidence, Definition = owner.Definition with { Artifact = foreignArtifact, Name = "ForeignRecord" } },
+            placement with { Id = Id("foreign-placement"), Evidence = evidence, Artifact = foreignArtifact, Placement = placement.Placement with { Slice = "ForeignRecord", SliceKind = GenerationSliceKind.StateView } },
+            declaration with { Id = Id("strict-member"), Evidence = evidence, Definition = declaration.Definition with { Member = member, DeclarationOrder = 0 } },
+            _foreign
+        ];
         var ownFacts = own.Concat(Candidate("enum", false)).ToArray();
         _raw = Generator.Generate([new AdapterContribution { Adapter = Adapter, Facts = ownFacts }, new AdapterContribution { Adapter = evidence.Adapter, Facts = foreign }], new() { Domain = "Ordering" });
         _snapshot = GenerateAdapters(ownFacts, foreign);

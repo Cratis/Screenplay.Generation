@@ -28,11 +28,13 @@ public class when_admitting_compatibility_projections : given.a_compatibility_pr
     [Fact] void should_round_trip_the_profile() => _roundTrip.Definition.Profile.ShouldEqual(TypeUseCompatibilityProfile.OneLayerCollection);
     [Fact] void should_admit_the_round_tripped_contract() => AdmitProjection(_roundTrip).IsAdmitted.ShouldBeTrue();
     [Fact] void should_round_trip_node_observations() => JsonSerializer.Deserialize<TypeUseDefinition>(JsonSerializer.Serialize(Observation().Definition.Type))!.Nodes![1].Subject.ShouldEqual(Subject("container"));
-    [Fact] void should_require_the_declared_capability() => Admit(contribution: Contribution([Observation(), Projection()])).IsAdmitted.ShouldBeFalse();
-    [Fact] void should_support_terminal_projections_without_metadata() => AdmitProjection(Projection() with
-    {
-        Definition = Projection().Definition with { SourceNodeIndex = 2, Type = Observation().Definition.Type with { Nodes = null, Shape = [TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named] } }
-    }, Observation() with { Definition = Observation().Definition with { Type = Observation().Definition.Type with { Nodes = null, Shape = [TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named] } } }).IsAdmitted.ShouldBeTrue();
+    [Fact] void should_require_the_declared_capability() => Admit(descriptor: Descriptor([.. AllCapabilities().Where(capability => capability != GenerationFactCapability.TypeUseCompatibilityProjection)]), contribution: Contribution([Observation(), Projection()])).IsAdmitted.ShouldBeFalse();
+    [Fact] void should_support_terminal_projections_without_metadata() => AdmitProjection(
+        Projection() with
+        {
+            Definition = Projection().Definition with { SourceNodeIndex = 2, Type = Observation().Definition.Type with { Nodes = null, Shape = [TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named] } }
+        },
+        Observation() with { Definition = Observation().Definition with { Type = Observation().Definition.Type with { Nodes = null, Shape = [TypeUseShapeKind.Optional, TypeUseShapeKind.Collection, TypeUseShapeKind.Named] } } }).IsAdmitted.ShouldBeTrue();
     [Fact] void should_support_declaration_input_observations() => AdmitProjection(observation: new DeclarationInputMemberTypeUseFact
     {
         Id = Observation().Id, Subject = ArtifactSubject, Evidence = Evidence(),
