@@ -298,6 +298,7 @@ static class AdapterContributionFreezer
         FactEnvelope envelope,
         AdapterContributionAdmissionContext context) => fact switch
         {
+            DeclarationInputMemberTargetOmittedFact omission => DeclarationInputMemberTargetOmissionAdmission.Freeze(omission, envelope, context),
             DeclarationInputMemberDeclarationFact declaration => new DeclarationInputMemberDeclarationFact
             {
                 Id = envelope.Id,

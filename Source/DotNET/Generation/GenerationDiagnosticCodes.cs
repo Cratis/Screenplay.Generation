@@ -314,4 +314,7 @@ public static class GenerationDiagnosticCodes
 
     /// <summary>The input does not satisfy the strict canonical ESM contract.</summary>
     public const string InvalidCanonicalEsm = "GEN0066";
+
+    /// <summary>A declaration input target omission does not match its producer-owned type use or warning.</summary>
+    public const string InvalidDeclarationInputMemberTargetOmission = "GEN0095";
 }

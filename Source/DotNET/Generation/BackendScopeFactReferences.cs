@@ -50,6 +50,7 @@ static class BackendScopeFactReferences
     {
         MethodExecutionClassificationFact classification => [classification.Definition.Scope],
         MethodFactSupportFact support => support.Definition.Alternatives.Select(alternative => alternative.Scope),
+        DeclarationInputMemberTargetOmittedFact omission => [omission.Definition.Member.Scope],
         DeclarationInputMemberDeclarationFact member => [member.Definition.Member.Scope],
         DeclarationInputMemberTypeUseFact typeUse => [typeUse.Definition.Member.Scope, typeUse.Definition.Type.ObservedScope],
         EntryPointInputTransferFact transfer => [transfer.Definition.Artifact.Scope],

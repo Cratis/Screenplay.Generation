@@ -36,7 +36,7 @@ static class DeclarationInputMemberFreezer
         };
     }
 
-    static DeclarationMemberKey Member(DeclarationMemberKey? key, string path, AdapterContributionAdmissionContext context)
+    public static DeclarationMemberKey Member(DeclarationMemberKey? key, string path, AdapterContributionAdmissionContext context)
     {
         Missing(key, path, context);
         return new()

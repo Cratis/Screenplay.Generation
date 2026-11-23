@@ -61,6 +61,7 @@ public class a_contribution : Specification
         GenerationFactCapability.DeclarationInputMemberTypeUse,
         GenerationFactCapability.EntryPointInputTransfer,
         GenerationFactCapability.TypeUseTargetOmitted,
+        GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         GenerationFactCapability.Artifact
     ];
 

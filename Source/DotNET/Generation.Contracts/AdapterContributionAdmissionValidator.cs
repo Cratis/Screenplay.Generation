@@ -17,6 +17,7 @@ static class AdapterContributionAdmissionValidator
         ValidateDuplicateFactIds(input.Facts, context);
         MethodEligibilityAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         TypeUseTargetOmissionAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
+        DeclarationInputMemberTargetOmissionAdmission.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         ConceptNameYieldAdmission.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
 
         foreach (var fact in input.Facts)
@@ -641,6 +642,7 @@ static class AdapterContributionAdmissionValidator
     static GenerationFactCapability TypeUseOmissionCapability(GenerationFact fact) => fact switch
     {
         TypeUseTargetOmittedFact => GenerationFactCapability.TypeUseTargetOmitted,
+        DeclarationInputMemberTargetOmittedFact => GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         _ => UsageCapability(fact)
     };
 
