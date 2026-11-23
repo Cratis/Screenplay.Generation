@@ -21,7 +21,7 @@ public class when_supplemental_nodes_are_optional : given.compatibility_type_use
         var incompatible = supplied with
         {
             Id = Id("conflicting-supplemental-observation"),
-            Definition = supplied.Definition with { Type = supplied.Definition.Type with { Nodes = [new() { Name = "DifferentContainer" }, supplied.Definition.Type.Nodes![1]] } }
+            Definition = supplied.Definition with { Type = supplied.Definition.Type with { Nodes = [new() { Name = "DifferentContainer" }, supplied.Definition.Type.Nodes[1]] } }
         };
         _conflicting = Generate([.. facts, supplied, incompatible, .. Candidate("enum", false)]);
     }
