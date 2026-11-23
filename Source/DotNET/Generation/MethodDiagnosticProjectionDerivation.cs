@@ -61,7 +61,7 @@ static class MethodDiagnosticProjectionDerivation
 
     static bool ValidSupport(MethodDiagnosticProjectionFact intent, GenerationFact[] facts)
     {
-        var supports = facts.OfType<MethodFactSupportFact>().Where(support => support.Definition.Candidate == intent.Id && support.Evidence.Adapter == intent.Evidence.Adapter).ToArray();
+        var supports = facts.OfType<MethodFactSupportFact>().Where(support => support.Definition?.Candidate == intent.Id && support.Evidence.Adapter == intent.Evidence.Adapter).ToArray();
         return supports.Length == 1 && supports[0].Definition.Alternatives.All(alternative => alternative.Method == intent.Definition.Method && alternative.Scope == intent.Definition.Scope);
     }
 }
