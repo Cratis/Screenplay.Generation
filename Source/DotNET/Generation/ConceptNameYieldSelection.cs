@@ -69,7 +69,7 @@ static class ConceptNameYieldSelection
     static bool IsYielding(GenerationFact fact) => fact is ArtifactDeclarationFact
     {
         Definition.NameConflictYield.Diagnostic: { } diagnostic
-    } declaration && diagnostic.Outcome == GenerationDiagnosticOutcome.Unsupported &&
+    } declaration && diagnostic.Outcome is GenerationDiagnosticOutcome.Conflict or GenerationDiagnosticOutcome.Unsupported &&
         diagnostic.Subject == declaration.Subject && diagnostic.Facts.Contains(declaration.Id);
 
     static ConceptDeclaration? Concept(GenerationFact fact) => fact switch

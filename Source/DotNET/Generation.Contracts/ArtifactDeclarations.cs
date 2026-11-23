@@ -48,6 +48,7 @@ public sealed record ArtifactDeclarationDefinition
 
     /// <summary>
     /// Gets the optional, producer-owned instruction to omit this concept when its name is ambiguous.
+    /// The diagnostic must have the Conflict or Unsupported outcome; generation preserves that outcome.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ConceptNameYieldDefinition? NameConflictYield { get; init; }

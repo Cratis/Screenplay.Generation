@@ -31,7 +31,7 @@ public class when_a_concept_only_type_has_no_concept_target : given.concept_only
     [Fact] void should_preserve_the_unsupported_concept_warning() => _unsupported.Diagnostics.Any(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.MissingConceptRepresentation).ShouldBeTrue();
     [Fact] void should_preserve_the_yield_warning_once() => _yielded.Diagnostics.Count(IsWarning).ShouldEqual(1);
     [Fact] void should_keep_the_yield_warning_source() => _yielded.Diagnostics.Single(IsWarning).Source.Path.ShouldEqual("enum.cs");
-    [Fact] void should_keep_the_yield_warning_outcome() => _yielded.Diagnostics.Single(IsWarning).Outcome.ShouldEqual(GenerationDiagnosticOutcome.Unsupported);
+    [Fact] void should_keep_the_yield_warning_outcome() => _yielded.Diagnostics.Single(IsWarning).Outcome.ShouldEqual(GenerationDiagnosticOutcome.Conflict);
     [Fact] void should_keep_the_yield_warning_links() => _yielded.Diagnostics.Single(IsWarning).Facts.ShouldContain(Candidate("enum", true).OfType<ArtifactDeclarationFact>().Single().Id);
     [Fact] void should_not_bind_to_the_winning_same_name() => Member(_yielded).Type.Subject.ShouldBeNull();
 }

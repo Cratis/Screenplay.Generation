@@ -9,7 +9,7 @@ namespace Cratis.Screenplay.Generation;
 public sealed record ConceptNameYieldDefinition
 {
     /// <summary>
-    /// Gets the diagnostic with the Unsupported outcome explaining why the producer omits this declaration on conflict.
+    /// Gets the diagnostic with the Conflict or Unsupported outcome explaining why the producer omits this declaration on conflict.
     /// </summary>
     public required GenerationDiagnostic Diagnostic { get; init; }
 }

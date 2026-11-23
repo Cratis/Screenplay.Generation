@@ -29,7 +29,7 @@ public class yielding_concepts : an_omitted_type_use
                     {
                         Diagnostic = new GenerationDiagnostic
                         {
-                            Code = "example.EnumConceptNameConflict", Severity = GenerationDiagnosticSeverity.Warning, Outcome = GenerationDiagnosticOutcome.Unsupported,
+                            Code = "example.EnumConceptNameConflict", Severity = GenerationDiagnosticSeverity.Warning, Outcome = GenerationDiagnosticOutcome.Conflict,
                             Message = "The enum concept name conflicts with another concept", Subject = subject,
                             Source = evidence.Source, Facts = [id]
                         }
