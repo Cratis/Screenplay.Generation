@@ -55,6 +55,9 @@ public sealed record ResolvedArtifact
 /// </summary>
 public sealed record ResolvedArtifactPlacementVariant
 {
+    /// <summary>Gets optional attributable split metadata agreed by this effective variant.</summary>
+    public MixedSlicePlacementFallbackDefinition? MixedSliceFallback { get; init; }
+
     /// <summary>
     /// Gets the asserted placement.
     /// </summary>
@@ -310,6 +313,9 @@ public sealed record ResolvedApplicationGraph
     /// Gets the resolved artifact placements in canonical order.
     /// </summary>
     public IReadOnlyList<ResolvedArtifactPlacement> Placements { get; init; } = [];
+
+    /// <summary>Gets immutable effective placement renames and their original source evidence.</summary>
+    public IReadOnlyList<PlacementNormalizationRecord> PlacementNormalizations { get; init; } = [];
 
     /// <summary>
     /// Gets the resolved relationships in canonical order.

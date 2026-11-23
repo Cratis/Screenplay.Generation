@@ -12,6 +12,7 @@ internal static class GenerationFactDescription
     {
         ArtifactFact artifact => artifact.Definition.Key.Subject,
         ArtifactPlacementFact placement => placement.Artifact.Subject,
+        ArtifactSourcePlacementCandidateFact candidate => candidate.Definition.Artifact.Subject,
         ArtifactDeclarationFact declaration => declaration.Definition.Artifact.Subject,
         ArtifactMemberDeclarationFact member => member.Definition.Member.Artifact.Subject,
         ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact.Subject,
@@ -24,6 +25,7 @@ internal static class GenerationFactDescription
     {
         ArtifactFact => "artifact",
         ArtifactPlacementFact => "artifact placement",
+        ArtifactSourcePlacementCandidateFact => "source-owner candidate",
         ArtifactDeclarationFact => "artifact declaration",
         ArtifactMemberDeclarationFact => "artifact member declaration",
         ArtifactMemberTypeUseFact => "artifact member type use",

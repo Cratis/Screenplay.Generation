@@ -66,6 +66,8 @@ public sealed class GenerationResolver
             facts.OfType<SpecificationStepFact>(),
             facts.OfType<SpecificationValueFact>(),
             diagnostics);
+        var normalization = MixedSlicePlacementNormalization.Apply(placements, artifacts, facts, diagnostics);
+        placements = normalization.Placements;
         var specifications = SpecificationAdmission.Admit(
             specificationFacts,
             artifacts,
@@ -80,6 +82,7 @@ public sealed class GenerationResolver
             ConceptAttributes = conceptAttributes,
             ConceptValidationRules = conceptValidationRules,
             Placements = placements,
+            PlacementNormalizations = normalization.Records,
             Relationships = relationships,
             SpecificationScenarios = specificationFacts.Scenarios,
             SpecificationSteps = specificationFacts.Steps,
@@ -276,12 +279,13 @@ public sealed class GenerationResolver
             .Select(group =>
             {
                 var variants = group
-                    .GroupBy(_ => Structural.Placement(_.Placement), StringComparer.Ordinal)
+                    .GroupBy(_ => MixedSliceFallbackStructure.WithPolicy(Structural.Placement(_.Placement), _.MixedSliceFallback), StringComparer.Ordinal)
                     .OrderBy(_ => Canonical.Placement(_.First().Placement), StringComparer.Ordinal)
                     .ThenBy(_ => _.Key, StringComparer.Ordinal)
                     .Select(_ => new ResolvedArtifactPlacementVariant
                     {
                         Placement = _.First().Placement,
+                        MixedSliceFallback = _.OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First().MixedSliceFallback,
                         Evidence = OrderedEvidence(_.Select(fact => fact.Evidence))
                     })
                     .ToArray();

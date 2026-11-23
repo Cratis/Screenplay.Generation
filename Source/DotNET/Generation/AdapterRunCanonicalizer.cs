@@ -79,7 +79,7 @@ static class AdapterRunCanonicalizer
     static GenerationFact ArtifactFactDefinition(GenerationFact fact) => fact switch
     {
         ArtifactFact artifact => artifact with { Definition = Artifact(artifact.Definition) },
-        ArtifactPlacementFact placement => placement with { Artifact = ArtifactKey(placement.Artifact), Placement = Placement(placement.Placement) },
+        ArtifactPlacementFact placement => placement with { Artifact = ArtifactKey(placement.Artifact), Placement = Placement(placement.Placement), MixedSliceFallback = MixedSliceFallbackStructure.Copy(placement.MixedSliceFallback) },
         ArtifactDeclarationFact declaration => declaration with { Definition = ArtifactDeclaration(declaration.Definition) },
         ArtifactMemberDeclarationFact member => member with { Definition = ArtifactMemberDeclaration(member.Definition) },
         ArtifactMemberTypeUseFact typeUse => typeUse with { Definition = ArtifactMemberTypeUse(typeUse.Definition) },
@@ -89,6 +89,7 @@ static class AdapterRunCanonicalizer
 
     static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
+        ArtifactSourcePlacementCandidateFact candidate => candidate with { Definition = SourcePlacementCandidateStructure.Copy(candidate.Definition, ArtifactKey) },
         MethodDiagnosticProjectionFact projection => Projection(projection),
         OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),
         TypeUseTargetOmittedFact omission => omission with

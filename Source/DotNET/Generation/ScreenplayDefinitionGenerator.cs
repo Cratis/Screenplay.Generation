@@ -17,6 +17,9 @@ public sealed record ScreenplayGenerationOptions
     /// Gets the generated document's domain name.
     /// </summary>
     public required string Domain { get; init; }
+
+    /// <summary>Gets the host's fixed-snapshot source mapping boundary for candidate placement.</summary>
+    public IArtifactSourcePlacementResolver? SourcePlacementResolver { get; init; }
 }
 
 /// <summary>
@@ -88,13 +91,7 @@ public sealed class ScreenplayDefinitionGenerator(
     {
         var input = contributions.ToArray();
         var effective = EffectiveGenerationInputs.FromContributions(input);
-        var baseFacts = effective.Facts;
-        var derivation = GenerationFactDerivation.Derive(effective);
-        var graph = resolver.ResolveFacts(
-            baseFacts.Concat(derivation.Facts.Select(record => record.Fact)),
-            input.SelectMany(contribution => contribution.Diagnostics)
-                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
-            effective.OmittedFacts);
+        var (graph, _) = DeriveAndResolve(effective, input.SelectMany(contribution => contribution.Diagnostics), options);
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -138,14 +135,7 @@ public sealed class ScreenplayDefinitionGenerator(
         var completed = CompletedContributions(canonicalAdapters);
         var facts = AdmittedFacts(completed);
         var effective = EffectiveGenerationInputs.FromFacts(facts);
-        var derivation = GenerationFactDerivation.Derive(effective);
-        var derivedFacts = derivation.Facts.Select(record => record.Fact).ToArray();
-        var effectiveFacts = effective.Facts.Concat(derivedFacts).ToArray();
-        var graph = resolver.ResolveFacts(
-            effectiveFacts,
-            completed.SelectMany(contribution => contribution.Diagnostics)
-                .Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
-            effective.OmittedFacts);
+        var (graph, derivation) = DeriveAndResolve(effective, completed.SelectMany(contribution => contribution.Diagnostics), options);
         var lowering = lowerer.Lower(graph, options.Domain);
         var source = printer.Print(lowering.Application);
         var verification = compiler.Compile(source);
@@ -322,6 +312,19 @@ public sealed class ScreenplayDefinitionGenerator(
                     EndColumn = first.Location.Column
                 }
         };
+    }
+
+    (ResolvedApplicationGraph Graph, GenerationDerivationSnapshot Derivation) DeriveAndResolve(
+        EffectiveGenerationInputs effective,
+        IEnumerable<GenerationDiagnostic> diagnostics,
+        ScreenplayGenerationOptions options)
+    {
+        var derivation = GenerationFactDerivation.Derive(effective, options.SourcePlacementResolver);
+        var graph = resolver.ResolveFacts(
+            effective.Facts.Concat(derivation.Facts.Select(record => record.Fact)),
+            diagnostics.Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
+            effective.OmittedFacts);
+        return PlacementNormalization.Complete(graph, derivation, effective.Facts);
     }
 
     sealed record ProducedFact(AdapterIdentity Producer, GenerationFact Fact);

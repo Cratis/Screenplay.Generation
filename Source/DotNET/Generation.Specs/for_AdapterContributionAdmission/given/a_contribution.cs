@@ -61,6 +61,8 @@ public class a_contribution : Specification
         GenerationFactCapability.DeclarationInputMemberTypeUse,
         GenerationFactCapability.EntryPointInputTransfer,
         GenerationFactCapability.TypeUseTargetOmitted,
+        GenerationFactCapability.ArtifactSourcePlacementCandidate,
+        GenerationFactCapability.MixedSlicePlacementFallback,
         GenerationFactCapability.MethodDiagnosticProjection,
         GenerationFactCapability.OccurrenceOmissionDiagnostic,
         GenerationFactCapability.DeclarationInputMemberTargetOmitted,

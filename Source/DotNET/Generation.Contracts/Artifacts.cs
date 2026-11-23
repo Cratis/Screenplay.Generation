@@ -290,4 +290,8 @@ public sealed record ArtifactPlacementFact : GenerationFact
     /// Gets the asserted placement.
     /// </summary>
     public required ArtifactPlacement Placement { get; init; }
+
+    /// <summary>Gets optional attributable mixed-kind splitting metadata.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MixedSlicePlacementFallbackDefinition? MixedSliceFallback { get; init; }
 }
