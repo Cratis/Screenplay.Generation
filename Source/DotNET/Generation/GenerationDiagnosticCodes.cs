@@ -17,9 +17,6 @@ public static class GenerationDiagnosticCodes
     /// <summary>Several distinct compatible exact entry-point mappings exist for a diagnostic intent.</summary>
     public const string AmbiguousDiagnosticEntryPoint = "GEN0082";
 
-    /// <summary>Omission diagnostic group metadata or coverage is invalid.</summary>
-    public const string InvalidOmissionDiagnosticGroup = "GEN0083";
-
     /// <summary>Entry-point input transfer lacks exact declaration, type, or precedence proof.</summary>
     public const string InvalidEntryPointInputTransfer = "GEN0069";
 

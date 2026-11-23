@@ -110,12 +110,10 @@ public sealed class ScreenplayDefinitionGenerator(
             });
         }
 
-        var diagnostics = ContributionOmissionDiagnostics.Coalesce(
-            effective,
-            derivation,
-            graph,
-            lowering.Coverage,
-            CanonicalDiagnostics(graph.Diagnostics.Concat(lowering.Diagnostics).Concat(verificationDiagnostics)));
+        var diagnostics = CanonicalDiagnostics(
+            graph.Diagnostics
+                .Concat(lowering.Diagnostics)
+                .Concat(verificationDiagnostics));
 
         return new()
         {
@@ -196,11 +194,12 @@ public sealed class ScreenplayDefinitionGenerator(
             Adapters = canonicalAdapters,
             Facts = canonicalFactRecords,
             Derivation = canonicalDerivation,
-            Diagnostics = OmissionDiagnosticCoalescer.Coalesce(canonicalFactRecords, CanonicalDiagnostics(runnerDiagnostics.Concat(dispositionDiagnostics)), pipelineDiagnostics)
+            Diagnostics = CanonicalDiagnostics(runnerDiagnostics.Concat(dispositionDiagnostics))
         };
-        var diagnostics = OmissionDiagnosticCoalescer.Coalesce(
-            canonicalFactRecords,
-            CanonicalDiagnostics(pipelineDiagnostics.Concat(runnerDiagnostics).Concat(dispositionDiagnostics)));
+        var diagnostics = CanonicalDiagnostics(
+            pipelineDiagnostics
+                .Concat(runnerDiagnostics)
+                .Concat(dispositionDiagnostics));
 
         return new()
         {

@@ -60,16 +60,6 @@ static class GenerationFactDiscriminatorValidator
             return;
         }
 
-        if (fact is OmittedFactDiagnosticGroupFact group)
-        {
-            if (!OmissionDiagnosticGroupValidation.Valid(group))
-            {
-                diagnostics.Add(OmissionDiagnosticGroupValidation.Invalid(group));
-            }
-
-            return;
-        }
-
         ValidateOtherFact(fact, diagnostics);
     }
 

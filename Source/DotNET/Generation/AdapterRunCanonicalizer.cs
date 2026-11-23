@@ -90,7 +90,6 @@ static class AdapterRunCanonicalizer
     static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact projection => Projection(projection),
-        OmittedFactDiagnosticGroupFact group => OmissionGroup(group),
         TypeUseTargetOmittedFact omission => omission with
         {
             Definition = omission.Definition with { Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
@@ -178,14 +177,6 @@ static class AdapterRunCanonicalizer
         Definition = fact.Definition with
         {
             Method = Subject(fact.Definition.Method), Scope = Scope(fact.Definition.Scope), Diagnostic = Diagnostic(fact.Definition.Diagnostic)
-        }
-    };
-
-    static OmittedFactDiagnosticGroupFact OmissionGroup(OmittedFactDiagnosticGroupFact fact) => !OmissionDiagnosticGroupValidation.Valid(fact) ? fact : fact with
-    {
-        Definition = fact.Definition with
-        {
-            CoveredFacts = [.. fact.Definition.CoveredFacts.OrderBy(id => id?.Value, StringComparer.Ordinal)], Diagnostic = Diagnostic(fact.Definition.Diagnostic)
         }
     };
 

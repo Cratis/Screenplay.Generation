@@ -62,7 +62,6 @@ public class a_contribution : Specification
         GenerationFactCapability.EntryPointInputTransfer,
         GenerationFactCapability.TypeUseTargetOmitted,
         GenerationFactCapability.MethodDiagnosticProjection,
-        GenerationFactCapability.OmittedFactDiagnosticGroup,
         GenerationFactCapability.Artifact
     ];
 

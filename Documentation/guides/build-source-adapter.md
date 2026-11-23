@@ -81,14 +81,6 @@ Generation applies eligibility first, then independently resolves exact entry-po
 
 A unique mapping changes only the payload's diagnostic subject to the artifact subject. Its original code, message, severity, outcome, location, and support references remain intact. Engine-owned diagnostic `Lineage` retains the intent, local observations, eligible support/classification dependencies, exact entry-point proofs, and scope evidence. The diagnostics-only rule `cratis.screenplay.method-diagnostic-projection` version `1.0.0` has no fact outputs. Missing mappings report `GEN0081`; ambiguous mappings report `GEN0082`. Malformed direct inputs fail closed with `GEN0080`. Legacy diagnostics retain null lineage and unchanged meaning.
 
-## Coalesce generic omission diagnostics
-
-Declare `GenerationFactCapability.OmittedFactDiagnosticGroup` (29) and contribute an `OmittedFactDiagnosticGroupFact` with a nonempty `CoveredFacts` set and a located diagnostic payload. Coverage must reference existing facts from the same contribution, exclude the group itself, and never repeat or overlap another group's coverage. The payload has the group's exact subject and source, nonempty local support references, and no engine-owned `Lineage`. Admission freezes the group atomically; malformed legacy inputs report `GEN0083` without emitting its payload.
-
-A group replaces only `GEN0040` generic omissions, and only when every covered record is omitted with generic diagnostics alone. Specific failures, conflicts, eligibility and scope failures take precedence. Lowered, partially lowered, and provenance-only coverage prevents replacement. Uncovered omissions remain unchanged. This changes diagnostic presentation only: every covered fact, disposition, original per-fact diagnostic, and evidence record stays in `AdapterRun.Facts`. Group metadata is provenance-only and never produces generic omission noise of its own.
-
-The replacement preserves the supplied code, message, severity, outcome, subject, and location. Its canonical facts and diagnostic lineage include the group, every covered fact, and payload support. The lineage producer is `cratis.screenplay.omission-diagnostic-group` version `1.0.0`; repeated runs and input permutations retain identical output. Ordinary adapter diagnostics and adapters without explicit groups are unchanged.
-
 ## Transfer declaration-owned inputs
 
 A reusable library can contribute `DeclarationInputMemberDeclarationFact` and `DeclarationInputMemberTypeUseFact` without inventing an artifact role. An application adapter opts an exact query endpoint into transfer with `EntryPointInputTransferFact`, its exact `EntryPointFact`, and ordered `MethodArtifactUsageFact` observations. Direct endpoint members win; proved execution order then source member order determines additions. Full substituted type and named-binding proof are retained in one fixed-snapshot derivation pass. Plain `Reads` facts remain relationship-only.

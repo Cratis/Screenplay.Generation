@@ -264,7 +264,6 @@ static class Structural
     static int TypeUseOmissionFamily(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
-        OmittedFactDiagnosticGroupFact => (int)GenerationFactCapability.OmittedFactDiagnosticGroup,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
         _ => UsageFamily(fact)
     };
@@ -302,14 +301,9 @@ static class Structural
     static string TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
         MethodDiagnosticProjectionFact projection => DiagnosticProjection(projection),
-        OmittedFactDiagnosticGroupFact group => OmissionGroup(group),
         TypeUseTargetOmittedFact omission => Node("type-use-target-omitted", ArtifactMemberKey(omission.Definition.Member), Diagnostic(omission.Definition.Diagnostic)),
         _ => ObservationFactDefinition(fact)
     };
-
-    static string OmissionGroup(OmittedFactDiagnosticGroupFact group) => !OmissionDiagnosticGroupValidation.Valid(group)
-        ? Node("invalid-omission-diagnostic-group")
-        : Node("omission-diagnostic-group", Sequence(group.Definition.CoveredFacts, id => id.Value), Diagnostic(group.Definition.Diagnostic));
 
     static string DiagnosticProjection(MethodDiagnosticProjectionFact projection) => WithScopes(Node("method-diagnostic-projection", projection.Definition?.Method?.Value, Integer((int)(projection.Definition?.Mode ?? MethodDiagnosticProjectionMode.Unknown)), Integer((int)(projection.Definition?.EntryPointRole ?? ArtifactKind.Unknown)), projection.Definition?.Diagnostic is { } payload ? Diagnostic(payload) : null), projection.Definition?.Scope);
 

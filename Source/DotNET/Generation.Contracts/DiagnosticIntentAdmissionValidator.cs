@@ -51,7 +51,10 @@ static class DiagnosticIntentAdmissionValidator
         }
     }
 
-    public static void ValidatePayload(GenerationFact fact, GenerationDiagnostic diagnostic, (string AdapterId, HashSet<string> FactIds, ISourceAuthorityValidator? Authority) owner, AdapterContributionAdmissionContext context)
+    static bool MatchingSupport(MethodDiagnosticProjectionFact projection, MethodFactSupportFact[] supports) =>
+        supports.Length == 1 && supports[0].Definition.Alternatives.All(alternative => alternative.Method == projection.Definition.Method && alternative.Scope == projection.Definition.Scope);
+
+    static void ValidatePayload(GenerationFact fact, GenerationDiagnostic diagnostic, (string AdapterId, HashSet<string> FactIds, ISourceAuthorityValidator? Authority) owner, AdapterContributionAdmissionContext context)
     {
         AdapterContributionAdmissionValidator.ValidateMethodDiagnostic(owner, diagnostic, context);
         if (!MatchingPayload(fact, diagnostic))
@@ -59,9 +62,6 @@ static class DiagnosticIntentAdmissionValidator
             Invalid(fact, $"Contribution.Facts[{fact.Id}].Definition.Diagnostic", "Diagnostic intents require exact matching located evidence, matching subjects, and nonempty local support excluding themselves", context);
         }
     }
-
-    static bool MatchingSupport(MethodDiagnosticProjectionFact projection, MethodFactSupportFact[] supports) =>
-        supports.Length == 1 && supports[0].Definition.Alternatives.All(alternative => alternative.Method == projection.Definition.Method && alternative.Scope == projection.Definition.Scope);
 
     static bool MatchingPayload(GenerationFact fact, GenerationDiagnostic diagnostic) =>
         fact.Evidence.Strength == EvidenceStrength.Exact && diagnostic.Source is not null && diagnostic.Source == fact.Evidence.Source &&

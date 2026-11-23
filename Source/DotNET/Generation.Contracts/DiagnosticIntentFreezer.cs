@@ -33,7 +33,7 @@ static class DiagnosticIntentFreezer
         };
     }
 
-    public static GenerationDiagnostic Payload(GenerationDiagnostic? diagnostic, string path, AdapterContributionAdmissionContext context)
+    static GenerationDiagnostic Payload(GenerationDiagnostic? diagnostic, string path, AdapterContributionAdmissionContext context)
     {
         if (diagnostic is null)
         {
