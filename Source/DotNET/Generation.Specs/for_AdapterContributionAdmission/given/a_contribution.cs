@@ -67,6 +67,7 @@ public class a_contribution : Specification
         GenerationFactCapability.OccurrenceOmissionDiagnostic,
         GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         GenerationFactCapability.TypeUseBindingPolicy,
+        GenerationFactCapability.TypeUseCompatibilityProjection,
         GenerationFactCapability.Artifact
     ];
 

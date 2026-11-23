@@ -94,10 +94,16 @@ static class AdapterRunCanonicalizer
 
     static GenerationFact TypeUseOmissionDefinition(GenerationFact fact) => fact switch
     {
+        TypeUseCompatibilityProjectionFact projection => Projection(projection),
         TypeUseBindingPolicyFact policy => policy with
         {
             Definition = policy.Definition with { TypeUse = new() { Value = policy.Definition.TypeUse.Value } }
         },
+        _ => PlacementOmissionDefinition(fact)
+    };
+
+    static GenerationFact PlacementOmissionDefinition(GenerationFact fact) => fact switch
+    {
         ArtifactSourcePlacementCandidateFact candidate => candidate with { Definition = SourcePlacementCandidateStructure.Copy(candidate.Definition, ArtifactKey) },
         MethodDiagnosticProjectionFact projection => Projection(projection),
         OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),
@@ -148,7 +154,7 @@ static class AdapterRunCanonicalizer
             Definition = typeUse.Definition with
             {
                 Member = DeclarationMember(typeUse.Definition.Member),
-                Type = typeUse.Definition.Type with { ObservedTypeSubject = typeUse.Definition.Type.ObservedTypeSubject is { } subject ? Subject(subject) : null, ObservedScope = Scope(typeUse.Definition.Type.ObservedScope), Shape = [.. typeUse.Definition.Type.Shape] }
+                Type = TypeUse(typeUse.Definition.Type)
             }
         },
         _ => DomainFactDefinition(fact)
@@ -459,13 +465,30 @@ static class AdapterRunCanonicalizer
     static ArtifactMemberTypeUseDefinition ArtifactMemberTypeUse(ArtifactMemberTypeUseDefinition definition) => new()
     {
         Member = ArtifactMemberKey(definition.Member),
-        Type = new TypeUseDefinition
+        Type = TypeUse(definition.Type)
+    };
+
+    static TypeUseCompatibilityProjectionFact Projection(TypeUseCompatibilityProjectionFact fact) => fact.Definition is not { } definition ? fact : fact with
+    {
+        Definition = definition with
         {
-            Name = definition.Type.Name,
-            ObservedTypeSubject = definition.Type.ObservedTypeSubject is null ? null : Subject(definition.Type.ObservedTypeSubject),
-            ObservedScope = Scope(definition.Type.ObservedScope),
-            Shape = [.. definition.Type.Shape]
+            TypeUse = definition.TypeUse is { } id ? new() { Value = id.Value } : null!,
+            Type = definition.Type is { } type ? TypeUse(type) : null!
         }
+    };
+
+    static TypeUseDefinition TypeUse(TypeUseDefinition type) => type with
+    {
+        ObservedTypeSubject = type.ObservedTypeSubject is { } subject ? Subject(subject) : null,
+        ObservedScope = Scope(type.ObservedScope),
+        Shape = type.Shape is { } shape ? [.. shape] : null!,
+        Nodes = type.Nodes is { } nodes ? [.. nodes.Select(TypeUseNode)] : null
+    };
+
+    static TypeUseNodeObservation TypeUseNode(TypeUseNodeObservation node) => node is null ? null! : node with
+    {
+        Subject = node.Subject is { } subject ? Subject(subject) : null,
+        Scope = Scope(node.Scope)
     };
 
     static TypeUseBindingDefinition TypeUseBinding(TypeUseBindingDefinition definition) => new()

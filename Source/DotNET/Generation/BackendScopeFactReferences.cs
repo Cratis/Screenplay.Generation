@@ -35,7 +35,13 @@ static class BackendScopeFactReferences
         BackendScopeFact scope => [scope.Definition.Key],
         ArtifactSourcePlacementCandidateFact candidate => [candidate.Definition.Artifact.Scope, candidate.Definition.Owner.Scope],
         ArtifactFact artifact => artifact.Definition.Properties.Select(property => property.Type.Scope).Prepend(artifact.Definition.Key.Scope),
-        ArtifactMemberTypeUseFact typeUse => [typeUse.Definition.Member.Artifact.Scope, typeUse.Definition.Type.ObservedScope],
+        _ => TypeUseScopes(fact)
+    };
+
+    static IEnumerable<BackendScopeKey?> TypeUseScopes(GenerationFact fact) => fact switch
+    {
+        ArtifactMemberTypeUseFact typeUse => TypeScopes(typeUse.Definition.Type).Prepend(typeUse.Definition.Member.Artifact.Scope),
+        TypeUseCompatibilityProjectionFact projection => TypeScopes(projection.Definition?.Type),
         TypeUseBindingFact binding => [binding.Definition.Member.Artifact.Scope, binding.Definition.Target.Scope],
         RelationshipFact relationship => [relationship.Definition.Key.SourceScope, relationship.Definition.Key.TargetScope],
         _ => UsageScopes(fact)
@@ -59,12 +65,20 @@ static class BackendScopeFactReferences
     {
         MethodExecutionClassificationFact classification => [classification.Definition.Scope],
         MethodFactSupportFact support => support.Definition.Alternatives.Select(alternative => alternative.Scope),
+        _ => InputScopes(fact)
+    };
+
+    static IEnumerable<BackendScopeKey?> InputScopes(GenerationFact fact) => fact switch
+    {
         DeclarationInputMemberTargetOmittedFact omission => [omission.Definition.Member.Scope],
         DeclarationInputMemberDeclarationFact member => [member.Definition.Member.Scope],
-        DeclarationInputMemberTypeUseFact typeUse => [typeUse.Definition.Member.Scope, typeUse.Definition.Type.ObservedScope],
+        DeclarationInputMemberTypeUseFact typeUse => TypeScopes(typeUse.Definition.Type).Prepend(typeUse.Definition.Member.Scope),
         EntryPointInputTransferFact transfer => [transfer.Definition.Artifact.Scope],
         _ => ExecutionScopes(fact)
     };
+
+    static IEnumerable<BackendScopeKey?> TypeScopes(TypeUseDefinition? type) =>
+        (type?.Nodes ?? []).Select(node => node?.Scope).Prepend(type?.ObservedScope);
 
     static IEnumerable<BackendScopeKey?> ExecutionScopes(GenerationFact fact) => fact switch
     {

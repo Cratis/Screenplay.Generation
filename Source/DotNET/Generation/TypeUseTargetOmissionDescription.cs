@@ -8,6 +8,7 @@ static class TypeUseTargetOmissionDescription
     public static SubjectId DiagnosticSubject(GenerationFact fact, SubjectId fallback) =>
         fact switch
         {
+            TypeUseCompatibilityProjectionFact projection => projection.Subject,
             TypeUseBindingPolicyFact policy => policy.Subject,
             TypeUseTargetOmittedFact omission => omission.Definition.Member.Artifact.Subject,
             DeclarationInputMemberTargetOmittedFact omission => omission.Definition.Member.Declaration,
@@ -16,6 +17,7 @@ static class TypeUseTargetOmissionDescription
 
     public static string Family(GenerationFact fact, string fallback) => fact switch
     {
+        TypeUseCompatibilityProjectionFact => "type-use compatibility projection",
         TypeUseBindingPolicyFact => "type-use binding policy",
         TypeUseTargetOmittedFact or DeclarationInputMemberTargetOmittedFact => "type-use target omission",
         _ => fallback

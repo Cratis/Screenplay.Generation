@@ -57,6 +57,24 @@ public sealed record TypeUseDefinition
     /// Gets the exact optionality and collection shape from outermost wrapper to named type.
     /// </summary>
     public IReadOnlyList<TypeUseShapeKind> Shape { get; init; } = [TypeUseShapeKind.Named];
+
+    /// <summary>Gets optional source identities aligned with every node of <see cref="Shape"/>.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<TypeUseNodeObservation>? Nodes { get; init; }
+}
+
+/// <summary>Describes the exact source symbol at one shape node, before peeling it.</summary>
+public sealed record TypeUseNodeObservation
+{
+    /// <summary>Gets the source symbol's printable name.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Gets the exact source symbol subject, when owned by the analyzed source.</summary>
+    public SubjectId? Subject { get; init; }
+
+    /// <summary>Gets the exact source symbol scope; a scope requires a subject.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BackendScopeKey? Scope { get; init; }
 }
 
 /// <summary>

@@ -78,6 +78,7 @@ internal static class GenerationFactDiscriminators
     static bool TargetOmissionSupported(GenerationFact fact) => fact switch
     {
         TypeUseTargetOmittedFact omission => Supported(omission.Definition.Member.Artifact.Kind, ArtifactKind.Unknown),
+        TypeUseCompatibilityProjectionFact projection => projection.Definition is { Version: 1, Profile: TypeUseCompatibilityProfile.OneLayerCollection },
         TypeUseBindingPolicyFact policy => TypeUseBindingPolicies.Supported(policy),
         _ => true
     };

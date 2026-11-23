@@ -21,7 +21,7 @@ static class TypeUseBindingDerivation
             .Where(fact => fact is BackendScopeFact or ArtifactFact or
                            ArtifactDeclarationFact or
                            ArtifactMemberDeclarationFact or
-                           ArtifactMemberTypeUseFact or TypeUseTargetOmittedFact or TypeUseBindingPolicyFact)
+                           ArtifactMemberTypeUseFact or TypeUseTargetOmittedFact or TypeUseBindingPolicyFact or TypeUseCompatibilityProjectionFact)
             .Select(fact => fact.Id)
             .OrderBy(id => id.Value, StringComparer.Ordinal)
             .ToImmutableArray();
@@ -86,11 +86,22 @@ static class TypeUseBindingDerivation
             return BindingOutcome.Failed(typeUseConflict);
         }
 
+        var selectedTypes = typeUses.Select(typeUse => TypeUseCompatibilityProjections.Select((GenerationFact)typeUse, index.Facts)).ToArray();
+        if (!TypeUseCompatibilityProjections.Agree(selectedTypes))
+        {
+            return BindingOutcome.Failed(context.Diagnostic(GenerationDiagnosticCodes.ConflictingMemberTypeUse, GenerationDiagnosticOutcome.Conflict, TypeUseCompatibilityProjections.Supports(typeUses, index.Facts), "Incompatible printable views were asserted for the exact type use"));
+        }
+
+        context = context with
+        {
+            Type = selectedTypes[0],
+            ProjectionSupports = TypeUseCompatibilityProjections.Supports(typeUses, index.Facts)
+        };
         var typeUse = typeUses
             .OrderBy(fact => fact.Id.Value, StringComparer.Ordinal)
             .ThenBy(DerivationInputKey, StringComparer.Ordinal)
             .First();
-        if (typeUse.Definition.Type.ObservedTypeSubject is not { } observedType)
+        if (context.Type.ObservedTypeSubject is not { } observedType)
         {
             return BindingOutcome.Skipped;
         }
@@ -137,11 +148,7 @@ static class TypeUseBindingDerivation
 
     static GenerationDiagnostic? ConflictingTypeUse(BindingContext context)
     {
-        var typeVariants = context.TypeUses
-            .Select(fact => Structural.TypeUse(fact.Definition.Type))
-            .Distinct(StringComparer.Ordinal)
-            .Count();
-        return typeVariants > 1
+        return !TypeUseCompatibilityProjections.Agree(context.TypeUses.Select(fact => fact.Definition.Type))
             ? context.Diagnostic(
                 GenerationDiagnosticCodes.ConflictingMemberTypeUse,
                 GenerationDiagnosticOutcome.Conflict,
@@ -256,8 +263,8 @@ static class TypeUseBindingDerivation
     }
 
     static bool MatchesTarget(ArtifactKey key, BindingContext context, ArtifactKey[] legacyTargets) =>
-        key.Subject == context.TypeUses[0].Definition.Type.ObservedTypeSubject &&
-        key.Scope == context.TypeUses[0].Definition.Type.ObservedScope &&
+        key.Subject == context.Type.ObservedTypeSubject &&
+        key.Scope == context.Type.ObservedScope &&
         (legacyTargets.Length == 0 || key == legacyTargets[0]) &&
         (!context.ConceptOnly || key.Kind == ArtifactKind.Concept);
 
@@ -304,6 +311,7 @@ static class TypeUseBindingDerivation
             context.TypeUses
                 .Cast<GenerationFact>()
                 .Concat(declarations)
+                .Concat(context.ProjectionSupports)
                 .Concat(targets.Select(declaration => declaration.Fact)));
         var target = targets[0].Key;
         var fact = new TypeUseBindingFact
@@ -443,12 +451,15 @@ static class TypeUseBindingDerivation
 
     sealed record BindingContext(ArtifactMemberKey Member, ArtifactMemberTypeUseFact[] TypeUses, bool ConceptOnly)
     {
+        public TypeUseDefinition Type { get; init; } = TypeUses[0].Definition.Type;
+        public GenerationFact[] ProjectionSupports { get; init; } = [];
+
         public GenerationDiagnostic Diagnostic(
             string code,
             GenerationDiagnosticOutcome outcome,
             IEnumerable<GenerationFact> declarations,
             string message) =>
-            Create(code, outcome, declarations.Concat(TypeUses), message);
+            Create(code, outcome, declarations.Concat(TypeUses).Concat(ProjectionSupports), message);
 
         GenerationDiagnostic Create(
             string code,

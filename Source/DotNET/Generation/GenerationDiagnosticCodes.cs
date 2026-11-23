@@ -333,6 +333,9 @@ public static class GenerationDiagnosticCodes
     /// <summary>A binding policy does not match a producer-owned type use or the supported concept-only policy.</summary>
     public const string InvalidTypeUseBindingPolicy = "GEN0085";
 
+    /// <summary>A type-use compatibility projection has an unsupported profile or invalid local source-node view.</summary>
+    public const string InvalidTypeUseCompatibilityProjection = "GEN0090";
+
     /// <summary>A source-owner candidate is invalid or lacks independent ownership proof.</summary>
     public const string InvalidSourceOwnerCandidate = "GEN0075";
 

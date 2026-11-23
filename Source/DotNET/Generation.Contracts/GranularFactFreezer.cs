@@ -158,7 +158,8 @@ static class GranularFactFreezer
                 ? null
                 : FreezeSubject(type.ObservedTypeSubject, $"{path}.ObservedTypeSubject", context),
             Shape = FreezeShape(type.Shape, $"{path}.Shape", context),
-            ObservedScope = BackendScopeFreezer.Key(type.ObservedScope, $"{path}.ObservedScope", context)
+            ObservedScope = BackendScopeFreezer.Key(type.ObservedScope, $"{path}.ObservedScope", context),
+            Nodes = TypeUseCompatibilityProjectionAdmission.FreezeNodes(type.Nodes, $"{path}.Nodes", context)
         };
     }
 
