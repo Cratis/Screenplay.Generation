@@ -43,8 +43,96 @@ See [Build a .NET source adapter](Documentation/guides/build-source-adapter.md) 
 | Opt-in query input transfer from declaration-owned surfaces | No | Yes |
 | Opt-in method diagnostic projection with diagnostic lineage | No | Yes |
 | Cross-producer omission coalescing by family and exact occurrence | No | Yes |
+| Ordered exclusive member-role alternatives, including explicit no-member selections | No | Yes |
 
 Current `main` also supports [query input derivation from declaration surfaces](Documentation/guides/query-input-member-derivation.md): explicit transfer intent and proved execution/source order add exact inputs without turning source declarations into artifacts. Ordinary `Reads` facts retain their original meaning. Method-dependent observations are selected before all derivation and resolution; the adapter guide documents the source-neutral eligibility proof contract.
+
+## Ordered exclusive member-role selection
+
+Current `main` adds `ArtifactMemberRoleSelectionFact` for adapters that observe several alternative configurations of one exclusive role. Declare `GenerationFactCapability.ArtifactMemberRoleSelection` (value `33`) in the adapter descriptor. This is an additive contract; existing capability values, `ArtifactMemberRoleFact`, aggregate properties, and their union semantics are unchanged when no grouped alternatives are contributed.
+
+A group is the exact `ArtifactKey` plus `ArtifactMemberRoleKind`: subject, artifact kind, store, and event-model qualifier all matter. A null scope is an unscoped occurrence, not a wildcard. Scoped alternatives require a valid backend-scope declaration; scoped concepts and queries are not supported. `Identifier` and `EventSourceIdentifier` remain different roles.
+
+Each `ArtifactMemberRoleSelectionDefinition` requires:
+
+- `Artifact` and `Role`, identifying the exclusive group;
+- `Member`, either an exact `ArtifactMemberKey` belonging to that artifact or **null**, explicitly selecting no member;
+- signed `int Priority` and nonnegative `long ObservationOrder`;
+- optional `Diagnostics`, producer-owned payloads to publish only if this eligible alternative wins.
+
+Method support is evaluated **before** ranking. No `MethodFactSupportFact` means unconditional eligibility; otherwise an ordinary or unclassified exact method alternative is sufficient. Failure-only alternatives are removed, so an earlier eligible configuration may remain. A scoped alternative's support must use that same scope. Eligible alternatives are ranked lexicographically by `(Priority, ObservationOrder)`, highest first. An explicit no-member winner suppresses earlier members without falling back. Malformed metadata blocks the identifiable group (`GEN0096`); duplicate complete ranks block it with a conflict (`GEN0097`). Adapter identity, source path, fact ID, enumeration order, and arrival order never break a tie.
+
+Observation order comes from **one stable total observation sequence for the exact artifact/role in a fixed source snapshot**, shared by every contributing producer. It is not a producer's filtered enumeration, registration or contribution position, timestamp, adapter ID, or fact ID. For example, a frontend may enumerate the whole snapshot by stable source-file identity and source position before assigning ordinals. Both atomic adapters use that same convention. The SDK compares the supplied ordinal; it does not infer cross-file execution order or claim that source order is execution order.
+
+For example, a source-independent adapter can emit a conventional fallback (priority `0`), an attribute-derived alternative (`100`), and two configured observations (`200`). These are the frontend's shared policy, not SDK recognition of attributes or configuration APIs:
+
+```csharp
+using Cratis.Screenplay.Generation;
+
+var producer = new AdapterIdentity { Id = "ordering", Version = "1.0.0" };
+var subject = new SubjectId { Value = "ordering://commands/submit" };
+var artifact = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Command };
+var earlier = new ArtifactMemberRoleSelectionFact
+{
+    Id = new FactId { Value = "ordering:identity:1" },
+    Subject = subject,
+    Evidence = new Evidence { Adapter = producer, Strength = EvidenceStrength.Exact },
+    Definition = new ArtifactMemberRoleSelectionDefinition
+    {
+        Artifact = artifact,
+        Role = ArtifactMemberRoleKind.EventSourceIdentifier,
+        Member = new ArtifactMemberKey { Artifact = artifact, Name = "orderId" },
+        Priority = 200,
+        ObservationOrder = 1
+    }
+};
+var conventional = earlier with
+{
+    Id = new FactId { Value = "ordering:identity:conventional" },
+    Definition = earlier.Definition with { Priority = 0, ObservationOrder = 0 }
+};
+var attributed = earlier with
+{
+    Id = new FactId { Value = "ordering:identity:attribute" },
+    Definition = earlier.Definition with { Priority = 100, ObservationOrder = 0 }
+};
+var cleared = earlier with
+{
+    Id = new FactId { Value = "ordering:identity:2" },
+    Definition = earlier.Definition with
+    {
+        Member = null,
+        ObservationOrder = 2,
+        Diagnostics =
+        [
+            new GenerationDiagnostic
+            {
+                Code = "ORDERING_IDENTITY_UNRESOLVED",
+                Severity = GenerationDiagnosticSeverity.Warning,
+                Message = "The configured member could not be resolved",
+                Subject = subject
+            }
+        ]
+    }
+};
+var support = new MethodFactSupportFact
+{
+    Id = new FactId { Value = "ordering:identity:2:support" },
+    Subject = subject,
+    Evidence = earlier.Evidence,
+    Definition = new MethodFactSupportDefinition
+    {
+        Candidate = cleared.Id,
+        Alternatives = [new MethodFactSupportAlternative { Method = new SubjectId { Value = "ordering://methods/configure" } }]
+    }
+};
+```
+
+The producer still supplies the artifact and member declarations through the existing contracts. A default tier such as `0` and an explicit tier such as `200` are producer conventions, not framework constants; each producer establishes semantic observation order from its own evidence rather than list position.
+
+A member winner produces one ordinary derived `ArtifactMemberRoleFact`; a no-member winner produces none. All alternatives retain provenance, with core-owned rule `cratis.screenplay.artifact-member-role-selection` version `1.0.0`, aligned input/evidence lineage, and final dispositions. Only the winner's payloads and deferred support diagnostics are published; independent classification diagnostics retain their existing behavior. Payload subjects must match their candidate, referenced facts must be local to that producer contribution, and adapters cannot fabricate core lineage. Modern admission freezes payloads before producer mutation. Raw/legacy inputs are also validated and fail closed.
+
+Do not mix grouped selection with an ungrouped assertion of the same exact role, including an aggregate property already marked as an event-source identifier. This is a local conflict (`GEN0097`), not a union or a last-writer override. Migrate all fallback assertions for that role into candidate form before relying on replacement. Ungrouped facts for other roles or occurrences keep their existing meaning; ordinary `Identifier` lowering is not redefined. The mechanism contains no source-framework syntax or API recognition; frontends contribute neutral observations only.
 
 ## Architecture
 

@@ -336,6 +336,7 @@ internal static class Program
         {
             ExerciseCurrentPackages();
             ExerciseArtifactUsagePackages();
+            ExerciseMemberRoleSelectionPackages();
             Console.WriteLine("Current-source consumer compiled, composed, resolved, and compiler-verified deterministically.");
             return 0;
         }
@@ -1787,6 +1788,57 @@ internal static class Program
         {
             throw new CurrentSourceConsumerFailure(code, message);
         }
+    }
+
+    static void ExerciseMemberRoleSelectionPackages()
+    {
+        var producer = new AdapterIdentity { Id = "neutral-roles", Version = "1.0.0" };
+        var subject = new SubjectId { Value = "consumer://orders/submit" };
+        var artifact = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Command };
+        var evidence = new Evidence { Adapter = producer, Strength = EvidenceStrength.Exact };
+        var earlier = new ArtifactMemberRoleSelectionFact
+        {
+            Id = new FactId { Value = "neutral-roles:earlier" }, Subject = subject, Evidence = evidence,
+            Definition = new ArtifactMemberRoleSelectionDefinition
+            {
+                Artifact = artifact, Role = ArtifactMemberRoleKind.EventSourceIdentifier,
+                Member = new ArtifactMemberKey { Artifact = artifact, Name = "firstId" }, Priority = 200, ObservationOrder = 1
+            }
+        };
+        var later = earlier with
+        {
+            Id = new FactId { Value = "neutral-roles:later" },
+            Definition = earlier.Definition with { Member = new ArtifactMemberKey { Artifact = artifact, Name = "secondId" }, ObservationOrder = 2 }
+        };
+        var declaration = new ArtifactFact
+        {
+            Id = new FactId { Value = "neutral-roles:command" }, Subject = subject, Evidence = evidence,
+            Definition = new ArtifactDefinition
+            {
+                Key = artifact, Name = "SubmitOrder", Properties =
+                [
+                    new PropertyDefinition { Name = "firstId", Type = new TypeReferenceDefinition { Name = "Uuid" } },
+                    new PropertyDefinition { Name = "secondId", Type = new TypeReferenceDefinition { Name = "Uuid" } }
+                ]
+            }
+        };
+        var descriptor = new AdapterDescriptor
+        {
+            Identity = producer, Category = AdapterCategory.ApplicationFramework, SourceLanguage = AdapterSourceLanguage.SourceIndependent,
+            EmittedFactCapabilities = [GenerationFactCapability.Artifact, GenerationFactCapability.ArtifactMemberRoleSelection]
+        };
+        var contribution = new AdapterContribution { Adapter = producer, Facts = [declaration, later, earlier] };
+        var admitted = AdapterContributionAdmission.Admit(descriptor, contribution);
+        Require(admitted.IsAdmitted, "CSC0062", "Neutral role selection was not admitted by current contracts.");
+        var resolver = new GenerationResolver();
+        var graph = resolver.Resolve([contribution]);
+        var properties = graph.Artifacts.Single().Variants.Single().Definition.Properties;
+        Require(properties.Single(property => property.IsIdentifier).Name == "secondId", "CSC0063", "The later alternative did not exclusively select its member.");
+        var reversed = resolver.Resolve([contribution with { Facts = [earlier, later, declaration] }]);
+        Require(JsonSerializer.Serialize(graph) == JsonSerializer.Serialize(reversed), "CSC0064", "Role selection changed with contribution order.");
+        var noMember = later with { Definition = later.Definition with { Member = null } };
+        var cleared = resolver.Resolve([contribution with { Facts = [declaration, earlier, noMember] }]);
+        Require(cleared.Artifacts.Single().Variants.Single().Definition.Properties.All(property => !property.IsIdentifier), "CSC0065", "An explicit no-member alternative fell back to an earlier member.");
     }
 
     static void ExerciseArtifactUsagePackages()
