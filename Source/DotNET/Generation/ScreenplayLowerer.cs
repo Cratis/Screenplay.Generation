@@ -214,11 +214,14 @@ public sealed class ScreenplayLowerer
         return diagnostic with { Source = source, Subject = artifact.Key.Subject };
     }
 
-    static SourceRange? SourceForArtifact(ResolvedApplicationGraph graph, ArtifactKey key) =>
-        FirstSource(graph.Artifacts
+    static SourceRange? SourceForArtifact(ResolvedApplicationGraph graph, ArtifactKey key)
+    {
+        var variants = graph.Artifacts
             .Where(_ => Structural.ArtifactKey(_.Key) == Structural.ArtifactKey(key))
             .SelectMany(_ => _.Variants)
-            .SelectMany(_ => _.Evidence));
+            .ToArray();
+        return FirstSource(variants.SelectMany(_ => _.DeclarationEvidence)) ?? FirstSource(variants.SelectMany(_ => _.Evidence));
+    }
 
     static SourceRange? SourceForPlacement(ResolvedApplicationGraph graph, ArtifactKey key) =>
         FirstSource(graph.Placements

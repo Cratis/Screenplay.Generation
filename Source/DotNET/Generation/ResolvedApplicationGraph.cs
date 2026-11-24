@@ -27,6 +27,8 @@ public sealed record ResolvedArtifactVariant
     /// Gets the ordered evidence supporting the definition.
     /// </summary>
     public IReadOnlyList<Evidence> Evidence { get; init; } = [];
+
+    internal IReadOnlyList<Evidence> DeclarationEvidence { get; init; } = [];
 }
 
 /// <summary>
