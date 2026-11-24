@@ -92,7 +92,7 @@ internal static class GenerationFactDispositionCalculator
         return new() { Fact = fact, Disposition = disposition, Diagnostics = diagnostics };
     }
 
-    static bool IsDiagnosticIntent(GenerationFact fact) => fact is MethodDiagnosticProjectionFact or OccurrenceOmissionDiagnosticFact;
+    static bool IsDiagnosticIntent(GenerationFact fact) => fact is MethodDiagnosticProjectionFact or OccurrenceOmissionDiagnosticFact or ArtifactMemberRoleSelectionFact;
 
     static bool IsDiagnosticIntentFailure(GenerationDiagnostic diagnostic) =>
         diagnostic.Code == GenerationDiagnosticCodes.InvalidDiagnosticIntent || diagnostic.Code == GenerationDiagnosticCodes.MissingDiagnosticEntryPoint ||

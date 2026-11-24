@@ -237,7 +237,10 @@ public enum GenerationFactCapability
     TypeUseCompatibilityProjection = 31,
 
     /// <summary><see cref="DeclarationInputMemberTargetOmittedFact"/> facts.</summary>
-    DeclarationInputMemberTargetOmitted = 32
+    DeclarationInputMemberTargetOmitted = 32,
+
+    /// <summary><see cref="ArtifactMemberRoleSelectionFact"/> ordered exclusive member-role alternatives.</summary>
+    ArtifactMemberRoleSelection = 33
 }
 
 /// <summary>

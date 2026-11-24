@@ -353,4 +353,10 @@ public static class GenerationDiagnosticCodes
 
     /// <summary>A declaration input target omission does not match its producer-owned type use or warning.</summary>
     public const string InvalidDeclarationInputMemberTargetOmission = "GEN0095";
+
+    /// <summary>An exclusive role-selection alternative has invalid metadata or local dependencies.</summary>
+    public const string InvalidArtifactMemberRoleSelection = "GEN0096";
+
+    /// <summary>An exclusive role selection has ambiguous ranks or mixes grouped and ungrouped assertions.</summary>
+    public const string ConflictingArtifactMemberRoleSelection = "GEN0097";
 }

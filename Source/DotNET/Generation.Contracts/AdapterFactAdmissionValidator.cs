@@ -129,6 +129,9 @@ static class AdapterFactAdmissionValidator
             case SpecificationValueFact value:
                 SpecificationFactAdmissionValidator.Validate(value, path, context);
                 break;
+            case ArtifactMemberRoleSelectionFact selection:
+                ArtifactMemberRoleSelectionAdmission.ValidateShape(selection, path, context);
+                break;
         }
     }
 }

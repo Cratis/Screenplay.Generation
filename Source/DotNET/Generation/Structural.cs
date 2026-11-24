@@ -296,6 +296,7 @@ static class Structural
         TypeUseCompatibilityProjectionFact => (int)GenerationFactCapability.TypeUseCompatibilityProjection,
         TypeUseBindingPolicyFact => (int)GenerationFactCapability.TypeUseBindingPolicy,
         DeclarationInputMemberTargetOmittedFact => (int)GenerationFactCapability.DeclarationInputMemberTargetOmitted,
+        ArtifactMemberRoleSelectionFact => (int)GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => UsageFamily(fact)
     };
 
@@ -361,6 +362,7 @@ static class Structural
     {
         EntryPointInputTransferFact transfer => Node("entry-input-transfer", transfer.Definition.Method.Value, ArtifactKey(transfer.Definition.Artifact), Integer((int)transfer.Definition.Kind)),
         MethodFactSupportFact support => MethodSupportDefinition(support),
+        ArtifactMemberRoleSelectionFact selection => ArtifactMemberRoleSelectionStructure.Definition(selection.Definition),
         _ => DomainFactDefinition(fact)
     };
 

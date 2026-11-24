@@ -107,6 +107,7 @@ static class AdapterRunCanonicalizer
         ArtifactSourcePlacementCandidateFact candidate => candidate with { Definition = SourcePlacementCandidateStructure.Copy(candidate.Definition, ArtifactKey) },
         MethodDiagnosticProjectionFact projection => Projection(projection),
         OccurrenceOmissionDiagnosticFact candidate => Omission(candidate),
+        ArtifactMemberRoleSelectionFact selection => Selection(selection),
         TypeUseTargetOmittedFact omission => omission with
         {
             Definition = omission.Definition with { Diagnostic = Diagnostic(omission.Definition.Diagnostic) }
@@ -209,6 +210,11 @@ static class AdapterRunCanonicalizer
         {
             Method = Subject(fact.Definition.Method), Scope = Scope(fact.Definition.Scope), Diagnostic = Diagnostic(fact.Definition.Diagnostic)
         }
+    };
+
+    static ArtifactMemberRoleSelectionFact Selection(ArtifactMemberRoleSelectionFact fact) => fact.Definition?.Diagnostics is not { } diagnostics || !diagnostics.All(ArtifactMemberRoleSelectionDiagnosticValidation.CanTraverse) ? fact : fact with
+    {
+        Definition = fact.Definition with { Diagnostics = [.. Diagnostics(diagnostics)] }
     };
 
     static OccurrenceOmissionDiagnosticFact Omission(OccurrenceOmissionDiagnosticFact fact) => !OccurrenceOmissionDiagnosticValidation.Valid(fact) ? fact : fact with

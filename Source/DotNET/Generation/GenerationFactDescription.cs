@@ -43,6 +43,7 @@ internal static class GenerationFactDescription
         SpecificationScenarioFact scenario => scenario.Definition.Key.Scenario,
         SpecificationStepFact step => step.Definition.Key.Scenario.Scenario,
         SpecificationValueFact value => value.Definition.Key.Step.Scenario.Scenario,
+        ArtifactMemberRoleSelectionFact selection => selection.Definition?.Artifact?.Subject ?? fact.Subject,
         _ => fact.Subject
     };
 
@@ -51,6 +52,7 @@ internal static class GenerationFactDescription
         BackendScopeFact => "backend scope",
         ArtifactUsageDeclarationFact => "artifact usage declaration",
         MethodArtifactUsageFact => "method artifact usage",
+        ArtifactMemberRoleSelectionFact => "artifact member role selection",
         _ => ObservationFamily(fact)
     };
 

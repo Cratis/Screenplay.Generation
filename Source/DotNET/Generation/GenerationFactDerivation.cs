@@ -62,18 +62,6 @@ public static class GenerationFactDerivation
             .Concat(occurrenceOmissions.SelectMany(rule => rule.Diagnostics))
             .OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
             .ToImmutableArray();
-        ImmutableArray<GenerationDerivationRuleRecord> usageRules = baseFacts.Any(record => record.Fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
-            ?
-            [
-                new GenerationDerivationRuleRecord
-                {
-                    Rule = ArtifactUsageDerivation.Rule,
-                    Inputs = artifactUsages.Inputs,
-                    Outputs = [.. artifactUsages.Facts.Select(record => record.Fact.Id)],
-                    Diagnostics = artifactUsages.Diagnostics
-                }
-            ]
-            : [];
         var derivation = new GenerationDerivationSnapshot
         {
             Rules =
@@ -85,20 +73,39 @@ public static class GenerationFactDerivation
                     Outputs = [.. typeUseBindings.Facts.Select(record => record.Fact.Id)],
                     Diagnostics = typeUseBindings.Diagnostics
                 },
-                .. usageRules,
+                .. UsageRules(baseFacts, artifactUsages),
                 .. inputMemberRules,
                 .. sourceRules,
                 .. diagnosticProjections,
                 .. occurrenceOmissions,
-                .. MethodEligibilityLineage.Rules(effective),
-                .. effective.NameYieldRules
+                .. EffectiveRules(effective)
             ],
-            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts, .. sourcePlacements.Facts, .. effective.NameYieldFallbacks], effective),
+            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts, .. sourcePlacements.Facts, .. EffectiveFacts(effective)], effective),
             Diagnostics = diagnostics
         };
 
         return AdapterRunCanonicalizer.Derivation(derivation);
     }
+
+    static ImmutableArray<GenerationDerivationRuleRecord> UsageRules(ImmutableArray<GenerationFactRecord> baseFacts, ArtifactUsageDerivationResult artifactUsages) =>
+        baseFacts.Any(record => record.Fact is ArtifactUsageDeclarationFact or MethodArtifactUsageFact or EntryPointFact)
+            ?
+            [
+                new GenerationDerivationRuleRecord
+                {
+                    Rule = ArtifactUsageDerivation.Rule,
+                    Inputs = artifactUsages.Inputs,
+                    Outputs = [.. artifactUsages.Facts.Select(record => record.Fact.Id)],
+                    Diagnostics = artifactUsages.Diagnostics
+                }
+            ]
+            : [];
+
+    static ImmutableArray<GenerationDerivationRuleRecord> EffectiveRules(EffectiveGenerationInputs effective) =>
+        [.. MethodEligibilityLineage.Rules(effective), .. effective.NameYieldRules, .. effective.RoleSelection.Rules];
+
+    static ImmutableArray<GenerationFactRecord> EffectiveFacts(EffectiveGenerationInputs effective) =>
+        [.. effective.NameYieldFallbacks, .. effective.RoleSelection.Roles];
 
     static ImmutableArray<GenerationDerivationRuleRecord> InputMemberRules(EntryPointInputMemberDerivationResult inputMembers) => inputMembers.Inputs.IsEmpty ? [] :
     [

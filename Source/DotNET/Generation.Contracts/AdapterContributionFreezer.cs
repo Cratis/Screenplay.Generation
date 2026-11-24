@@ -373,6 +373,7 @@ static class AdapterContributionFreezer
         AdapterContributionAdmissionContext context) => fact switch
         {
             TypeUseTargetOmittedFact omission => GranularFactFreezer.Freeze(omission, envelope, context),
+            ArtifactMemberRoleSelectionFact selection => ArtifactMemberRoleSelectionFreezer.Freeze(selection, envelope, context),
             _ => OccurrenceOmissionDiagnosticFreezer.Freeze(fact, envelope, context) ?? DiagnosticIntentFreezer.Freeze(fact, envelope, context) ?? MethodEligibilityFreezer.Freeze(fact, envelope, context) ?? UnsupportedFact(fact, envelope.Path, context)
         };
 
@@ -1024,6 +1025,7 @@ static class AdapterContributionFreezer
         MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
         OccurrenceOmissionDiagnosticFact => (int)GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
+        ArtifactMemberRoleSelectionFact => (int)GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => UsageFamily(fact)
     };
 
