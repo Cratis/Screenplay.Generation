@@ -649,7 +649,6 @@ static class AdapterContributionAdmissionValidator
         ArtifactMemberTypeUseFact => GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => GenerationFactCapability.ArtifactMemberRole,
-        ArtifactMemberRoleSelectionFact => GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => TypeUseOmissionCapability(fact)
     };
 
@@ -666,6 +665,7 @@ static class AdapterContributionAdmissionValidator
     static GenerationFactCapability ProjectionCapability(GenerationFact fact) => fact switch
     {
         TypeUseCompatibilityProjectionFact => GenerationFactCapability.TypeUseCompatibilityProjection,
+        ArtifactMemberRoleSelectionFact => GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => UsageCapability(fact)
     };
 

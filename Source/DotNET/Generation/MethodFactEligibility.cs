@@ -96,7 +96,7 @@ static class MethodFactEligibility
             var effective = facts.Where(fact => !_dispositions.ContainsKey(GenerationFactInstance.Of(fact))).ToImmutableArray();
             return new(facts, effective, [.. _diagnostics.GroupBy(Canonical.Diagnostic, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())], _dispositions.ToImmutable(), _inputs.ToImmutable())
             {
-                SelectionDiagnostics = _selectionDiagnostics.ToImmutable(), SelectionInputs = _selectionInputs.ToImmutable()
+                RoleSelection = new() { Diagnostics = _selectionDiagnostics.ToImmutable(), Inputs = _selectionInputs.ToImmutable() }
             };
         }
 

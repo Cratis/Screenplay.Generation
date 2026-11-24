@@ -364,7 +364,6 @@ static class AdapterContributionFreezer
             ArtifactMemberTypeUseFact typeUse => GranularFactFreezer.Freeze(typeUse, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
             TypeUseBindingFact binding => GranularFactFreezer.Freeze(binding, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
             ArtifactMemberRoleFact role => GranularFactFreezer.Freeze(role, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
-            ArtifactMemberRoleSelectionFact selection => ArtifactMemberRoleSelectionFreezer.Freeze(selection, envelope, context),
             _ => FreezeTypeUseOmission(fact, envelope, context)
         };
 
@@ -374,6 +373,7 @@ static class AdapterContributionFreezer
         AdapterContributionAdmissionContext context) => fact switch
         {
             TypeUseTargetOmittedFact omission => GranularFactFreezer.Freeze(omission, envelope, context),
+            ArtifactMemberRoleSelectionFact selection => ArtifactMemberRoleSelectionFreezer.Freeze(selection, envelope, context),
             _ => OccurrenceOmissionDiagnosticFreezer.Freeze(fact, envelope, context) ?? DiagnosticIntentFreezer.Freeze(fact, envelope, context) ?? MethodEligibilityFreezer.Freeze(fact, envelope, context) ?? UnsupportedFact(fact, envelope.Path, context)
         };
 
@@ -1017,7 +1017,6 @@ static class AdapterContributionFreezer
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
-        ArtifactMemberRoleSelectionFact => (int)GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => TypeUseOmissionFamily(fact)
     };
 
@@ -1026,6 +1025,7 @@ static class AdapterContributionFreezer
         MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
         OccurrenceOmissionDiagnosticFact => (int)GenerationFactCapability.OccurrenceOmissionDiagnostic,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
+        ArtifactMemberRoleSelectionFact => (int)GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => UsageFamily(fact)
     };
 

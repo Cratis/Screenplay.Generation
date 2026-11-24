@@ -35,7 +35,7 @@ static class ArtifactMemberRoleSelection
             {
                 Facts = [.. input.Facts.Where(fact => fact is not ArtifactMemberRoleSelectionFact)],
                 Diagnostics = [.. _diagnostics.DistinctBy(Canonical.Diagnostic).OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)],
-                Dispositions = _dispositions.ToImmutable(), SelectedRoles = [.. _roles], RoleSelectionRules = [.. _rules]
+                Dispositions = _dispositions.ToImmutable(), RoleSelection = input.RoleSelection with { Roles = [.. _roles], Rules = [.. _rules] }
             };
         }
 
@@ -83,7 +83,7 @@ static class ArtifactMemberRoleSelection
 
         GenerationDiagnostic[] WinnerDiagnostics(ArtifactMemberRoleSelectionFact winner, GenerationFactLineage lineage) =>
         [
-            .. winner.Definition.Diagnostics.Concat(input.SelectionDiagnostics.GetValueOrDefault(GenerationFactInstance.Of(winner), []))
+            .. winner.Definition.Diagnostics.Concat(input.RoleSelection.Diagnostics.GetValueOrDefault(GenerationFactInstance.Of(winner), []))
                 .Select(diagnostic => diagnostic with { Facts = [.. diagnostic.Facts.Concat(lineage.Inputs).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)], Lineage = lineage })
                 .DistinctBy(Canonical.Diagnostic).OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)
         ];

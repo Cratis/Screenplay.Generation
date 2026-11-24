@@ -15,9 +15,9 @@ static class ArtifactMemberRoleSelectionLineage
 
     static IEnumerable<GenerationFact> Dependencies(ArtifactMemberRoleSelectionFact candidate, EffectiveGenerationInputs input)
     {
-        var diagnostics = (candidate.Definition?.Diagnostics ?? []).Concat(input.SelectionDiagnostics.GetValueOrDefault(GenerationFactInstance.Of(candidate), []));
+        var diagnostics = (candidate.Definition?.Diagnostics ?? []).Concat(input.RoleSelection.Diagnostics.GetValueOrDefault(GenerationFactInstance.Of(candidate), []));
         var references = diagnostics.Where(diagnostic => diagnostic?.Facts.IsDefault == false).SelectMany(diagnostic => diagnostic.Facts).ToHashSet();
-        return new GenerationFact[] { candidate }.Concat(input.SelectionInputs.GetValueOrDefault(GenerationFactInstance.Of(candidate), []))
+        return new GenerationFact[] { candidate }.Concat(input.RoleSelection.Inputs.GetValueOrDefault(GenerationFactInstance.Of(candidate), []))
             .Concat(ArtifactMemberRoleSelectionSupport.InvalidDependencies(candidate, input))
             .Concat(ArtifactMemberRoleSelectionMixing.Assertions(candidate, input.Facts))
             .Concat(input.OriginalFacts.Where(fact => fact.Evidence.Adapter == candidate.Evidence.Adapter && references.Contains(fact.Id)));

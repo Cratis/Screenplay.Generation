@@ -287,7 +287,6 @@ static class Structural
     {
         MethodDiagnosticProjectionFact => (int)GenerationFactCapability.MethodDiagnosticProjection,
         OccurrenceOmissionDiagnosticFact => (int)GenerationFactCapability.OccurrenceOmissionDiagnostic,
-        ArtifactMemberRoleSelectionFact => (int)GenerationFactCapability.ArtifactMemberRoleSelection,
         TypeUseTargetOmittedFact => (int)GenerationFactCapability.TypeUseTargetOmitted,
         _ => ProjectionFamily(fact)
     };
@@ -297,6 +296,7 @@ static class Structural
         TypeUseCompatibilityProjectionFact => (int)GenerationFactCapability.TypeUseCompatibilityProjection,
         TypeUseBindingPolicyFact => (int)GenerationFactCapability.TypeUseBindingPolicy,
         DeclarationInputMemberTargetOmittedFact => (int)GenerationFactCapability.DeclarationInputMemberTargetOmitted,
+        ArtifactMemberRoleSelectionFact => (int)GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => UsageFamily(fact)
     };
 
@@ -334,7 +334,6 @@ static class Structural
     {
         MethodDiagnosticProjectionFact projection => DiagnosticProjection(projection),
         OccurrenceOmissionDiagnosticFact candidate => OmissionDiagnostic(candidate),
-        ArtifactMemberRoleSelectionFact selection => ArtifactMemberRoleSelectionStructure.Definition(selection.Definition),
         TypeUseTargetOmittedFact omission => Node("type-use-target-omitted", ArtifactMemberKey(omission.Definition.Member), Diagnostic(omission.Definition.Diagnostic)),
         TypeUseCompatibilityProjectionFact projection => TypeUseProjection(projection.Definition),
         TypeUseBindingPolicyFact policy => Node("type-use-binding-policy", policy.Definition.TypeUse.Value, Integer((int)policy.Definition.Policy)),
@@ -363,6 +362,7 @@ static class Structural
     {
         EntryPointInputTransferFact transfer => Node("entry-input-transfer", transfer.Definition.Method.Value, ArtifactKey(transfer.Definition.Artifact), Integer((int)transfer.Definition.Kind)),
         MethodFactSupportFact support => MethodSupportDefinition(support),
+        ArtifactMemberRoleSelectionFact selection => ArtifactMemberRoleSelectionStructure.Definition(selection.Definition),
         _ => DomainFactDefinition(fact)
     };
 

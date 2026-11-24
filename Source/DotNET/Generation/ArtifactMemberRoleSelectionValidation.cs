@@ -26,7 +26,7 @@ static class ArtifactMemberRoleSelectionValidation
 
     static bool Diagnostics(ArtifactMemberRoleSelectionFact fact, EffectiveGenerationInputs input) =>
         fact.Definition.Diagnostics?.All(diagnostic => ArtifactMemberRoleSelectionDiagnosticValidation.Valid(fact, diagnostic, input.OriginalFacts, true)) == true &&
-        input.SelectionDiagnostics.GetValueOrDefault(GenerationFactInstance.Of(fact), []).All(diagnostic => ArtifactMemberRoleSelectionDiagnosticValidation.Valid(fact, diagnostic, input.OriginalFacts, false));
+        input.RoleSelection.Diagnostics.GetValueOrDefault(GenerationFactInstance.Of(fact), []).All(diagnostic => ArtifactMemberRoleSelectionDiagnosticValidation.Valid(fact, diagnostic, input.OriginalFacts, false));
 
     static bool LocalIdentity(ArtifactMemberRoleSelectionFact fact, EffectiveGenerationInputs input) =>
         input.OriginalFacts.Where(candidate => candidate.Id == fact.Id && candidate.Evidence.Adapter == fact.Evidence.Adapter).Select(Structural.Fact).Distinct(StringComparer.Ordinal).Count() == 1;

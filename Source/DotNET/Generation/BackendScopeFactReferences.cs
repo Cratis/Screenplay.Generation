@@ -17,6 +17,7 @@ static class BackendScopeFactReferences
         ArtifactDeclarationFact declaration => declaration.Definition.Artifact,
         ArtifactPlacementFact placement => placement.Artifact,
         ArtifactSourcePlacementCandidateFact candidate => candidate.Definition.Artifact,
+        ArtifactMemberRoleSelectionFact selection => selection.Definition?.Artifact,
         _ => MemberOwner(fact)
     };
 
@@ -27,7 +28,6 @@ static class BackendScopeFactReferences
         TypeUseTargetOmittedFact omission => omission.Definition.Member.Artifact,
         TypeUseBindingFact binding => binding.Definition.Member.Artifact,
         ArtifactMemberRoleFact role => role.Definition.Member.Artifact,
-        ArtifactMemberRoleSelectionFact selection => selection.Definition?.Artifact,
         _ => null
     };
 
@@ -59,7 +59,6 @@ static class BackendScopeFactReferences
     {
         MethodDiagnosticProjectionFact projection => [projection.Definition.Scope],
         OccurrenceOmissionDiagnosticFact candidate => [candidate.Definition?.Occurrence?.Scope],
-        ArtifactMemberRoleSelectionFact selection => [selection.Definition?.Artifact?.Scope],
         _ => ObservationScopes(fact)
     };
 
@@ -67,6 +66,7 @@ static class BackendScopeFactReferences
     {
         MethodExecutionClassificationFact classification => [classification.Definition.Scope],
         MethodFactSupportFact support => support.Definition.Alternatives.Select(alternative => alternative.Scope),
+        ArtifactMemberRoleSelectionFact selection => [selection.Definition?.Artifact?.Scope],
         _ => InputScopes(fact)
     };
 

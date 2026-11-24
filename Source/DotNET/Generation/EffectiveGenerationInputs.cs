@@ -16,15 +16,9 @@ sealed record EffectiveGenerationInputs(
 
     public ImmutableArray<GenerationDerivationRuleRecord> NameYieldRules { get; init; } = [];
 
-    public ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>> SelectionDiagnostics { get; init; } = [];
+    public ArtifactMemberRoleSelectionState RoleSelection { get; init; } = new();
 
-    public ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationFact>> SelectionInputs { get; init; } = [];
-
-    public ImmutableArray<GenerationFactRecord> SelectedRoles { get; init; } = [];
-
-    public ImmutableArray<GenerationDerivationRuleRecord> RoleSelectionRules { get; init; } = [];
-
-    public IEnumerable<GenerationFact> BindingFacts => Facts.Concat(NameYieldFallbacks.Select(record => record.Fact)).Concat(SelectedRoles.Select(record => record.Fact));
+    public IEnumerable<GenerationFact> BindingFacts => Facts.Concat(NameYieldFallbacks.Select(record => record.Fact)).Concat(RoleSelection.Roles.Select(record => record.Fact));
 
     public IEnumerable<GenerationFact> OmittedFacts => OriginalFacts.Where(HasDisposition);
 

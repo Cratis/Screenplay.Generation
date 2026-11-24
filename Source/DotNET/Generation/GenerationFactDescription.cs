@@ -18,7 +18,6 @@ internal static class GenerationFactDescription
         ArtifactMemberTypeUseFact typeUse => typeUse.Definition.Member.Artifact.Subject,
         TypeUseBindingFact binding => binding.Definition.Member.Artifact.Subject,
         ArtifactMemberRoleFact role => role.Definition.Member.Artifact.Subject,
-        ArtifactMemberRoleSelectionFact selection => selection.Definition?.Artifact?.Subject ?? fact.Subject,
         _ => TypeUseTargetOmissionDescription.DiagnosticSubject(fact, DomainSubject(fact))
     };
 
@@ -32,7 +31,6 @@ internal static class GenerationFactDescription
         ArtifactMemberTypeUseFact => "artifact member type use",
         TypeUseBindingFact => "type-use binding",
         ArtifactMemberRoleFact => "artifact member role",
-        ArtifactMemberRoleSelectionFact => "artifact member role selection",
         _ => TypeUseTargetOmissionDescription.Family(fact, UsageFamily(fact))
     };
 
@@ -45,6 +43,7 @@ internal static class GenerationFactDescription
         SpecificationScenarioFact scenario => scenario.Definition.Key.Scenario,
         SpecificationStepFact step => step.Definition.Key.Scenario.Scenario,
         SpecificationValueFact value => value.Definition.Key.Step.Scenario.Scenario,
+        ArtifactMemberRoleSelectionFact selection => selection.Definition?.Artifact?.Subject ?? fact.Subject,
         _ => fact.Subject
     };
 
@@ -53,6 +52,7 @@ internal static class GenerationFactDescription
         BackendScopeFact => "backend scope",
         ArtifactUsageDeclarationFact => "artifact usage declaration",
         MethodArtifactUsageFact => "method artifact usage",
+        ArtifactMemberRoleSelectionFact => "artifact member role selection",
         _ => ObservationFamily(fact)
     };
 
