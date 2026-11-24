@@ -212,7 +212,7 @@ static class AdapterRunCanonicalizer
         }
     };
 
-    static ArtifactMemberRoleSelectionFact Selection(ArtifactMemberRoleSelectionFact fact) => fact.Definition?.Diagnostics is not { } diagnostics || diagnostics.Any(diagnostic => diagnostic is null) ? fact : fact with
+    static ArtifactMemberRoleSelectionFact Selection(ArtifactMemberRoleSelectionFact fact) => fact.Definition?.Diagnostics is not { } diagnostics || !diagnostics.All(ArtifactMemberRoleSelectionDiagnosticValidation.CanTraverse) ? fact : fact with
     {
         Definition = fact.Definition with { Diagnostics = [.. Diagnostics(diagnostics)] }
     };

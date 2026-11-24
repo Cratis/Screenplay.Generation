@@ -20,7 +20,7 @@ static class ArtifactMemberRoleSelection
 
         public EffectiveGenerationInputs Run()
         {
-            var candidates = input.Facts.OfType<ArtifactMemberRoleSelectionFact>().DistinctBy(Structural.Fact).ToArray();
+            var candidates = ArtifactMemberRoleSelectionSupport.Candidates(input).DistinctBy(Structural.Fact).ToArray();
             foreach (var invalid in candidates.Where(fact => !ArtifactMemberRoleSelectionValidation.Key(fact)))
             {
                 Complete([invalid], GenerationDiagnosticCodes.InvalidArtifactMemberRoleSelection, GenerationDiagnosticOutcome.Unknown, null);

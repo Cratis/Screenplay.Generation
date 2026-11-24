@@ -15,7 +15,26 @@ static class ArtifactMemberRoleSelectionStructure
         definition.Member is null ? "no-member" : Structural.SemanticKey("member", Artifact(definition.Member.Artifact), definition.Member.Name),
         definition.Priority.ToString(CultureInfo.InvariantCulture),
         definition.ObservationOrder.ToString(CultureInfo.InvariantCulture),
-        definition.Diagnostics is null ? "invalid-diagnostics" : Structural.SemanticKey("diagnostics", [.. definition.Diagnostics.Select(diagnostic => diagnostic is null ? Structural.SemanticKey("null-diagnostic") : Structural.Diagnostic(diagnostic)).Order(StringComparer.Ordinal)]));
+        definition.Diagnostics is null ? "invalid-diagnostics" : Structural.SemanticKey("diagnostics", [.. definition.Diagnostics.Select(Diagnostic).Order(StringComparer.Ordinal)]));
+
+    static string Diagnostic(GenerationDiagnostic? diagnostic)
+    {
+        if (diagnostic is null)
+        {
+            return Structural.SemanticKey("null-diagnostic");
+        }
+
+        if (ArtifactMemberRoleSelectionDiagnosticValidation.CanTraverse(diagnostic))
+        {
+            return Structural.Diagnostic(diagnostic);
+        }
+
+        return Structural.SemanticKey(
+            "invalid-role-selection-diagnostic",
+            Structural.Diagnostic(diagnostic with { Facts = [], Lineage = null }),
+            diagnostic.Facts.IsDefault ? "default-facts" : Structural.SemanticKey("facts", [.. diagnostic.Facts.Select(id => id?.Value)]),
+            diagnostic.Lineage is null ? null : "invalid-lineage");
+    }
 
     static string Artifact(ArtifactKey? key) => key is null ? Structural.SemanticKey("missing-artifact") : Structural.SemanticKey("artifact", key.Subject?.Value, ((int)key.Kind).ToString(CultureInfo.InvariantCulture), key.Scope is null ? null : Structural.SemanticKey("scope", key.Scope.Store?.Value, key.Scope.EventModelName));
 }

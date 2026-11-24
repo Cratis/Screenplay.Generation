@@ -5,6 +5,9 @@ namespace Cratis.Screenplay.Generation;
 
 static class ArtifactMemberRoleSelectionDiagnosticValidation
 {
+    public static bool CanTraverse(GenerationDiagnostic? diagnostic) => diagnostic is not null && diagnostic.Lineage is null &&
+        !diagnostic.Facts.IsDefault && diagnostic.Facts.All(id => id is not null);
+
     public static bool Valid(GenerationFact owner, GenerationDiagnostic? diagnostic, IEnumerable<GenerationFact> facts, bool matchingSubject)
     {
         if (diagnostic is null)

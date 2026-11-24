@@ -33,7 +33,7 @@ static class ArtifactMemberRoleSelectionValidation
 
     static bool Supports(ArtifactMemberRoleSelectionFact fact, EffectiveGenerationInputs input) => input.OriginalFacts.OfType<MethodFactSupportFact>()
         .Where(support => GenerationFactInstance.CandidateOf(support) == GenerationFactInstance.Of(fact))
-        .All(support => support.Definition.Alternatives?.All(alternative => alternative.Scope == fact.Definition.Artifact.Scope) == true);
+        .All(support => !ArtifactMemberRoleSelectionSupport.Invalid(support, input) && support.Definition.Alternatives?.All(alternative => alternative.Scope == fact.Definition.Artifact.Scope) == true);
 
     static bool KnownScope(ArtifactKey key, EffectiveGenerationInputs input)
     {
