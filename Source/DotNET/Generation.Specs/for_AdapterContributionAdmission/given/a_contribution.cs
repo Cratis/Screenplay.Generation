@@ -66,6 +66,7 @@ public class a_contribution : Specification
         GenerationFactCapability.MethodDiagnosticProjection,
         GenerationFactCapability.OccurrenceOmissionDiagnostic,
         GenerationFactCapability.ArtifactMemberRoleSelection,
+        GenerationFactCapability.MethodDeclarationExecution,
         GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         GenerationFactCapability.TypeUseBindingPolicy,
         GenerationFactCapability.TypeUseCompatibilityProjection,

@@ -305,6 +305,13 @@ static class AdapterContributionFreezer
                 Evidence = envelope.Evidence,
                 Definition = ArtifactUsageFreezer.Declaration(declaration.Definition, $"{envelope.Path}.Definition", context)
             },
+            MethodDeclarationExecutionFact execution => new MethodDeclarationExecutionFact
+            {
+                Id = envelope.Id,
+                Subject = envelope.Subject,
+                Evidence = envelope.Evidence,
+                Definition = DeclarationInputMemberFreezer.Execution(execution.Definition, $"{envelope.Path}.Definition", context)
+            },
             TypeUseCompatibilityProjectionFact projection => TypeUseCompatibilityProjectionAdmission.Freeze(projection, envelope, context),
             TypeUseBindingPolicyFact policy => TypeUseBindingPolicyAdmission.Freeze(policy, envelope, context),
             _ => FreezeInputMemberFact(fact, envelope, context)
@@ -1042,9 +1049,15 @@ static class AdapterContributionFreezer
     {
         MethodExecutionClassificationFact => (int)GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => (int)GenerationFactCapability.MethodFactSupport,
+        _ => InputObservationFamily(fact)
+    };
+
+    static int InputObservationFamily(GenerationFact fact) => fact switch
+    {
         DeclarationInputMemberDeclarationFact => (int)GenerationFactCapability.DeclarationInputMemberDeclaration,
         DeclarationInputMemberTypeUseFact => (int)GenerationFactCapability.DeclarationInputMemberTypeUse,
         EntryPointInputTransferFact => (int)GenerationFactCapability.EntryPointInputTransfer,
+        MethodDeclarationExecutionFact => (int)GenerationFactCapability.MethodDeclarationExecution,
         _ => int.MaxValue
     };
 }

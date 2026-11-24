@@ -36,6 +36,9 @@ static class DeclarationInputMemberAdmissionValidator
                 Member(typeUse.Definition.Member, typeUse, path, context);
                 GranularFactAdmissionValidator.Validate(ArtifactTypeUse(typeUse), path, context);
                 break;
+            case MethodDeclarationExecutionFact execution:
+                Execution(execution, path, context);
+                break;
             case EntryPointInputTransferFact transfer:
                 Transfer(transfer, path, context);
                 break;
@@ -57,6 +60,25 @@ static class DeclarationInputMemberAdmissionValidator
             Type = fact.Definition.Type
         }
     };
+
+    static void Execution(MethodDeclarationExecutionFact fact, string path, AdapterContributionAdmissionContext context)
+    {
+        var definition = fact.Definition;
+        AdapterContributionAdmissionValidator.ValidateSubject(definition.Method, $"{path}.Definition.Method", fact.Id, context);
+        AdapterContributionAdmissionValidator.ValidateSubject(definition.Declaration, $"{path}.Definition.Declaration", fact.Id, context);
+        if (definition.Method != fact.Subject)
+        {
+            Invalid(fact, $"{path}.Definition.Method", "Method must equal the exact fact subject", context);
+        }
+
+        if (definition.ExecutionOrder < 0)
+        {
+            context.Add(AdapterContributionAdmissionDiagnosticCode.InvalidDeclarationOrder, $"{path}.Definition.ExecutionOrder", "Execution order must not be negative", fact.Id, fact.Subject);
+        }
+
+        BackendScopeFactAdmissionValidator.ValidateKey(definition.SourceScope, $"{path}.Definition.SourceScope", (fact.Id, fact.Subject), context);
+        BackendScopeFactAdmissionValidator.ValidateKey(definition.TargetScope, $"{path}.Definition.TargetScope", (fact.Id, fact.Subject), context);
+    }
 
     static bool ValidName(string? name) => AdapterContributionText.IsNormalized(name, false) &&
         (char.IsLetter(name![0]) || name[0] == '_') && name.All(character => char.IsLetterOrDigit(character) || character == '_');

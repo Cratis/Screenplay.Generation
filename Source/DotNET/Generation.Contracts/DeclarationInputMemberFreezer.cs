@@ -36,6 +36,19 @@ static class DeclarationInputMemberFreezer
         };
     }
 
+    public static MethodDeclarationExecutionDefinition Execution(MethodDeclarationExecutionDefinition? definition, string path, AdapterContributionAdmissionContext context)
+    {
+        Missing(definition, path, context);
+        return new()
+        {
+            Method = GranularFactFreezer.FreezeSubject(definition?.Method, $"{path}.Method", context),
+            Declaration = GranularFactFreezer.FreezeSubject(definition?.Declaration, $"{path}.Declaration", context),
+            SourceScope = BackendScopeFreezer.Key(definition?.SourceScope, $"{path}.SourceScope", context),
+            TargetScope = BackendScopeFreezer.Key(definition?.TargetScope, $"{path}.TargetScope", context),
+            ExecutionOrder = definition?.ExecutionOrder
+        };
+    }
+
     public static DeclarationMemberKey Member(DeclarationMemberKey? key, string path, AdapterContributionAdmissionContext context)
     {
         Missing(key, path, context);

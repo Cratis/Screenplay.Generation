@@ -59,6 +59,7 @@ static class GenerationFactDiscriminatorValidator
             diagnostics.Add(diagnostic);
         }
 
+        DeclarationInputExecutions.Validate(fact, diagnostics);
         ValidateOtherFact(fact, diagnostics);
     }
 
