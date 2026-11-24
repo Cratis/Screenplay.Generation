@@ -80,6 +80,8 @@ static class MethodFactEligibility
         readonly Dictionary<string, Classification> _classifications = [];
         readonly ImmutableDictionary<GenerationFactInstance, GenerationFactDisposition>.Builder _dispositions = ImmutableDictionary.CreateBuilder<GenerationFactInstance, GenerationFactDisposition>();
         readonly ImmutableDictionary<FactId, ImmutableArray<GenerationFact>>.Builder _inputs = ImmutableDictionary.CreateBuilder<FactId, ImmutableArray<GenerationFact>>();
+        readonly ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>>.Builder _selectionDiagnostics = ImmutableDictionary.CreateBuilder<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>>();
+        readonly ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationFact>>.Builder _selectionInputs = ImmutableDictionary.CreateBuilder<GenerationFactInstance, ImmutableArray<GenerationFact>>();
         readonly ILookup<FactId, GenerationFact> _candidates = facts.ToLookup(fact => fact.Id);
         readonly HashSet<BackendScopeKey> _scopes = [.. facts.OfType<BackendScopeFact>().Select(fact => fact.Definition.Key)];
 
@@ -92,7 +94,10 @@ static class MethodFactEligibility
             }
 
             var effective = facts.Where(fact => !_dispositions.ContainsKey(GenerationFactInstance.Of(fact))).ToImmutableArray();
-            return new(facts, effective, [.. _diagnostics.GroupBy(Canonical.Diagnostic, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())], _dispositions.ToImmutable(), _inputs.ToImmutable());
+            return new(facts, effective, [.. _diagnostics.GroupBy(Canonical.Diagnostic, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.First())], _dispositions.ToImmutable(), _inputs.ToImmutable())
+            {
+                SelectionDiagnostics = _selectionDiagnostics.ToImmutable(), SelectionInputs = _selectionInputs.ToImmutable()
+            };
         }
 
         static GenerationFactDisposition ClassificationDisposition(Classification classification)
@@ -155,8 +160,17 @@ static class MethodFactEligibility
                 return;
             }
 
-            _diagnostics.AddRange(eligible.SelectMany(alternative => alternative.Alternative.Diagnostics));
-            _inputs[candidate!] = [support, .. eligible.SelectMany(alternative => alternative.Classifications).SelectMany(classification => classification.Facts)];
+            ImmutableArray<GenerationFact> dependencies = [support, .. eligible.SelectMany(alternative => alternative.Classifications).SelectMany(classification => classification.Facts)];
+            if (_candidates[candidate!].OfType<ArtifactMemberRoleSelectionFact>().Count(fact => IsCandidateOf(fact, support)) == 1)
+            {
+                _selectionDiagnostics[GenerationFactInstance.CandidateOf(support)] = [.. eligible.SelectMany(alternative => alternative.Alternative.Diagnostics)];
+                _selectionInputs[GenerationFactInstance.CandidateOf(support)] = dependencies;
+            }
+            else
+            {
+                _diagnostics.AddRange(eligible.SelectMany(alternative => alternative.Alternative.Diagnostics));
+                _inputs[candidate!] = dependencies;
+            }
         }
 
         Classification ClassifyAssertions(ImmutableArray<MethodExecutionClassificationFact> assertions)

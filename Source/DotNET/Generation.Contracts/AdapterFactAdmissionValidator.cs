@@ -33,6 +33,9 @@ static class AdapterFactAdmissionValidator
             case TypeUseBindingFact binding:
                 GranularFactAdmissionValidator.Validate(binding, path, context);
                 break;
+            case ArtifactMemberRoleSelectionFact selection:
+                ArtifactMemberRoleSelectionAdmission.ValidateShape(selection, path, context);
+                break;
             case ArtifactMemberRoleFact role:
                 GranularFactAdmissionValidator.Validate(role, path, context);
                 break;

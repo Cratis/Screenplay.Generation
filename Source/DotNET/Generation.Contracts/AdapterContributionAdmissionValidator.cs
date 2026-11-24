@@ -24,6 +24,7 @@ static class AdapterContributionAdmissionValidator
         DiagnosticIntentAdmissionValidator.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
         DiagnosticIntentAdmissionValidator.ValidateOrdinary(input.Facts, input.Diagnostics, context);
         ConceptNameYieldAdmission.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
+        ArtifactMemberRoleSelectionAdmission.Validate(input.Facts, input.Descriptor.Identity.Id, sourceAuthorityValidator, context);
 
         foreach (var fact in input.Facts)
         {
@@ -648,6 +649,7 @@ static class AdapterContributionAdmissionValidator
         ArtifactMemberTypeUseFact => GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => GenerationFactCapability.ArtifactMemberRole,
+        ArtifactMemberRoleSelectionFact => GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => TypeUseOmissionCapability(fact)
     };
 

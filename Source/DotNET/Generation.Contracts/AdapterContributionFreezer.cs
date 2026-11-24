@@ -364,6 +364,7 @@ static class AdapterContributionFreezer
             ArtifactMemberTypeUseFact typeUse => GranularFactFreezer.Freeze(typeUse, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
             TypeUseBindingFact binding => GranularFactFreezer.Freeze(binding, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
             ArtifactMemberRoleFact role => GranularFactFreezer.Freeze(role, envelope.Id, envelope.Subject, envelope.Evidence, envelope.Path, context),
+            ArtifactMemberRoleSelectionFact selection => ArtifactMemberRoleSelectionFreezer.Freeze(selection, envelope, context),
             _ => FreezeTypeUseOmission(fact, envelope, context)
         };
 
@@ -1016,6 +1017,7 @@ static class AdapterContributionFreezer
         ArtifactMemberTypeUseFact => (int)GenerationFactCapability.ArtifactMemberTypeUse,
         TypeUseBindingFact => (int)GenerationFactCapability.TypeUseBinding,
         ArtifactMemberRoleFact => (int)GenerationFactCapability.ArtifactMemberRole,
+        ArtifactMemberRoleSelectionFact => (int)GenerationFactCapability.ArtifactMemberRoleSelection,
         _ => TypeUseOmissionFamily(fact)
     };
 

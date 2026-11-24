@@ -65,6 +65,7 @@ public class a_contribution : Specification
         GenerationFactCapability.MixedSlicePlacementFallback,
         GenerationFactCapability.MethodDiagnosticProjection,
         GenerationFactCapability.OccurrenceOmissionDiagnostic,
+        GenerationFactCapability.ArtifactMemberRoleSelection,
         GenerationFactCapability.DeclarationInputMemberTargetOmitted,
         GenerationFactCapability.TypeUseBindingPolicy,
         GenerationFactCapability.TypeUseCompatibilityProjection,

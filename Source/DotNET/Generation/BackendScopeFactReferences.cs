@@ -27,6 +27,7 @@ static class BackendScopeFactReferences
         TypeUseTargetOmittedFact omission => omission.Definition.Member.Artifact,
         TypeUseBindingFact binding => binding.Definition.Member.Artifact,
         ArtifactMemberRoleFact role => role.Definition.Member.Artifact,
+        ArtifactMemberRoleSelectionFact selection => selection.Definition?.Artifact,
         _ => null
     };
 
@@ -58,6 +59,7 @@ static class BackendScopeFactReferences
     {
         MethodDiagnosticProjectionFact projection => [projection.Definition.Scope],
         OccurrenceOmissionDiagnosticFact candidate => [candidate.Definition?.Occurrence?.Scope],
+        ArtifactMemberRoleSelectionFact selection => [selection.Definition?.Artifact?.Scope],
         _ => ObservationScopes(fact)
     };
 

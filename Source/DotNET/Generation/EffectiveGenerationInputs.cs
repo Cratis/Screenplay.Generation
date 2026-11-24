@@ -16,7 +16,15 @@ sealed record EffectiveGenerationInputs(
 
     public ImmutableArray<GenerationDerivationRuleRecord> NameYieldRules { get; init; } = [];
 
-    public IEnumerable<GenerationFact> BindingFacts => Facts.Concat(NameYieldFallbacks.Select(record => record.Fact));
+    public ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>> SelectionDiagnostics { get; init; } = [];
+
+    public ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationFact>> SelectionInputs { get; init; } = [];
+
+    public ImmutableArray<GenerationFactRecord> SelectedRoles { get; init; } = [];
+
+    public ImmutableArray<GenerationDerivationRuleRecord> RoleSelectionRules { get; init; } = [];
+
+    public IEnumerable<GenerationFact> BindingFacts => Facts.Concat(NameYieldFallbacks.Select(record => record.Fact)).Concat(SelectedRoles.Select(record => record.Fact));
 
     public IEnumerable<GenerationFact> OmittedFacts => OriginalFacts.Where(HasDisposition);
 
@@ -24,13 +32,13 @@ sealed record EffectiveGenerationInputs(
 
     public GenerationFactDisposition DispositionOf(GenerationFact fact) => Dispositions[GenerationFactInstance.Of(fact)];
 
-    public static EffectiveGenerationInputs FromFacts(IEnumerable<GenerationFact> facts) => ConceptNameYieldSelection.Select(MethodFactEligibility.Select([.. facts]));
+    public static EffectiveGenerationInputs FromFacts(IEnumerable<GenerationFact> facts) => ArtifactMemberRoleSelection.Select(ConceptNameYieldSelection.Select(MethodFactEligibility.Select([.. facts])));
 
     public static EffectiveGenerationInputs FromContributions(IEnumerable<AdapterContribution> contributions)
     {
         var input = contributions.ToArray();
         var invalid = input.SelectMany(contribution => InvalidSupports(contribution.Facts)).ToHashSet();
-        return ConceptNameYieldSelection.Select(MethodFactEligibility.Select([.. input.SelectMany(contribution => contribution.Facts)], invalid));
+        return ArtifactMemberRoleSelection.Select(ConceptNameYieldSelection.Select(MethodFactEligibility.Select([.. input.SelectMany(contribution => contribution.Facts)], invalid)));
     }
 
     static IEnumerable<MethodFactSupportFact> InvalidSupports(IReadOnlyList<GenerationFact> facts) =>

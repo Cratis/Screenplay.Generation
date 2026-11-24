@@ -91,9 +91,10 @@ public static class GenerationFactDerivation
                 .. diagnosticProjections,
                 .. occurrenceOmissions,
                 .. MethodEligibilityLineage.Rules(effective),
-                .. effective.NameYieldRules
+                .. effective.NameYieldRules,
+                .. effective.RoleSelectionRules
             ],
-            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts, .. sourcePlacements.Facts, .. effective.NameYieldFallbacks], effective),
+            Facts = MethodEligibilityLineage.Apply([.. typeUseBindings.Facts, .. artifactUsages.Facts, .. inputMembers.Facts, .. sourcePlacements.Facts, .. effective.NameYieldFallbacks, .. effective.SelectedRoles], effective),
             Diagnostics = diagnostics
         };
 

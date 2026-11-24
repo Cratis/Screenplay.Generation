@@ -15,6 +15,7 @@ internal static class GenerationFactDiscriminators
     {
         MethodDiagnosticProjectionFact projection => DiagnosticIntentValidation.Valid(projection),
         OccurrenceOmissionDiagnosticFact candidate => OccurrenceOmissionDiagnosticValidation.Valid(candidate),
+        ArtifactMemberRoleSelectionFact => true,
         ArtifactFact or
         ArtifactPlacementFact or
         ArtifactDeclarationFact or
