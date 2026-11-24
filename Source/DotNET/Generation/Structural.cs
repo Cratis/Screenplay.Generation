@@ -313,9 +313,15 @@ static class Structural
     {
         MethodExecutionClassificationFact => (int)GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => (int)GenerationFactCapability.MethodFactSupport,
+        _ => InputObservationFamily(fact)
+    };
+
+    static int InputObservationFamily(GenerationFact fact) => fact switch
+    {
         DeclarationInputMemberDeclarationFact => (int)GenerationFactCapability.DeclarationInputMemberDeclaration,
         DeclarationInputMemberTypeUseFact => (int)GenerationFactCapability.DeclarationInputMemberTypeUse,
         EntryPointInputTransferFact => (int)GenerationFactCapability.EntryPointInputTransfer,
+        MethodDeclarationExecutionFact => (int)GenerationFactCapability.MethodDeclarationExecution,
         _ => int.MaxValue
     };
 
@@ -360,6 +366,7 @@ static class Structural
 
     static string ExecutionFactDefinition(GenerationFact fact) => fact switch
     {
+        MethodDeclarationExecutionFact execution => WithScopes(Node("method-declaration-execution", execution.Definition?.Method?.Value, execution.Definition?.Declaration?.Value, NullableInteger(execution.Definition?.ExecutionOrder)), execution.Definition?.SourceScope, execution.Definition?.TargetScope),
         EntryPointInputTransferFact transfer => Node("entry-input-transfer", transfer.Definition.Method.Value, ArtifactKey(transfer.Definition.Artifact), Integer((int)transfer.Definition.Kind)),
         MethodFactSupportFact support => MethodSupportDefinition(support),
         ArtifactMemberRoleSelectionFact selection => ArtifactMemberRoleSelectionStructure.Definition(selection.Definition),

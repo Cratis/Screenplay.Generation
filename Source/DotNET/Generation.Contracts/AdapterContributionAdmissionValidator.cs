@@ -682,9 +682,15 @@ static class AdapterContributionAdmissionValidator
     {
         MethodExecutionClassificationFact => GenerationFactCapability.MethodExecutionClassification,
         MethodFactSupportFact => GenerationFactCapability.MethodFactSupport,
+        _ => InputObservationCapability(fact)
+    };
+
+    static GenerationFactCapability InputObservationCapability(GenerationFact fact) => fact switch
+    {
         DeclarationInputMemberDeclarationFact => GenerationFactCapability.DeclarationInputMemberDeclaration,
         DeclarationInputMemberTypeUseFact => GenerationFactCapability.DeclarationInputMemberTypeUse,
         EntryPointInputTransferFact => GenerationFactCapability.EntryPointInputTransfer,
+        MethodDeclarationExecutionFact => GenerationFactCapability.MethodDeclarationExecution,
         _ => GenerationFactCapability.Unknown
     };
 }

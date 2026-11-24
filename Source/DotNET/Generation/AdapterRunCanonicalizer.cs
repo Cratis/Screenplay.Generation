@@ -138,6 +138,10 @@ static class AdapterRunCanonicalizer
     {
         MethodExecutionClassificationFact classification => Classification(classification),
         MethodFactSupportFact support => Support(support),
+        MethodDeclarationExecutionFact execution when execution.Definition is { Method: not null, Declaration: not null } => execution with
+        {
+            Definition = execution.Definition with { Method = Subject(execution.Definition.Method), Declaration = Subject(execution.Definition.Declaration), SourceScope = Scope(execution.Definition.SourceScope), TargetScope = Scope(execution.Definition.TargetScope) }
+        },
         EntryPointInputTransferFact transfer => transfer with { Definition = transfer.Definition with { Method = Subject(transfer.Definition.Method), Artifact = ArtifactKey(transfer.Definition.Artifact) } },
         RelationshipFact relationship => relationship with { Definition = Relationship(relationship.Definition) },
         _ => DeclarationInputFactDefinition(fact)

@@ -52,6 +52,7 @@ internal static class GenerationFactDescription
         BackendScopeFact => "backend scope",
         ArtifactUsageDeclarationFact => "artifact usage declaration",
         MethodArtifactUsageFact => "method artifact usage",
+        MethodDeclarationExecutionFact => "method declaration execution",
         ArtifactMemberRoleSelectionFact => "artifact member role selection",
         _ => ObservationFamily(fact)
     };

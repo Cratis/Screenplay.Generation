@@ -76,6 +76,7 @@ static class BackendScopeFactReferences
         DeclarationInputMemberDeclarationFact member => [member.Definition.Member.Scope],
         DeclarationInputMemberTypeUseFact typeUse => TypeScopes(typeUse.Definition.Type).Prepend(typeUse.Definition.Member.Scope),
         EntryPointInputTransferFact transfer => [transfer.Definition.Artifact.Scope],
+        MethodDeclarationExecutionFact execution => [execution.Definition?.SourceScope, execution.Definition?.TargetScope],
         _ => ExecutionScopes(fact)
     };
 

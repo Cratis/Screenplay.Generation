@@ -240,7 +240,10 @@ public enum GenerationFactCapability
     DeclarationInputMemberTargetOmitted = 32,
 
     /// <summary><see cref="ArtifactMemberRoleSelectionFact"/> ordered exclusive member-role alternatives.</summary>
-    ArtifactMemberRoleSelection = 33
+    ArtifactMemberRoleSelection = 33,
+
+    /// <summary><see cref="MethodDeclarationExecutionFact"/> input-only declaration execution observations.</summary>
+    MethodDeclarationExecution = 34
 }
 
 /// <summary>

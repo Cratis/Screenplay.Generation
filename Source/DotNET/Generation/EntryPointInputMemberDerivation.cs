@@ -104,7 +104,7 @@ static class EntryPointInputMemberDerivation
             }
 
             var names = _endpointInputs.SelectMany(DirectNames).ToHashSet(StringComparer.Ordinal);
-            foreach (var group in RelevantUsages().GroupBy(fact => Structural.WithScopes(Structural.SemanticKey("input-execution", fact.Definition.Method.Value, fact.Definition.Declaration.Value), fact.Definition.SourceScope, fact.Definition.TargetScope), StringComparer.Ordinal))
+            foreach (var group in RelevantExecutions().GroupBy(fact => Structural.WithScopes(Structural.SemanticKey("input-execution", fact.Definition.Method.Value, fact.Definition.Declaration.Value), fact.Definition.SourceScope, fact.Definition.TargetScope), StringComparer.Ordinal))
             {
                 Observe([.. group], names);
             }
@@ -134,7 +134,7 @@ static class EntryPointInputMemberDerivation
         static bool ValidIntent(EntryPointInputTransferFact intent) => intent.Subject == intent.Definition.Method &&
             intent.Definition.Kind == RelationshipKind.Reads && intent.Evidence.Strength == EvidenceStrength.Exact;
 
-        static bool ExactUsage(MethodArtifactUsageFact fact) => fact.Subject == fact.Definition.Method && fact.Evidence.Strength == EvidenceStrength.Exact;
+        static bool ExactExecution(DeclarationInputExecutions.Observation execution) => execution.Fact.Subject == execution.Definition.Method && execution.Fact.Evidence.Strength == EvidenceStrength.Exact;
 
         static bool ValidOrders(int?[] orders) => orders.Length == 1 && orders[0] is not < 0;
 
@@ -144,7 +144,7 @@ static class EntryPointInputMemberDerivation
         static bool ConsistentMember(int[] orders, DeclarationInputMemberTypeUseFact[] types) => orders.Length == 1 &&
             orders[0] >= 0 && TypeUseCompatibilityProjections.Agree(types.Select(fact => fact.Definition.Type));
 
-        static bool SurfaceMember(GenerationFact fact, MethodArtifactUsageDefinition usage, HashSet<string> directNames) => DeclarationMember(fact) is { } member &&
+        static bool SurfaceMember(GenerationFact fact, MethodDeclarationExecutionDefinition usage, HashSet<string> directNames) => DeclarationMember(fact) is { } member &&
             member.Declaration == usage.Declaration && member.Scope == usage.TargetScope && !directNames.Contains(member.Name);
 
         bool ValidEndpoint()
@@ -181,29 +181,30 @@ static class EntryPointInputMemberDerivation
         bool UniqueMapping(EntryPointFact[] entries, SubjectId method) => entries.Length > 0 && entries.All(fact =>
             fact.Subject == method && fact.Definition.Artifact == endpoint && fact.Evidence.Strength == EvidenceStrength.Exact);
 
-        IEnumerable<MethodArtifactUsageFact> RelevantUsages() => _facts.OfType<MethodArtifactUsageFact>().Where(fact =>
-            fact.Definition.SourceScope == endpoint.Scope && intents.Any(intent => intent.Definition.Method == fact.Definition.Method && intent.Definition.Kind == fact.Definition.Kind));
+        IEnumerable<DeclarationInputExecutions.Observation> RelevantExecutions() => DeclarationInputExecutions.From(_facts).Where(execution =>
+            execution.Definition.SourceScope == endpoint.Scope && intents.Any(intent => intent.Definition.Method == execution.Definition.Method && intent.Definition.Kind == RelationshipKind.Reads));
 
-        void Observe(MethodArtifactUsageFact[] usages, HashSet<string> directNames)
+        void Observe(DeclarationInputExecutions.Observation[] executions, HashSet<string> directNames)
         {
-            var usage = usages[0].Definition;
+            var usage = executions[0].Definition;
+            var observations = executions.Select(execution => execution.Fact).ToArray();
             var surface = _facts.Where(fact => SurfaceMember(fact, usage, directNames)).ToArray();
             if (surface.Length == 0)
             {
                 return;
             }
 
-            var orders = usages.Select(fact => fact.Definition.ExecutionOrder).Distinct().ToArray();
-            if (!ValidOrders(orders) || !usages.All(ExactUsage))
+            var orders = executions.Select(observation => observation.Definition.ExecutionOrder).Distinct().ToArray();
+            if (!ValidOrders(orders) || !executions.All(ExactExecution))
             {
-                Error(usages, "Execution observations disagree on exact ownership or semantic order", GenerationDiagnosticOutcome.Conflict);
+                Error(observations, "Execution observations disagree on exact ownership or semantic order", GenerationDiagnosticOutcome.Conflict);
                 return;
             }
 
             var execution = Structural.WithScopes(Structural.SemanticKey("input-execution", usage.Method.Value, usage.Declaration.Value), usage.SourceScope, usage.TargetScope);
             foreach (var group in surface.GroupBy(fact => DeclarationMember(fact)!))
             {
-                ObserveMember(new(execution, orders[0], group.Key, 0, new TypeUseDefinition { Name = string.Empty, Shape = [] }, [.. usages, .. group]));
+                ObserveMember(new(execution, orders[0], group.Key, 0, new TypeUseDefinition { Name = string.Empty, Shape = [] }, [.. observations, .. group]));
             }
         }
 
