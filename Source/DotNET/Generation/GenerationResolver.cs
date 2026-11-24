@@ -43,7 +43,10 @@ public sealed class GenerationResolver
             facts,
             discriminatorValidation.RejectedFacts,
             diagnostics);
-        var artifacts = ResolveArtifacts(effectiveArtifactFacts, diagnostics);
+        var artifacts = ResolveArtifacts(
+            effectiveArtifactFacts,
+            [.. facts.Where(fact => fact is ArtifactFact or ArtifactDeclarationFact).Select(GenerationFactInstance.Of)],
+            diagnostics);
         var conceptRepresentationFacts = facts.OfType<ConceptRepresentationFact>().ToArray();
         diagnostics.AddRange(InvalidConceptFactDiagnostics(conceptRepresentationFacts));
         var conceptRepresentations = ResolveConceptRepresentations(
@@ -95,6 +98,7 @@ public sealed class GenerationResolver
 
     static ResolvedArtifact[] ResolveArtifacts(
         IEnumerable<ArtifactFact> facts,
+        HashSet<GenerationFactInstance> declarations,
         List<GenerationDiagnostic> diagnostics) =>
         [
             .. facts
@@ -129,7 +133,8 @@ public sealed class GenerationResolver
                                     .Distinct()
                                     .OrderBy(id => id.Value, StringComparer.Ordinal)
                             ],
-                            Evidence = OrderedEvidence(orderedFacts.Select(fact => fact.Evidence))
+                            Evidence = OrderedEvidence(orderedFacts.Select(fact => fact.Evidence)),
+                            DeclarationEvidence = OrderedEvidence(orderedFacts.Where(fact => declarations.Contains(GenerationFactInstance.Of(fact))).Select(fact => fact.Evidence))
                         };
                     })
                     .ToArray();
