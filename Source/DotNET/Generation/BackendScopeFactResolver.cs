@@ -109,7 +109,7 @@ static class BackendScopeFactResolver
         Outcome = outcome,
         Message = message,
         Subject = scope.Key.Store,
-        Source = LoweringSupport.FirstSource(scope.Facts.Select(fact => fact.Evidence)),
+        Source = LoweringSupport.FirstSource(scope.Evidence) ?? LoweringSupport.FirstSource(scope.Facts.Select(fact => fact.Evidence)),
         Facts = [.. scope.Facts.Select(fact => fact.Id).Distinct().OrderBy(id => id.Value, StringComparer.Ordinal)]
     };
 
