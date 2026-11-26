@@ -14,6 +14,8 @@ sealed record EffectiveGenerationInputs(
 {
     public ImmutableArray<GenerationFactRecord> NameYieldFallbacks { get; init; } = [];
 
+    public ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>> NameYieldFacetExplanations { get; init; } = [];
+
     public ImmutableArray<GenerationDerivationRuleRecord> NameYieldRules { get; init; } = [];
 
     public ArtifactMemberRoleSelectionState RoleSelection { get; init; } = new();

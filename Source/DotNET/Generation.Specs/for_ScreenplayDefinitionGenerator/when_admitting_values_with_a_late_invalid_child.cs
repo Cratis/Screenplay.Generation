@@ -55,38 +55,8 @@ public class when_admitting_values_with_a_late_invalid_child : given.a_specifica
     void should_report_the_complete_fixed_diagnostics() => Describe(_result.Diagnostics).ShouldEqual(
         """
         GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C01 | Specs/C01.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C01' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C01 | Specs/C01.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C01' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C01 | Specs/C01.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C01' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C01 | Specs/C01.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C01' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C01 | Specs/C01.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C01' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C01 | Specs/C01.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C01' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C01 | Specs/C01.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C01' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C01 | Specs/C01.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C01' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C03 | Specs/C03.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C03' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C03 | Specs/C03.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C03' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C03 | Specs/C03.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C03' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C03 | Specs/C03.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C03' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C03 | Specs/C03.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C03' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C03 | Specs/C03.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C03' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C03 | Specs/C03.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C03' could not be represented completely; no partial scenario was admitted
         GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C03 | Specs/C03.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C03' could not be represented completely; no partial scenario was admitted
         GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0037 | Error | Unsupported | dotnet://Banking/Specs.C04 | Specs/C04.cs:7:1-7:20 | Specification scenario 'dotnet://Banking/Specs.C04' could not be represented completely; no partial scenario was admitted
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.C02 | Specs/C02.cs:7:1-7:20 | Specification scenario 'ScenarioC02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.C02 | Specs/C02.cs:7:1-7:20 | Specification scenario 'ScenarioC02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.C02 | Specs/C02.cs:7:1-7:20 | Specification scenario 'ScenarioC02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.C02 | Specs/C02.cs:7:1-7:20 | Specification scenario 'ScenarioC02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.C02 | Specs/C02.cs:7:1-7:20 | Specification scenario 'ScenarioC02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.C02 | Specs/C02.cs:7:1-7:20 | Specification scenario 'ScenarioC02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.C02 | Specs/C02.cs:7:1-7:20 | Specification scenario 'ScenarioC02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
         GEN0038 | Error | Unsupported | dotnet://Banking/Specs.C02 | Specs/C02.cs:7:1-7:20 | Specification scenario 'ScenarioC02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
         """);
 

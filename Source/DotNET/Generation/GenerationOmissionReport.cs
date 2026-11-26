@@ -12,23 +12,18 @@ namespace Cratis.Screenplay.Generation;
 internal static class GenerationOmissionReport
 {
     public static ImmutableArray<GenerationDiagnostic> Diagnostics(
-        IEnumerable<GenerationFactRecord> records,
-        ScreenplayLoweringCoverage coverage)
+        IEnumerable<(GenerationFactRecord Record, ImmutableArray<ReportedDiagnostic> Reported)> records)
     {
-        var artifactOmissions = coverage.Diagnostics.Values
-            .SelectMany(diagnostics => diagnostics)
-            .Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.UnsupportedArtifact)
-            .ToArray();
         var reported = new List<GenerationDiagnostic>();
-        var artifacts = new Dictionary<string, GenerationDiagnostic>(StringComparer.Ordinal);
+        var associations = new Dictionary<string, GenerationDiagnostic>(StringComparer.Ordinal);
         var relationships = new Dictionary<(RelationshipKind Kind, string Source, string Target), GenerationDiagnostic>();
-        foreach (var record in records.Where(record => record.Lineage is null))
+        foreach (var (record, entries) in records.Where(pair => pair.Record.Lineage is null))
         {
-            foreach (var diagnostic in record.Diagnostics)
+            foreach (var (diagnostic, original) in entries)
             {
-                if (ArtifactOmission(diagnostic, artifactOmissions) is { } artifact)
+                if (original is not null)
                 {
-                    artifacts.TryAdd(Canonical.Diagnostic(artifact), artifact);
+                    associations.TryAdd(Canonical.Diagnostic(original), original);
                 }
                 else if (RelationshipOmission(record.Fact, diagnostic) is { } relationship)
                 {
@@ -41,7 +36,7 @@ internal static class GenerationOmissionReport
             }
         }
 
-        return [.. reported, .. artifacts.Values, .. relationships.Values];
+        return [.. reported, .. associations.Values, .. relationships.Values];
     }
 
     public static GenerationDiagnostic UnsupportedRelationship(RelationshipFact relationship) => new()
@@ -54,12 +49,6 @@ internal static class GenerationOmissionReport
         Source = relationship.Evidence.Source,
         Subject = relationship.Definition.Key.Source
     };
-
-    static GenerationDiagnostic? ArtifactOmission(GenerationDiagnostic diagnostic, GenerationDiagnostic[] artifactOmissions) =>
-        diagnostic.Code == GenerationDiagnosticCodes.UnsupportedArtifact
-            ? artifactOmissions.FirstOrDefault(original =>
-                Canonical.Diagnostic(diagnostic with { Facts = original.Facts }) == Canonical.Diagnostic(original))
-            : null;
 
     static (RelationshipKey Key, GenerationDiagnostic Diagnostic)? RelationshipOmission(GenerationFact fact, GenerationDiagnostic diagnostic)
     {

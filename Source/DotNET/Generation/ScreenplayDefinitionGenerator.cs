@@ -160,17 +160,18 @@ public sealed class ScreenplayDefinitionGenerator(
             .Select(fact => new GenerationFactRecord { Fact = fact })
             .Concat(derivation.Facts)
             .ToArray();
-        var factRecords = GenerationFactDispositionCalculator.Calculate(
+        var calculated = GenerationFactDispositionCalculator.Calculate(
             inputRecords.Where(record => !effective.HasDisposition(record.Fact)),
             graph,
             lowering.Coverage,
-            [.. pipelineDiagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic)))])
-            .Concat(inputRecords.Where(record => effective.HasDisposition(record.Fact)).Select(record => record with
-            {
-                Disposition = effective.DispositionOf(record.Fact),
-                Diagnostics = [.. effective.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(record.Fact.Id))]
-            }))
-            .ToArray();
+            [.. pipelineDiagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic)))],
+            effective.NameYieldFacetExplanations);
+        var predisposed = inputRecords.Where(record => effective.HasDisposition(record.Fact)).Select(record => record with
+        {
+            Disposition = effective.DispositionOf(record.Fact),
+            Diagnostics = [.. effective.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(record.Fact.Id))]
+        }).ToArray();
+        var factRecords = calculated.Records.Concat(predisposed).ToArray();
         var canonicalFactRecords = AdapterRunCanonicalizer.FactRecords(
             factRecords.Where(record => record.Lineage is null));
         var canonicalDerivation = AdapterRunCanonicalizer.Derivation(derivation with
@@ -178,7 +179,8 @@ public sealed class ScreenplayDefinitionGenerator(
             Facts = [.. factRecords.Where(record => record.Lineage is not null)]
         });
         var runnerDiagnostics = RunnerDiagnostics(snapshot.Diagnostics, canonicalAdapters);
-        var dispositionDiagnostics = GenerationOmissionReport.Diagnostics(factRecords, lowering.Coverage);
+        var dispositionDiagnostics = GenerationOmissionReport.Diagnostics(
+            calculated.Records.Zip(calculated.Reported).Concat(predisposed.Select(record => (record, record.Diagnostics.Select(diagnostic => new ReportedDiagnostic(diagnostic, null)).ToImmutableArray()))));
         var adapterRun = new AdapterRunSnapshot
         {
             Adapters = canonicalAdapters,
