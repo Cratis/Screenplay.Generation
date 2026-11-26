@@ -644,6 +644,8 @@ This reports bounded default recovery without treating the entire framework as u
 
 A host must always display every diagnostic, even when `IsSuccess` is `true`. Errors block publication. Compiler warnings retain their `PLAY` code, message, warning severity, and source position in both generation overloads; they do not make `IsSuccess` false. Hosts may explicitly require warning-free output by rejecting results with warning diagnostics, but the default verification path never hides them. Information diagnostics describe known bounded loss.
 
+When generating from an adapter run snapshot, the engine reports semantic loss rather than facts: one `GEN0004` per omitted artifact and one `GEN0039` per omitted source, kind, and target relationship, however many facts or invocation sites described it and whether the artifact came from an artifact or a declaration fact. `GEN0004` keeps the artifact's declaration location. The relationship-wide `GEN0039` has no single invocation location or fact id, because choosing one would depend on which facts the adapters produced. To find every contributing fact and site, enumerate `AdapterRun.Facts` and `AdapterRun.Derivation.Facts`: each record keeps its fact id, evidence source, and fact-linked diagnostics. Never parse diagnostic messages to identify facts, and never hide these warnings.
+
 Tests must assert required artifacts and relationships directly from `Graph` or `Source`; `IsSuccess` alone proves only that no error diagnostic was produced.
 
 ## Canonical ESM admission foundation (part of #71)
