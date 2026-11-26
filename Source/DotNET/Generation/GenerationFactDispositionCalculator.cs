@@ -208,7 +208,7 @@ internal static class GenerationFactDispositionCalculator
         var associated = AssociatedDiagnostics(fact, context).ToList();
         if (fact is RelationshipFact relationship && GenerationFactDiscriminators.AreSupported(fact))
         {
-            associated.Add(UnsupportedRelationship(relationship));
+            associated.Add(GenerationOmissionReport.UnsupportedRelationship(relationship));
         }
 
         if (associated.Count == 0)
@@ -223,17 +223,6 @@ internal static class GenerationFactDispositionCalculator
             Diagnostics = CanonicalDiagnostics(associated)
         };
     }
-
-    static GenerationDiagnostic UnsupportedRelationship(RelationshipFact relationship) => new()
-    {
-        Code = GenerationDiagnosticCodes.UnsupportedRelationship,
-        Severity = GenerationDiagnosticSeverity.Warning,
-        Outcome = GenerationDiagnosticOutcome.Unsupported,
-        Message = $"Relationship '{relationship.Definition.Key.Kind}' from '{relationship.Definition.Key.Source.Value}' to '{relationship.Definition.Key.Target.Value}' did not contribute to emitted Screenplay syntax and was omitted",
-        Facts = [relationship.Id],
-        Source = relationship.Evidence.Source,
-        Subject = relationship.Definition.Key.Source
-    };
 
     static GenerationDiagnostic OmittedFact(GenerationFact fact) => new()
     {
@@ -298,10 +287,25 @@ internal static class GenerationFactDispositionCalculator
 
         var lowered = appliedVariants.Any(variant =>
             context.Coverage.Lowered.Contains(GenerationFactSemanticKey.Artifact(variant.Definition)));
-        return Record(
+        var record = Record(
             fact,
             ContributesSyntax(fact, lowered) ? GenerationFactDisposition.Lowered : GenerationFactDisposition.ProvenanceOnly);
+        return fact is ArtifactDeclarationFact && !lowered
+            ? record with { Diagnostics = ArtifactOmissions(fact, appliedVariants, context) }
+            : record;
     }
+
+    static ImmutableArray<GenerationDiagnostic> ArtifactOmissions(
+        GenerationFact fact,
+        IEnumerable<ResolvedArtifactVariant> variants,
+        CalculationContext context) =>
+        CanonicalDiagnostics(variants
+            .Select(variant => GenerationFactSemanticKey.Artifact(variant.Definition))
+            .Distinct(StringComparer.Ordinal)
+            .Where(context.Coverage.Diagnostics.ContainsKey)
+            .SelectMany(key => context.Coverage.Diagnostics[key])
+            .Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.UnsupportedArtifact)
+            .Select(diagnostic => Associate(diagnostic, fact.Id)));
 
     static ArtifactKey? GranularArtifact(GenerationFact fact) => fact switch
     {

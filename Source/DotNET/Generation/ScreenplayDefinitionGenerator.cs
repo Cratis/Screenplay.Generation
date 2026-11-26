@@ -178,7 +178,7 @@ public sealed class ScreenplayDefinitionGenerator(
             Facts = [.. factRecords.Where(record => record.Lineage is not null)]
         });
         var runnerDiagnostics = RunnerDiagnostics(snapshot.Diagnostics, canonicalAdapters);
-        var dispositionDiagnostics = canonicalFactRecords.SelectMany(record => record.Diagnostics).ToArray();
+        var dispositionDiagnostics = GenerationOmissionReport.Diagnostics(factRecords, lowering.Coverage);
         var adapterRun = new AdapterRunSnapshot
         {
             Adapters = canonicalAdapters,
