@@ -50,7 +50,7 @@ public sealed class ScreenplayLowerer
             .Select(_ => _.Variants.Single().Definition)
             .ToArray();
         var (concepts, conceptNames) = ConceptLowering.Lower(graph, definitions, sink);
-        var artifactsWithMissingConceptReferences = ReportMissingConceptReferences(definitions, conceptNames, graph.ConceptOnlyMembers, sink);
+        var artifactsWithMissingConceptReferences = ReportMissingConceptReferences(definitions, conceptNames, graph.ConceptOnlyMembers, graph.MissingConceptReportingMembers, sink);
         var context = new LoweringContext(graph, conceptNames, sink);
         OmitUnplaced(graph, definitions, placements, sink);
         var artifacts = PlaceArtifacts(graph, definitions, placements, artifactsWithMissingConceptReferences);
@@ -128,6 +128,7 @@ public sealed class ScreenplayLowerer
         IReadOnlyList<ArtifactDefinition> definitions,
         IReadOnlyDictionary<string, string> conceptNames,
         IReadOnlySet<ArtifactMemberKey> conceptOnlyMembers,
+        IReadOnlySet<ArtifactMemberKey> reportingMembers,
         LoweringSink sink)
     {
         var missing = definitions
@@ -135,7 +136,13 @@ public sealed class ScreenplayLowerer
                 .Where(property => MissingConcept(definition, property, conceptNames, conceptOnlyMembers))
                 .Select(property => new { Artifact = definition, property.Type }))
             .ToArray();
+        var reported = definitions
+            .SelectMany(definition => definition.Properties
+                .Where(property => property.Type.Subject is not null && !conceptNames.ContainsKey(property.Type.Subject.Value) && reportingMembers.Contains(new() { Artifact = definition.Key, Name = property.Name }))
+                .Select(property => new { Artifact = definition, property.Type }))
+            .ToArray();
         foreach (var type in missing
+                     .Concat(reported)
                      .GroupBy(_ => _.Type.Subject!.Value, StringComparer.Ordinal)
                      .OrderBy(_ => _.Key, StringComparer.Ordinal)
                      .Select(_ => _.First().Type))

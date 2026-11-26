@@ -5,7 +5,7 @@ namespace Cratis.Screenplay.Generation;
 
 static class TypeUseBindingPolicies
 {
-    public static bool Supported(TypeUseBindingPolicyFact policy) => policy.Definition?.Policy == TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback;
+    public static bool Supported(TypeUseBindingPolicyFact policy) => policy.Definition?.Policy is TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback or TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallbackAndMissingConceptDiagnostic;
 
     public static bool OptedIn(GenerationFact observation, IReadOnlyList<GenerationFact> facts)
     {
@@ -17,6 +17,16 @@ static class TypeUseBindingPolicies
         .GroupBy(fact => fact.Definition.Member)
         .Where(group => group.All(observation => OptedIn(observation, facts)))
         .Select(group => group.Key).ToHashSet();
+
+    public static IReadOnlySet<ArtifactMemberKey> ReportingMembers(IReadOnlyList<GenerationFact> facts) => facts.OfType<ArtifactMemberTypeUseFact>()
+        .GroupBy(fact => fact.Definition.Member)
+        .Where(group => group.All(observation => Reporting(observation, facts)))
+        .Select(group => group.Key).ToHashSet();
+
+    public static bool Reporting(GenerationFact observation, IReadOnlyList<GenerationFact> facts) =>
+        OptedIn(observation, facts) &&
+        facts.OfType<TypeUseBindingPolicyFact>().Any(policy => policy.Definition?.TypeUse == observation.Id && policy.Evidence.Adapter == observation.Evidence.Adapter &&
+            policy.Definition.Policy == TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallbackAndMissingConceptDiagnostic);
 
     public static IEnumerable<GenerationFact> ForMember(ArtifactMemberKey member, IReadOnlyList<GenerationFact> facts)
     {

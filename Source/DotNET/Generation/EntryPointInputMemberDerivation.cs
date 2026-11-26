@@ -68,14 +68,14 @@ static class EntryPointInputMemberDerivation
     static GenerationFact[] Inputs(IEnumerable<GenerationFact> facts) =>
         [.. facts.DistinctBy(fact => (fact.Id, Structural.FactDefinition(fact), Structural.Evidence(fact.Evidence))).OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).ThenBy(Structural.FactDefinition, StringComparer.Ordinal)];
 
-    static GenerationFact[] PolicyOutputs(ArtifactMemberTypeUseFact typeUse, ArtifactMemberKey member, bool conceptOnly) => conceptOnly ?
+    static GenerationFact[] PolicyOutputs(ArtifactMemberTypeUseFact typeUse, ArtifactMemberKey member, bool conceptOnly, bool reporting) => conceptOnly ?
     [
         new TypeUseBindingPolicyFact
         {
             Id = Id(member, "policy"),
             Subject = typeUse.Subject,
             Evidence = typeUse.Evidence,
-            Definition = new() { TypeUse = typeUse.Id, Policy = TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback }
+            Definition = new() { TypeUse = typeUse.Id, Policy = reporting ? TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallbackAndMissingConceptDiagnostic : TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback }
         }
     ] : [];
 
@@ -279,7 +279,7 @@ static class EntryPointInputMemberDerivation
         GenerationFactRecord[] CreateMember(Candidate candidate, int order)
         {
             var member = new ArtifactMemberKey { Artifact = endpoint, Name = candidate.Member.Name };
-            var (conceptOnly, proof) = MemberProof(candidate);
+            var (conceptOnly, reporting, proof) = MemberProof(candidate);
             var typeUse = new ArtifactMemberTypeUseFact
             {
                 Id = candidate.Inputs.OfType<DeclarationInputMemberTypeUseFact>().OrderBy(fact => fact.Id.Value, StringComparer.Ordinal).First().Id,
@@ -314,7 +314,7 @@ static class EntryPointInputMemberDerivation
             };
             var outputTypeUse = typeUse with { Id = Id(member, "type") };
             List<GenerationFact> outputs = [declaration, outputTypeUse];
-            outputs.AddRange(PolicyOutputs(outputTypeUse, member, conceptOnly));
+            outputs.AddRange(PolicyOutputs(outputTypeUse, member, conceptOnly, reporting));
             outputs.AddRange(ProjectionOutputs(outputTypeUse, member, candidate));
             outputs.AddRange(omissions.Select(omission => DeclarationInputMemberTargetOmissions.Transfer(omission, typeUse, Id(member, $"omission:{omission.Id.Value}"))));
             if (binding.Target is { } target)
@@ -353,11 +353,11 @@ static class EntryPointInputMemberDerivation
         TypeUseDefinition PrintableType(Candidate candidate) => candidate.Inputs.OfType<DeclarationInputMemberTypeUseFact>()
             .Select(observation => TypeUseCompatibilityProjections.Select(observation, _facts)).FirstOrDefault() ?? candidate.Type;
 
-        (bool ConceptOnly, GenerationFact[] Proof) MemberProof(Candidate candidate)
+        (bool ConceptOnly, bool Reporting, GenerationFact[] Proof) MemberProof(Candidate candidate)
         {
             var observations = candidate.Inputs.OfType<DeclarationInputMemberTypeUseFact>().ToArray();
             var policies = _facts.OfType<TypeUseBindingPolicyFact>().Where(policy => observations.Any(observation => observation.Id == policy.Definition.TypeUse)).ToArray();
-            return (observations.All(observation => TypeUseBindingPolicies.OptedIn(observation, _facts)), Inputs(_endpointInputs.Concat(candidate.Inputs).Concat(policies).Concat(TypeUseCompatibilityProjections.Supports(observations, _facts))));
+            return (observations.All(observation => TypeUseBindingPolicies.OptedIn(observation, _facts)), observations.All(observation => TypeUseBindingPolicies.Reporting(observation, _facts)), Inputs(_endpointInputs.Concat(candidate.Inputs).Concat(policies).Concat(TypeUseCompatibilityProjections.Supports(observations, _facts))));
         }
 
         void Error(IEnumerable<GenerationFact> facts, string message, GenerationDiagnosticOutcome outcome = GenerationDiagnosticOutcome.Unknown)

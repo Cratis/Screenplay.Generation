@@ -350,4 +350,6 @@ public sealed record ResolvedApplicationGraph
     public IReadOnlyList<GenerationDiagnostic> Diagnostics { get; init; } = [];
 
     internal IReadOnlySet<ArtifactMemberKey> ConceptOnlyMembers { get; init; } = new HashSet<ArtifactMemberKey>();
+
+    internal IReadOnlySet<ArtifactMemberKey> MissingConceptReportingMembers { get; init; } = new HashSet<ArtifactMemberKey>();
 }
