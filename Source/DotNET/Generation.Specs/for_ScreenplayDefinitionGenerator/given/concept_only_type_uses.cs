@@ -11,12 +11,21 @@ public class concept_only_type_uses : yielding_concepts
         return [.. facts, Policy(facts.OfType<ArtifactMemberTypeUseFact>().Single())];
     }
 
-    protected TypeUseBindingPolicyFact Policy(GenerationFact observation) => new()
+    protected GenerationFact[] ReportingCommand(params TypeUseShapeKind[] shape)
+    {
+        var facts = Command(shape);
+        return [.. facts, Policy(facts.OfType<ArtifactMemberTypeUseFact>().Single(), TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallbackAndMissingConceptDiagnostic)];
+    }
+
+    protected static GenerationDiagnostic[] MissingConcept(GeneratedScreenplayDefinition result) =>
+        [.. result.Diagnostics.Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.MissingConceptReference)];
+
+    protected TypeUseBindingPolicyFact Policy(GenerationFact observation, TypeUseBindingPolicyKind kind = TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback) => new()
     {
         Id = new() { Value = $"{observation.Id.Value}:concept-only" },
         Subject = observation.Subject,
         Evidence = observation.Evidence,
-        Definition = new() { TypeUse = observation.Id, Policy = TypeUseBindingPolicyKind.ConceptOnlyWithUnboundFallback }
+        Definition = new() { TypeUse = observation.Id, Policy = kind }
     };
 
     protected ArtifactDeclarationFact NonConcept(ArtifactKind kind = ArtifactKind.ReadModel, BackendScopeKey? scope = null) => new()

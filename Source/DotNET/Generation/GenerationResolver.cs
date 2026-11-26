@@ -80,6 +80,7 @@ public sealed class GenerationResolver
         return new()
         {
             ConceptOnlyMembers = TypeUseBindingPolicies.Members(facts),
+            MissingConceptReportingMembers = TypeUseBindingPolicies.ReportingMembers(facts),
             BackendScopes = backendScopes,
             Artifacts = artifacts,
             ConceptRepresentations = conceptRepresentations,

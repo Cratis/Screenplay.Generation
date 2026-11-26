@@ -9,8 +9,11 @@ public enum TypeUseBindingPolicyKind
     /// <summary>The policy is unknown.</summary>
     Unknown = 0,
 
-    /// <summary>Bind only a surviving concept, otherwise preserve the printable observed type.</summary>
-    ConceptOnlyWithUnboundFallback = 1
+    /// <summary>Bind only a surviving concept, otherwise preserve the printable observed type. A bound concept that cannot be emitted is not reported.</summary>
+    ConceptOnlyWithUnboundFallback = 1,
+
+    /// <summary>Behaves like <see cref="ConceptOnlyWithUnboundFallback"/> and also reports GEN0016 when a selected declared concept cannot be emitted, while the printable fallback is preserved.</summary>
+    ConceptOnlyWithUnboundFallbackAndMissingConceptDiagnostic = 2
 }
 
 /// <summary>Opts one producer's exact type observation into concept-only binding.</summary>
