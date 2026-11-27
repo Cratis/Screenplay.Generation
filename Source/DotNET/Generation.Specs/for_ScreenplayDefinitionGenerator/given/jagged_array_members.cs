@@ -5,17 +5,18 @@ namespace Cratis.Screenplay.Generation.for_ScreenplayDefinitionGenerator.given;
 
 public class jagged_array_members : a_generator
 {
-    protected GeneratedScreenplayDefinition Generate(
+    protected GeneratedScreenplayDefinition[] GenerateBoth(
         bool requested,
         IReadOnlyList<TypeUseCollectionOriginKind>? origins,
         IReadOnlyList<TypeUseShapeKind>? shape = null,
-        bool projection = false)
+        bool projection = false,
+        string name = "Int")
     {
         var subject = new SubjectId { Value = "dotnet://Ordering/Events.GridSaved" };
         var artifact = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Event };
         var member = new ArtifactMemberKey { Artifact = artifact, Name = "jagged" };
         var evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact };
-        var type = new TypeUseDefinition { Name = "Int", Shape = shape ?? [TypeUseShapeKind.Collection, TypeUseShapeKind.Collection, TypeUseShapeKind.Named] };
+        var type = new TypeUseDefinition { Name = name, Shape = shape ?? [TypeUseShapeKind.Collection, TypeUseShapeKind.Collection, TypeUseShapeKind.Named] };
         List<GenerationFact> facts =
         [
             new ArtifactFact
@@ -64,8 +65,15 @@ public class jagged_array_members : a_generator
             facts.Add(Projection(subject, evidence));
         }
 
-        return Generator.Generate(Snapshot(Completed(Adapter, [.. facts])), new ScreenplayGenerationOptions { Domain = "Ordering" });
+        return
+        [
+            Generator.Generate(Snapshot(Completed(Adapter, facts)), new ScreenplayGenerationOptions { Domain = "Ordering" }),
+            GenerateFromContributions([.. facts])
+        ];
     }
+
+    protected GeneratedScreenplayDefinition GenerateFromContributions(params GenerationFact[] facts) =>
+        Generator.Generate([Contribution(facts)], new ScreenplayGenerationOptions { Domain = "Ordering" });
 
     static TypeUseCompatibilityProjectionFact Projection(SubjectId subject, Evidence evidence) => new()
     {

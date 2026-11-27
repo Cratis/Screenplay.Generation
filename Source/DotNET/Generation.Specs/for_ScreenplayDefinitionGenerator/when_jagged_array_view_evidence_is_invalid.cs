@@ -12,18 +12,24 @@ public class when_jagged_array_view_evidence_is_invalid : given.jagged_array_mem
 
     void Because() => _results =
     [
-        Generate(true, null),
-        Generate(true, [Enumerable, Enumerable]),
-        Generate(true, [Enumerable, Array]),
-        Generate(true, [Array, Enumerable]),
-        Generate(true, [Array]),
-        Generate(true, [Array, Array, Array]),
-        Generate(true, [Array, TypeUseCollectionOriginKind.Unknown]),
-        Generate(true, [Array, (TypeUseCollectionOriginKind)9]),
-        Generate(true, [Array], [TypeUseShapeKind.Collection, TypeUseShapeKind.Named]),
-        Generate(true, ArrayOfArrays, projection: true)
+        .. GenerateBoth(true, null),
+        .. GenerateBoth(true, [Enumerable, Enumerable]),
+        .. GenerateBoth(true, [Enumerable, Array]),
+        .. GenerateBoth(true, [Array, Enumerable]),
+        .. GenerateBoth(true, [Array]),
+        .. GenerateBoth(true, [Array, Array, Array]),
+        .. GenerateBoth(true, [Array, TypeUseCollectionOriginKind.Unknown]),
+        .. GenerateBoth(true, [Array, (TypeUseCollectionOriginKind)9]),
+        .. GenerateBoth(false, [Array, Array], [TypeUseShapeKind.Collection, TypeUseShapeKind.Named]),
+        .. GenerateBoth(true, [], [TypeUseShapeKind.Named]),
+        .. GenerateBoth(true, ArrayOfArrays, name: string.Empty),
+        .. GenerateBoth(true, ArrayOfArrays, projection: true)
     ];
 
-    [Fact] void should_reject_every_inconsistent_view() => _results.All(result => HasCode(result, GenerationDiagnosticCodes.InvalidTypeUseCompatibilityProjection)).ShouldBeTrue();
+    [Fact] void should_reject_every_inconsistent_view() => _results
+        .Select((result, index) => (Result: result, Index: index))
+        .Where(item => !HasCode(item.Result, GenerationDiagnosticCodes.InvalidTypeUseCompatibilityProjection))
+        .Select(item => $"Case {item.Index / 2}, path {item.Index % 2}: {string.Join(", ", item.Result.Diagnostics.Select(diagnostic => diagnostic.Code))}")
+        .ShouldBeEmpty();
     [Fact] void should_not_succeed_for_any_of_them() => _results.Any(result => result.IsSuccess).ShouldBeFalse();
 }

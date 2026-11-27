@@ -328,9 +328,11 @@ public sealed class ScreenplayDefinitionGenerator(
         ScreenplayGenerationOptions options)
     {
         var derivation = GenerationFactDerivation.Derive(effective, options.SourcePlacementResolver);
+        var ruleDiagnostics = derivation.Rules.SelectMany(rule => rule.Diagnostics).ToArray();
+        var inputDiagnostics = effective.Diagnostics.ExceptBy(ruleDiagnostics.Select(Structural.Diagnostic), Structural.Diagnostic);
         var graph = resolver.ResolveFacts(
             effective.Facts.Concat(derivation.Facts.Select(record => record.Fact)),
-            diagnostics.Concat(derivation.Rules.SelectMany(rule => rule.Diagnostics)),
+            diagnostics.Concat(ruleDiagnostics).Concat(inputDiagnostics),
             effective.OmittedFacts);
         return PlacementNormalization.Complete(graph, derivation, effective.Facts);
     }

@@ -7,7 +7,7 @@ public class when_an_unmarked_jagged_array_member_is_generated : given.jagged_ar
 {
     GeneratedScreenplayDefinition[] _results = null!;
 
-    void Because() => _results = [Generate(false, null), Generate(false, ArrayOfArrays)];
+    void Because() => _results = [.. GenerateBoth(false, null), .. GenerateBoth(false, ArrayOfArrays)];
 
     [Fact] void should_still_report_the_unsupported_shape_with_or_without_evidence() => _results.All(result => HasCode(result, GenerationDiagnosticCodes.UnsupportedTypeUseShape)).ShouldBeTrue();
 }
