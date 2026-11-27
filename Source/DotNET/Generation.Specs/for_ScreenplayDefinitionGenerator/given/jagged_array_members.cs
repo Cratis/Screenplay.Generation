@@ -10,13 +10,27 @@ public class jagged_array_members : a_generator
         IReadOnlyList<TypeUseCollectionOriginKind>? origins,
         IReadOnlyList<TypeUseShapeKind>? shape = null,
         bool projection = false,
-        string name = "Int")
+        string name = "Int") => GenerateBoth(MemberFacts(requested, origins, shape, projection, name));
+
+    protected GeneratedScreenplayDefinition[] GenerateBoth(GenerationFact[] facts) =>
+    [
+        Generator.Generate(Snapshot(Completed(Adapter, facts)), new ScreenplayGenerationOptions { Domain = "Ordering" }),
+        GenerateFromContributions(facts)
+    ];
+
+    protected GenerationFact[] MemberFacts(
+        bool requested,
+        IReadOnlyList<TypeUseCollectionOriginKind>? origins,
+        IReadOnlyList<TypeUseShapeKind>? shape = null,
+        bool projection = false,
+        string name = "Int",
+        SubjectId? observed = null)
     {
         var subject = new SubjectId { Value = "dotnet://Ordering/Events.GridSaved" };
         var artifact = new ArtifactKey { Subject = subject, Kind = ArtifactKind.Event };
         var member = new ArtifactMemberKey { Artifact = artifact, Name = "jagged" };
         var evidence = new Evidence { Adapter = Adapter, Strength = EvidenceStrength.Exact };
-        var type = new TypeUseDefinition { Name = name, Shape = shape ?? [TypeUseShapeKind.Collection, TypeUseShapeKind.Collection, TypeUseShapeKind.Named] };
+        var type = new TypeUseDefinition { Name = name, ObservedTypeSubject = observed, Shape = shape ?? [TypeUseShapeKind.Collection, TypeUseShapeKind.Collection, TypeUseShapeKind.Named] };
         List<GenerationFact> facts =
         [
             new ArtifactFact
@@ -65,11 +79,7 @@ public class jagged_array_members : a_generator
             facts.Add(Projection(subject, evidence));
         }
 
-        return
-        [
-            Generator.Generate(Snapshot(Completed(Adapter, facts)), new ScreenplayGenerationOptions { Domain = "Ordering" }),
-            GenerateFromContributions([.. facts])
-        ];
+        return [.. facts];
     }
 
     protected GeneratedScreenplayDefinition GenerateFromContributions(params GenerationFact[] facts) =>
