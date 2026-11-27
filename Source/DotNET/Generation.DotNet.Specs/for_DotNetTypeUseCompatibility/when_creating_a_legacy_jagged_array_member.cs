@@ -17,8 +17,10 @@ public class when_creating_a_legacy_jagged_array_member : given.a_compilation
             public sealed record Shapes(
                 int[][] Jagged,
                 int[][]? OptionalJagged,
-                int[] Rectangular,
+                int[] SingleArray,
                 int[,] Matrix,
+                int[,][] MatrixOfArrays,
+                int[][,] ArrayOfMatrices,
                 System.Collections.Generic.List<int[]> ListOfArrays,
                 System.Collections.Generic.List<System.Collections.Generic.List<int>> ListOfLists,
                 int Scalar);
@@ -44,8 +46,10 @@ public class when_creating_a_legacy_jagged_array_member : given.a_compilation
     [Fact] void should_read_array_origins_from_the_symbols() => Origins("Jagged").ShouldEqual("Array,Array");
     [Fact] void should_keep_the_exact_observed_shape() => string.Join('|', _members["Jagged"]!.Type.Shape).ShouldEqual("Collection|Collection|Named");
     [Fact] void should_mark_an_optional_outer_array() => _members["OptionalJagged"]!.Type.Shape[0].ShouldEqual(TypeUseShapeKind.Optional);
-    [Fact] void should_not_mark_a_rectangular_array() => _members["Rectangular"].ShouldBeNull();
+    [Fact] void should_not_mark_a_single_array() => _members["SingleArray"].ShouldBeNull();
     [Fact] void should_not_mark_a_multidimensional_array() => _members["Matrix"].ShouldBeNull();
+    [Fact] void should_mark_an_array_of_multidimensional_arrays_like_the_legacy_reference() => Origins("ArrayOfMatrices").ShouldEqual("Array,Array");
+    [Fact] void should_mark_a_multidimensional_array_of_arrays_like_the_legacy_reference() => Origins("MatrixOfArrays").ShouldEqual("Array,Array");
     [Fact] void should_not_mark_a_list_of_arrays() => _members["ListOfArrays"].ShouldBeNull();
     [Fact] void should_not_mark_a_list_of_lists() => _members["ListOfLists"].ShouldBeNull();
     [Fact] void should_not_mark_a_scalar() => _members["Scalar"].ShouldBeNull();

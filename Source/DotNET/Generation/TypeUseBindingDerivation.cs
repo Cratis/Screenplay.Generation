@@ -59,7 +59,7 @@ static class TypeUseBindingDerivation
         bool conceptOnly = false)
     {
         var context = new BindingContext(typeUse.Definition.Member, [typeUse], conceptOnly);
-        if (JaggedArrayViews.IsRequestedAndValid(typeUse) || typeUse.Definition.Type.ObservedTypeSubject is not { } observedType)
+        if (typeUse.Definition.Type.ObservedTypeSubject is not { } observedType)
         {
             return (null, [], null);
         }
