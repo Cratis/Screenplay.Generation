@@ -333,7 +333,8 @@ public sealed class ScreenplayDefinitionGenerator(
         var graph = resolver.ResolveFacts(
             effective.Facts.Concat(derivation.Facts.Select(record => record.Fact)),
             diagnostics.Concat(ruleDiagnostics).Concat(inputDiagnostics),
-            effective.OmittedFacts);
+            effective.OmittedFacts,
+            effective.BlockingFacts);
         return PlacementNormalization.Complete(graph, derivation, effective.Facts);
     }
 

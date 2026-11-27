@@ -70,9 +70,14 @@ public static class DotNetTypeUseCompatibility
     public static bool TryCreateLegacyJaggedArrayMember(ITypeSymbol type, DotNetAnalysisContext context, ArtifactMemberKey member, [NotNullWhen(true)] out ArtifactMemberTypeUseDefinition? definition)
     {
         definition = null;
+        if (!LeadsWithTwoArrays(type))
+        {
+            return false;
+        }
+
         var origins = CollectionOrigins(type);
         var legacy = DotNetTypeShapes.TypeReferenceFor(type);
-        if (legacy is not { IsCollection: true, Name: "" } || !LeadsWithArrays(origins))
+        if (legacy is not { IsCollection: true, Name: "" })
         {
             return false;
         }
@@ -93,8 +98,24 @@ public static class DotNetTypeUseCompatibility
         return true;
     }
 
-    static bool LeadsWithArrays(List<TypeUseCollectionOriginKind> origins) =>
-        origins.Count >= 2 && origins.Take(2).All(origin => origin == TypeUseCollectionOriginKind.Array);
+    static bool LeadsWithTwoArrays(ITypeSymbol type)
+    {
+        var current = type;
+        var arrays = 0;
+        while (arrays < 2)
+        {
+            var (kind, next) = Next(current);
+            if (next is null || (kind == TypeUseShapeKind.Collection && current is not IArrayTypeSymbol))
+            {
+                return false;
+            }
+
+            arrays += kind == TypeUseShapeKind.Collection ? 1 : 0;
+            current = next;
+        }
+
+        return true;
+    }
 
     static List<TypeUseCollectionOriginKind> CollectionOrigins(ITypeSymbol type)
     {

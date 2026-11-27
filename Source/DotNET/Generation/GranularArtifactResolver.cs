@@ -301,7 +301,21 @@ static class GranularArtifactResolver
 
     static bool BindsJaggedView(MemberContext member, MemberTypeUses typeUses, TypeUseBindingFact[] bindings)
     {
-        if (bindings.Length == 0 || !typeUses.Facts.Any(fact => JaggedArrayViews.IsViewed(fact, member.AllFacts)))
+        if (!typeUses.Facts.Any(fact => JaggedArrayViews.IsViewed(fact, member.AllFacts)))
+        {
+            return false;
+        }
+
+        if (typeUses.Type is { Subject: not null } or { TargetArtifactKind: not null })
+        {
+            return !member.Fail(
+                GenerationDiagnosticCodes.InvalidTypeUseCompatibilityProjection,
+                GenerationDiagnosticOutcome.Unsupported,
+                typeUses.Facts,
+                "has a legacy property with a target type that a jagged-array view cannot carry");
+        }
+
+        if (bindings.Length == 0)
         {
             return false;
         }

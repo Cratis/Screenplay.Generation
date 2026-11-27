@@ -12,6 +12,8 @@ sealed record EffectiveGenerationInputs(
     ImmutableDictionary<GenerationFactInstance, GenerationFactDisposition> Dispositions,
     ImmutableDictionary<FactId, ImmutableArray<GenerationFact>> EligibilityInputs)
 {
+    public ImmutableArray<GenerationFact> BlockingFacts { get; init; } = [];
+
     public ImmutableArray<GenerationFactRecord> NameYieldFallbacks { get; init; } = [];
 
     public ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>> NameYieldFacetExplanations { get; init; } = [];

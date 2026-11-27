@@ -22,13 +22,14 @@ public sealed class GenerationResolver
         var effective = EffectiveGenerationInputs.FromContributions(orderedContributions);
         var diagnostics = orderedContributions.SelectMany(_ => _.Diagnostics).Concat(effective.Diagnostics);
 
-        return ResolveFacts(effective.BindingFacts, diagnostics, effective.OmittedFacts);
+        return ResolveFacts(effective.BindingFacts, diagnostics, effective.OmittedFacts, effective.BlockingFacts);
     }
 
     internal ResolvedApplicationGraph ResolveFacts(
         IEnumerable<GenerationFact> contributedFacts,
         IEnumerable<GenerationDiagnostic> contributedDiagnostics,
-        IEnumerable<GenerationFact>? eligibilityOmittedFacts = null)
+        IEnumerable<GenerationFact>? eligibilityOmittedFacts = null,
+        IEnumerable<GenerationFact>? blockingFacts = null)
     {
         var diagnostics = contributedDiagnostics.ToList();
         var discriminatorValidation = GenerationFactDiscriminatorValidator.Validate(contributedFacts);
@@ -41,7 +42,7 @@ public sealed class GenerationResolver
 
         var effectiveArtifactFacts = GranularArtifactResolver.Resolve(
             facts,
-            discriminatorValidation.RejectedFacts,
+            [.. discriminatorValidation.RejectedFacts, .. blockingFacts ?? []],
             diagnostics);
         var artifacts = ResolveArtifacts(
             effectiveArtifactFacts,

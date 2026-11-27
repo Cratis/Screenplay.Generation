@@ -32,6 +32,7 @@ static class JaggedArrayViewPreflight
 
         return input with
         {
+            BlockingFacts = [.. input.BlockingFacts, .. invalid],
             Facts = [.. input.Facts.Where(fact => !withheld.Contains(GenerationFactInstance.Of(fact)))],
             Diagnostics = [.. diagnostics.OrderBy(Canonical.Diagnostic, StringComparer.Ordinal)],
             Dispositions = dispositions.ToImmutable()
