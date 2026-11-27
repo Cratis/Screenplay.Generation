@@ -10,7 +10,10 @@ public class when_jagged_array_views_compete : given.jagged_array_members
 
     GenerationFact[] _facts = null!;
     ArtifactMemberTypeUseFact[] _competitors = null!;
+    GenerationFact[] _originFacts = null!;
+    ArtifactMemberTypeUseFact _originCompetitor = null!;
     GeneratedScreenplayDefinition[][] _results = null!;
+    GeneratedScreenplayDefinition[] _originResults = null!;
 
     void Establish()
     {
@@ -22,11 +25,28 @@ public class when_jagged_array_views_compete : given.jagged_array_members
             rival with { Definition = rival.Definition with { UseLegacyJaggedArrayReference = false } },
             rival with { Definition = rival.Definition with { Type = rival.Definition.Type with { Name = "Part" } } }
         ];
+        TypeUseShapeKind[] tripleShape = [TypeUseShapeKind.Collection, TypeUseShapeKind.Collection, TypeUseShapeKind.Collection, TypeUseShapeKind.Named];
+        _originFacts = MemberFacts(true, [.. ArrayOfArrays, TypeUseCollectionOriginKind.Array], tripleShape);
+        _originCompetitor = rival with
+        {
+            Definition = rival.Definition with
+            {
+                Type = rival.Definition.Type with { Shape = tripleShape },
+                CollectionOrigins = [.. ArrayOfArrays, TypeUseCollectionOriginKind.Enumerable]
+            }
+        };
     }
 
-    void Because() => _results = [.. _competitors.Select(GenerateInBothOrders)];
+    void Because()
+    {
+        _results = [.. _competitors.Select(rival => GenerateInBothOrders(_facts, rival))];
+        _originResults = GenerateInBothOrders(_originFacts, _originCompetitor);
+    }
 
     [Fact] void should_report_conflicting_exact_observations() => _results.SelectMany(results => results)
+        .All(result => HasCode(result, GenerationDiagnosticCodes.ConflictingArtifactMember)).ShouldBeTrue();
+
+    [Fact] void should_report_disagreeing_origins_even_when_the_printable_views_match() => _originResults
         .All(result => HasCode(result, GenerationDiagnosticCodes.ConflictingArtifactMember)).ShouldBeTrue();
 
     [Fact] void should_not_resolve_a_winning_event() => _results.SelectMany(results => results)
@@ -57,11 +77,11 @@ public class when_jagged_array_views_compete : given.jagged_array_members
             string.Equals(diagnostic.Code, GenerationDiagnosticCodes.ConflictingMemberTypeUse, StringComparison.Ordinal))
     ];
 
-    GeneratedScreenplayDefinition[] GenerateInBothOrders(ArtifactMemberTypeUseFact rival)
+    GeneratedScreenplayDefinition[] GenerateInBothOrders(GenerationFact[] facts, ArtifactMemberTypeUseFact rival)
     {
-        var first = Completed(Adapter, _facts);
+        var first = Completed(Adapter, facts);
         var second = Completed(_other, [rival]);
-        var original = Contribution(_facts);
+        var original = Contribution(facts);
         var other = new AdapterContribution { Adapter = _other, Facts = [rival] };
         return
         [
