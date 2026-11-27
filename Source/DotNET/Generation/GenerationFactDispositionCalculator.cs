@@ -40,21 +40,21 @@ internal static class GenerationFactDispositionCalculator
         var validScopeFacts = BackendScopeFactResolver.ValidFacts(admitted, []).Select(fact => fact.Id).ToHashSet();
         var context = new CalculationContext(dispositionInputs, validScopeFacts);
 
-        var records = admitted.Select(fact => Calculate(fact, conflictingIdentities.Contains(fact.Id.Value), context)).ToImmutableArray();
-        return new(records, [.. records.Select(context.Originals)]);
+        var calculated = admitted.Select(fact => Calculate(fact, conflictingIdentities.Contains(fact.Id.Value), context with { Candidates = [] })).ToImmutableArray();
+        return new([.. calculated.Select(entry => entry.Record)], [.. calculated.Select(entry => entry.Reported)]);
     }
 
-    static GenerationFactRecord Calculate(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
+    static CalculatedFact Calculate(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
     {
         var record = CalculateStructural(fact, hasConflictingIdentity, context);
         if (record.Disposition != GenerationFactDisposition.Lowered || BackendScopeFactReferences.Of(fact).Count == 0)
         {
-            return record;
+            return context.Complete(record);
         }
 
-        var diagnostics = CanonicalDiagnostics(fact, context, AssociatedDiagnostics(fact, context)
+        var diagnostics = CanonicalDiagnostics(context, AssociatedDiagnostics(fact, context)
             .Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.BackendScopeNotSupported));
-        return diagnostics.IsEmpty ? record : record with { Disposition = GenerationFactDisposition.PartiallyLowered, Diagnostics = diagnostics };
+        return context.Complete(diagnostics.IsEmpty ? record : record with { Disposition = GenerationFactDisposition.PartiallyLowered, Diagnostics = diagnostics });
     }
 
     static GenerationFactRecord CalculateStructural(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
@@ -79,7 +79,7 @@ internal static class GenerationFactDispositionCalculator
 
     static GenerationFactRecord DiagnosticIntentDisposition(GenerationFact fact, CalculationContext context)
     {
-        var diagnostics = CanonicalDiagnostics(fact, context, context.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(fact.Id) || diagnostic.Lineage?.Inputs.Contains(fact.Id) == true));
+        var diagnostics = CanonicalDiagnostics(context, context.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(fact.Id) || diagnostic.Lineage?.Inputs.Contains(fact.Id) == true));
         var failures = diagnostics.Where(IsDiagnosticIntentFailure).ToArray();
         var disposition = failures.Length > 0 ? GenerationFactDisposition.OmittedWithDiagnostic : GenerationFactDisposition.ProvenanceOnly;
         if (failures.Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict))
@@ -104,7 +104,7 @@ internal static class GenerationFactDispositionCalculator
             return null;
         }
 
-        var diagnostics = CanonicalDiagnostics(fact, context, AssociatedDiagnostics(fact, context));
+        var diagnostics = CanonicalDiagnostics(context, AssociatedDiagnostics(fact, context));
         return diagnostics.Any(diagnostic => diagnostic.Code != GenerationDiagnosticCodes.BackendScopeNotSupported && diagnostic.Outcome is GenerationDiagnosticOutcome.Unknown or GenerationDiagnosticOutcome.Unsupported)
             ? Omitted(fact, context)
             : new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.ProvenanceOnly, Diagnostics = diagnostics };
@@ -186,7 +186,7 @@ internal static class GenerationFactDispositionCalculator
         {
             Fact = fact,
             Disposition = GenerationFactDisposition.Conflicted,
-            Diagnostics = CanonicalDiagnostics(fact, context, associated)
+            Diagnostics = CanonicalDiagnostics(context, associated)
         };
     }
 
@@ -223,7 +223,7 @@ internal static class GenerationFactDispositionCalculator
         {
             Fact = fact,
             Disposition = GenerationFactDisposition.OmittedWithDiagnostic,
-            Diagnostics = CanonicalDiagnostics(fact, context, associated)
+            Diagnostics = CanonicalDiagnostics(context, associated)
         };
     }
 
@@ -302,7 +302,7 @@ internal static class GenerationFactDispositionCalculator
         GenerationFact fact,
         IEnumerable<ResolvedArtifactVariant> variants,
         CalculationContext context) =>
-        CanonicalDiagnostics(fact, context, variants
+        CanonicalDiagnostics(context, variants
             .Select(variant => GenerationFactSemanticKey.Artifact(variant.Definition))
             .Distinct(StringComparer.Ordinal)
             .Where(context.Coverage.Diagnostics.ContainsKey)
@@ -360,10 +360,10 @@ internal static class GenerationFactDispositionCalculator
     static string SemanticIdentity(GenerationFact fact) =>
         GenerationFactSemanticKey.For(fact) ?? fact.GetType().FullName ?? fact.GetType().Name;
 
-    static ImmutableArray<GenerationDiagnostic> CanonicalDiagnostics(GenerationFact fact, CalculationContext context, IEnumerable<GenerationDiagnostic> diagnostics)
+    static ImmutableArray<GenerationDiagnostic> CanonicalDiagnostics(CalculationContext context, IEnumerable<GenerationDiagnostic> diagnostics)
     {
         var candidates = diagnostics.ToArray();
-        context.Pending[fact.Id] = [.. candidates.Select(diagnostic => new ReportedDiagnostic(diagnostic, context.Origins.Of(diagnostic)))];
+        context.Candidates = [.. candidates.Select(diagnostic => new ReportedDiagnostic(diagnostic, context.Origins.Of(diagnostic)))];
         return
         [
             .. candidates
@@ -386,15 +386,16 @@ internal static class GenerationFactDispositionCalculator
         /// <summary>Gets the lowering original of each diagnostic instance linked to a fact.</summary>
         public OriginTable Origins { get; } = new();
 
-        /// <summary>Gets the diagnostics each fact considered before payload deduplication, with their origins.</summary>
-        public Dictionary<FactId, ImmutableArray<ReportedDiagnostic>> Pending { get; } = [];
+        /// <summary>Gets or sets the diagnostics the fact being calculated considered before payload deduplication, with their origins.</summary>
+        public ImmutableArray<ReportedDiagnostic> Candidates { get; set; } = [];
 
-        public ImmutableArray<ReportedDiagnostic> Originals(GenerationFactRecord record)
+        public CalculatedFact Complete(GenerationFactRecord record)
         {
             var kept = record.Diagnostics.Select(Canonical.Diagnostic).ToHashSet(StringComparer.Ordinal);
-            return Pending.TryGetValue(record.Fact.Id, out var pending) && pending.Select(entry => Canonical.Diagnostic(entry.Diagnostic)).ToHashSet(StringComparer.Ordinal).SetEquals(kept)
-                ? pending
-                : [.. record.Diagnostics.Select(diagnostic => new ReportedDiagnostic(diagnostic, null))];
+            var reported = Candidates.Select(entry => Canonical.Diagnostic(entry.Diagnostic)).ToHashSet(StringComparer.Ordinal).SetEquals(kept)
+                ? Candidates
+                : [.. record.Diagnostics.Select(diagnostic => new ReportedDiagnostic(diagnostic, Origins.Of(diagnostic)))];
+            return new(record, reported);
         }
     }
 }
@@ -440,3 +441,10 @@ internal sealed record CalculatedFactRecords(
 /// <param name="Diagnostic">The diagnostic as held on the record.</param>
 /// <param name="AssociatedFrom">The lowering original, or null for a pass-through diagnostic.</param>
 internal sealed record ReportedDiagnostic(GenerationDiagnostic Diagnostic, GenerationDiagnostic? AssociatedFrom);
+
+/// <summary>
+/// Holds a calculated record together with the origin-bearing diagnostics reported for it.
+/// </summary>
+/// <param name="Record">The calculated record.</param>
+/// <param name="Reported">The diagnostics reported for the record.</param>
+internal sealed record CalculatedFact(GenerationFactRecord Record, ImmutableArray<ReportedDiagnostic> Reported);
