@@ -26,6 +26,40 @@ public static class TypeUseCompatibilityProjectionValidation
     public static bool Valid(TypeUseCompatibilityProjectionDefinition? projection, TypeUseDefinition? observation) =>
         SupportedProfile(projection) && ValidPair(projection!.Type, observation) && MatchesSelection(projection, observation!);
 
+    /// <summary>Checks whether a member type use carries jagged-array view data: a request, collection origins, or both.</summary>
+    /// <param name="definition">The member type use.</param>
+    /// <returns>Whether any view data is present.</returns>
+    public static bool HasLegacyJaggedArrayData(ArtifactMemberTypeUseDefinition? definition) =>
+        definition is { UseLegacyJaggedArrayReference: true } or { CollectionOrigins: not null };
+
+    /// <summary>Checks that any collection origins and any jagged-array view request on a member type use are exact and consistent.</summary>
+    /// <param name="definition">The member type use.</param>
+    /// <returns>Whether the data is absent, or complete, aligned and, for a request, proves an array of arrays on a compact observation.</returns>
+    public static bool ValidLegacyJaggedArrayData(ArtifactMemberTypeUseDefinition? definition)
+    {
+        if (definition is null)
+        {
+            return false;
+        }
+
+        if (!HasLegacyJaggedArrayData(definition))
+        {
+            return true;
+        }
+
+        return ValidObservation(definition.Type) && definition.CollectionOrigins is { } origins && AlignedOrigins(definition.Type, origins) &&
+            (!definition.UseLegacyJaggedArrayReference || ArrayOfArrays(definition.Type, origins));
+    }
+
+    static bool AlignedOrigins(TypeUseDefinition type, IReadOnlyList<TypeUseCollectionOriginKind> origins) =>
+        origins.Count == type.Shape.Count(kind => kind == TypeUseShapeKind.Collection) &&
+        origins.All(origin => origin != TypeUseCollectionOriginKind.Unknown && Enum.IsDefined(origin));
+
+    static bool ArrayOfArrays(TypeUseDefinition type, IReadOnlyList<TypeUseCollectionOriginKind> origins) =>
+        type.Nodes is null && origins.Count >= 2 &&
+        origins[0] == TypeUseCollectionOriginKind.Array && origins[1] == TypeUseCollectionOriginKind.Array &&
+        type.Shape.Where(kind => kind != TypeUseShapeKind.Optional).Take(2).SequenceEqual([TypeUseShapeKind.Collection, TypeUseShapeKind.Collection]);
+
     static bool SupportedProfile(TypeUseCompatibilityProjectionDefinition? projection) =>
         projection is { Version: 1, Profile: TypeUseCompatibilityProfile.OneLayerCollection };
 

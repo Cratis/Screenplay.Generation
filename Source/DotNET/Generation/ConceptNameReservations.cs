@@ -18,7 +18,7 @@ static class ConceptNameReservations
         return
         [
             .. facts.OfType<ArtifactMemberTypeUseFact>()
-                .Where(fact => !bindings.Contains(fact.Definition.Member))
+                .Where(fact => !bindings.Contains(fact.Definition.Member) && !JaggedArrayViews.IsViewed(fact, facts))
                 .Select(fact => new Reservation(fact.Definition.Type.Name, fact)),
             .. facts.OfType<ArtifactFact>().SelectMany(fact => fact.Definition.Properties
                 .Where(property => !bindings.Contains(new ArtifactMemberKey { Artifact = fact.Definition.Key, Name = property.Name }) &&

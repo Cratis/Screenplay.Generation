@@ -14,6 +14,11 @@ static class TypeUseCompatibilityProjections
 
     public static TypeUseDefinition Select(GenerationFact observation, IReadOnlyList<GenerationFact> facts)
     {
+        if (observation is ArtifactMemberTypeUseFact jagged && JaggedArrayViews.IsViewed(jagged, facts))
+        {
+            return JaggedArrayViews.View(jagged);
+        }
+
         var original = Observation(observation)!;
         var projections = ForObservation(observation, facts).ToArray();
         return projections.Length == 1 && TypeUseCompatibilityProjectionValidation.Valid(projections[0].Definition, original)
@@ -39,9 +44,29 @@ static class TypeUseCompatibilityProjections
     public static void Validate(GenerationFact fact, IReadOnlyList<GenerationFact> facts, List<GenerationDiagnostic> diagnostics)
     {
         ValidateNodes(fact, diagnostics);
+        ValidateJaggedView(fact, facts, diagnostics);
         if (fact is TypeUseCompatibilityProjectionFact projection)
         {
             ValidateProjection(projection, facts, diagnostics);
+        }
+    }
+
+    internal static GenerationDiagnostic JaggedViewDiagnostic(GenerationFact fact, IEnumerable<GenerationFact> projections) => new()
+    {
+        Code = GenerationDiagnosticCodes.InvalidTypeUseCompatibilityProjection,
+        Severity = GenerationDiagnosticSeverity.Error,
+        Outcome = GenerationDiagnosticOutcome.Unsupported,
+        Message = "A jagged-array view requires complete collection origins that prove an array of arrays, a compact observation and no compatibility projection",
+        Facts = [fact.Id, .. projections.Select(projection => projection.Id)],
+        Subject = fact.Subject,
+        Source = fact.Evidence.Source
+    };
+
+    static void ValidateJaggedView(GenerationFact fact, IReadOnlyList<GenerationFact> facts, List<GenerationDiagnostic> diagnostics)
+    {
+        if (!JaggedArrayViews.IsConsistent(fact, facts))
+        {
+            diagnostics.Add(JaggedViewDiagnostic(fact, JaggedArrayViews.Projections(fact, facts)));
         }
     }
 

@@ -41,7 +41,9 @@ static class Structural
         Node(ArtifactMemberKey(definition.Member), Integer(definition.DeclarationOrder));
 
     public static string ArtifactMemberTypeUse(ArtifactMemberTypeUseDefinition definition) =>
-        Node(ArtifactMemberKey(definition.Member), TypeUse(definition.Type));
+        TypeUseCompatibilityProjectionValidation.HasLegacyJaggedArrayData(definition)
+            ? Node(Node(ArtifactMemberKey(definition.Member), TypeUse(definition.Type)), "jagged-array-view", definition.UseLegacyJaggedArrayReference ? "1" : "0", Sequence(definition.CollectionOrigins ?? [], origin => Integer((int)origin)))
+            : Node(ArtifactMemberKey(definition.Member), TypeUse(definition.Type));
 
     public static string TypeUse(TypeUseDefinition definition)
     {

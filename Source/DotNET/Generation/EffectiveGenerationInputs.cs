@@ -28,13 +28,13 @@ sealed record EffectiveGenerationInputs(
 
     public GenerationFactDisposition DispositionOf(GenerationFact fact) => Dispositions[GenerationFactInstance.Of(fact)];
 
-    public static EffectiveGenerationInputs FromFacts(IEnumerable<GenerationFact> facts) => ArtifactMemberRoleSelection.Select(ConceptNameYieldSelection.Select(MethodFactEligibility.Select([.. facts])));
+    public static EffectiveGenerationInputs FromFacts(IEnumerable<GenerationFact> facts) => ArtifactMemberRoleSelection.Select(ConceptNameYieldSelection.Select(JaggedArrayViewPreflight.Select(MethodFactEligibility.Select([.. facts]))));
 
     public static EffectiveGenerationInputs FromContributions(IEnumerable<AdapterContribution> contributions)
     {
         var input = contributions.ToArray();
         var invalid = input.SelectMany(contribution => InvalidSupports(contribution.Facts)).ToHashSet();
-        return ArtifactMemberRoleSelection.Select(ConceptNameYieldSelection.Select(MethodFactEligibility.Select([.. input.SelectMany(contribution => contribution.Facts)], invalid)));
+        return ArtifactMemberRoleSelection.Select(ConceptNameYieldSelection.Select(JaggedArrayViewPreflight.Select(MethodFactEligibility.Select([.. input.SelectMany(contribution => contribution.Facts)], invalid))));
     }
 
     static IEnumerable<MethodFactSupportFact> InvalidSupports(IReadOnlyList<GenerationFact> facts) =>

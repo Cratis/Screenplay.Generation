@@ -45,6 +45,7 @@ static class TypeUseCompatibilityProjectionAdmission
         foreach (var fact in facts)
         {
             ValidateNodes(fact, context);
+            ValidateJaggedView(fact, facts, context);
         }
 
         foreach (var projection in facts.OfType<TypeUseCompatibilityProjectionFact>())
@@ -61,6 +62,25 @@ static class TypeUseCompatibilityProjectionAdmission
         if (Observation(fact) is { Nodes: not null } type && !TypeUseCompatibilityProjectionValidation.ValidObservation(type))
         {
             Invalid(fact, "Supplemental type-use nodes must be complete and agree with the exact terminal", context);
+        }
+    }
+
+    static void ValidateJaggedView(GenerationFact fact, IReadOnlyList<GenerationFact> facts, AdapterContributionAdmissionContext context)
+    {
+        if (fact is not ArtifactMemberTypeUseFact { Definition: { } definition } || !TypeUseCompatibilityProjectionValidation.HasLegacyJaggedArrayData(definition))
+        {
+            return;
+        }
+
+        var projected = definition.UseLegacyJaggedArrayReference && facts.OfType<TypeUseCompatibilityProjectionFact>().Any(projection => projection.Definition.TypeUse == fact.Id && Matches(projection, fact));
+        if (projected || !TypeUseCompatibilityProjectionValidation.ValidLegacyJaggedArrayData(definition))
+        {
+            context.Add(
+                AdapterContributionAdmissionDiagnosticCode.InvalidKindOperand,
+                $"Contribution.Facts[{fact.Id}].Definition",
+                "A jagged-array view requires complete collection origins that prove an array of arrays, a compact observation and no compatibility projection",
+                fact.Id,
+                fact.Subject);
         }
     }
 

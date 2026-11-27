@@ -228,7 +228,9 @@ static class GranularFactFreezer
         return new ArtifactMemberTypeUseDefinition
         {
             Member = FreezeMemberKey(definition.Member, $"{path}.Member", context),
-            Type = FreezeTypeUse(definition.Type, $"{path}.Type", context)
+            Type = FreezeTypeUse(definition.Type, $"{path}.Type", context),
+            UseLegacyJaggedArrayReference = definition.UseLegacyJaggedArrayReference,
+            CollectionOrigins = definition.CollectionOrigins is { } origins ? [.. origins] : null
         };
     }
 

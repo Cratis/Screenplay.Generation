@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 
 namespace Cratis.Screenplay.Generation.DotNet;
@@ -58,6 +59,62 @@ public static class DotNetTypeUseCompatibility
                 }
             }
         };
+    }
+
+    /// <summary>Creates an opted-in member type use for the legacy printable view of a jagged array, only when the source symbol is an array of arrays.</summary>
+    /// <param name="type">The exact source type symbol of the member.</param>
+    /// <param name="context">The analyzed authored source context.</param>
+    /// <param name="member">The artifact member the type use describes.</param>
+    /// <param name="definition">The marked observation with the collection origins read from the symbols, when the type is an array of arrays.</param>
+    /// <returns><see langword="true"/> when the member type is an array whose element is an array; otherwise, <see langword="false"/>.</returns>
+    public static bool TryCreateLegacyJaggedArrayMember(ITypeSymbol type, DotNetAnalysisContext context, ArtifactMemberKey member, [NotNullWhen(true)] out ArtifactMemberTypeUseDefinition? definition)
+    {
+        definition = null;
+        var origins = CollectionOrigins(type);
+        var legacy = DotNetTypeShapes.TypeReferenceFor(type);
+        if (legacy is not { IsCollection: true, Name: "" } || !LeadsWithArrays(origins))
+        {
+            return false;
+        }
+
+        var exact = DotNetTypeShapes.TypeUseFor(type, context);
+        if (exact.Shape.Where(kind => kind != TypeUseShapeKind.Optional).Take(2).Any(kind => kind != TypeUseShapeKind.Collection))
+        {
+            return false;
+        }
+
+        definition = new()
+        {
+            Member = member,
+            Type = exact,
+            UseLegacyJaggedArrayReference = true,
+            CollectionOrigins = origins
+        };
+        return true;
+    }
+
+    static bool LeadsWithArrays(List<TypeUseCollectionOriginKind> origins) =>
+        origins.Count >= 2 && origins.Take(2).All(origin => origin == TypeUseCollectionOriginKind.Array);
+
+    static List<TypeUseCollectionOriginKind> CollectionOrigins(ITypeSymbol type)
+    {
+        List<TypeUseCollectionOriginKind> origins = [];
+        var current = type;
+        while (true)
+        {
+            var (kind, next) = Next(current);
+            if (next is null)
+            {
+                return origins;
+            }
+
+            if (kind == TypeUseShapeKind.Collection)
+            {
+                origins.Add(current is IArrayTypeSymbol ? TypeUseCollectionOriginKind.Array : TypeUseCollectionOriginKind.Enumerable);
+            }
+
+            current = next;
+        }
     }
 
     static TypeUseDefinition Observe(ITypeSymbol type, DotNetAnalysisContext context, Func<INamedTypeSymbol, BackendScopeKey?>? scopeForType)

@@ -475,7 +475,9 @@ static class AdapterRunCanonicalizer
     static ArtifactMemberTypeUseDefinition ArtifactMemberTypeUse(ArtifactMemberTypeUseDefinition definition) => new()
     {
         Member = ArtifactMemberKey(definition.Member),
-        Type = TypeUse(definition.Type)
+        Type = TypeUse(definition.Type),
+        UseLegacyJaggedArrayReference = definition.UseLegacyJaggedArrayReference,
+        CollectionOrigins = definition.CollectionOrigins is { } origins ? [.. origins] : null
     };
 
     static TypeUseCompatibilityProjectionFact Projection(TypeUseCompatibilityProjectionFact fact) => fact.Definition is not { } definition ? fact : fact with

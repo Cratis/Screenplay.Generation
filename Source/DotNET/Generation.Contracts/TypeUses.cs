@@ -32,6 +32,27 @@ public enum TypeUseShapeKind
 }
 
 /// <summary>
+/// Defines the source construct a collection step of a type use was observed from.
+/// </summary>
+public enum TypeUseCollectionOriginKind
+{
+    /// <summary>
+    /// The origin is unknown and never proves a wrapper.
+    /// </summary>
+    Unknown = 0,
+
+    /// <summary>
+    /// The collection step is a source array.
+    /// </summary>
+    Array = 1,
+
+    /// <summary>
+    /// The collection step is a named enumerable that is not an array.
+    /// </summary>
+    Enumerable = 2
+}
+
+/// <summary>
 /// Describes one exact source type use independently from any artifact binding.
 /// </summary>
 /// <remarks>
@@ -91,6 +112,21 @@ public sealed record ArtifactMemberTypeUseDefinition
     /// Gets the observed source type use.
     /// </summary>
     public required TypeUseDefinition Type { get; init; }
+
+    /// <summary>
+    /// Gets whether the producer requests the legacy printable view of a jagged array member.
+    /// </summary>
+    /// <remarks>
+    /// The request is never evidence of array identity; it is honored only together with matching <see cref="CollectionOrigins"/>.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool UseLegacyJaggedArrayReference { get; init; }
+
+    /// <summary>
+    /// Gets the producer-observed origin of every <see cref="TypeUseShapeKind.Collection"/> step of <see cref="Type"/>, outermost first.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<TypeUseCollectionOriginKind>? CollectionOrigins { get; init; }
 }
 
 /// <summary>

@@ -93,6 +93,7 @@ static class ConceptNameYieldSelection
         return
         [
             .. facts.OfType<ArtifactMemberTypeUseFact>()
+                .Where(typeUse => !JaggedArrayViews.IsViewed(typeUse, facts))
                 .OrderBy(fact => fact.Id.Value, StringComparer.Ordinal)
                 .SelectMany(typeUse => yielded.Select(concept => (Concept: concept, Diagnostic: diagnostics[ConceptNameYieldDiagnostics.Key((ArtifactDeclarationFact)concept.Fact)]))
                     .Where(pair => Matches(typeUse, pair.Concept, retained))

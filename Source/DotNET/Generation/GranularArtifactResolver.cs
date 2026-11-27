@@ -218,7 +218,7 @@ static class GranularArtifactResolver
     {
         var typeUseFacts = member.Facts.OfType<ArtifactMemberTypeUseFact>().ToArray();
         var typeUseVariants = typeUseFacts
-            .GroupBy(fact => TypeUseCompatibilityProjections.ExactKey(fact.Definition.Type), StringComparer.Ordinal)
+            .GroupBy(fact => $"{TypeUseCompatibilityProjections.ExactKey(fact.Definition.Type)}|{JaggedArrayViews.Key(fact)}", StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToArray();
         typeUses = null;
@@ -299,10 +299,26 @@ static class GranularArtifactResolver
         };
     }
 
+    static bool BindsJaggedView(MemberContext member, MemberTypeUses typeUses, TypeUseBindingFact[] bindings)
+    {
+        if (bindings.Length == 0 || !typeUses.Facts.Any(fact => JaggedArrayViews.IsViewed(fact, member.AllFacts)))
+        {
+            return false;
+        }
+
+        member.Conflict(bindings.Cast<GenerationFact>().Concat(typeUses.Facts), "binds a jagged-array view that has no target type");
+        return true;
+    }
+
     static TypeReferenceDefinition? BindTarget(MemberContext member, MemberTypeUses typeUses)
     {
         var type = typeUses.Type!;
         var bindings = member.Facts.OfType<TypeUseBindingFact>().ToArray();
+        if (BindsJaggedView(member, typeUses, bindings))
+        {
+            return null;
+        }
+
         if (PolicyConflict(member, type, bindings))
         {
             member.Conflict(bindings, "contradicts its concept-only binding policy");
