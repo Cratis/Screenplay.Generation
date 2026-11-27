@@ -340,6 +340,11 @@ static class GranularArtifactResolver
             return ApplyBinding(member, bindingVariants[0], typeUses);
         }
 
+        return UnboundTarget(member, typeUses, type);
+    }
+
+    static TypeReferenceDefinition? UnboundTarget(MemberContext member, MemberTypeUses typeUses, TypeReferenceDefinition type)
+    {
         if (typeUses.Selected?.Definition.Type.ObservedTypeSubject is null || type.Subject is not null)
         {
             return type;
