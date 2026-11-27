@@ -7,25 +7,25 @@ namespace Cratis.Screenplay.Generation;
 
 internal static class GenerationFactDispositionCalculator
 {
-    public static ImmutableArray<GenerationFactRecord> Calculate(
+    public static CalculatedFactRecords Calculate(
         IEnumerable<GenerationFactRecord> records,
-        ResolvedApplicationGraph graph,
-        ScreenplayLoweringCoverage coverage,
-        IReadOnlyList<GenerationDiagnostic> diagnostics)
+        DispositionInputs dispositionInputs)
     {
         var inputs = records.ToArray();
-        var calculated = Calculate(inputs.Select(record => record.Fact), graph, coverage, diagnostics);
-        return
-        [
-            .. calculated.Select((record, index) => record with { Lineage = inputs[index].Lineage })
-        ];
+        var calculated = CalculateWithReport(inputs.Select(record => record.Fact), dispositionInputs);
+        return new(
+            [.. calculated.Records.Select((record, index) => record with { Lineage = inputs[index].Lineage })],
+            calculated.Reported);
     }
 
     public static ImmutableArray<GenerationFactRecord> Calculate(
         IEnumerable<GenerationFact> facts,
-        ResolvedApplicationGraph graph,
-        ScreenplayLoweringCoverage coverage,
-        IReadOnlyList<GenerationDiagnostic> diagnostics)
+        DispositionInputs dispositionInputs) =>
+        CalculateWithReport(facts, dispositionInputs).Records;
+
+    static CalculatedFactRecords CalculateWithReport(
+        IEnumerable<GenerationFact> facts,
+        DispositionInputs dispositionInputs)
     {
         var admitted = facts.ToArray();
         var conflictingIdentities = admitted
@@ -38,25 +38,23 @@ internal static class GenerationFactDispositionCalculator
             .Select(group => group.Key)
             .ToHashSet(StringComparer.Ordinal);
         var validScopeFacts = BackendScopeFactResolver.ValidFacts(admitted, []).Select(fact => fact.Id).ToHashSet();
-        var context = new CalculationContext(graph, coverage, diagnostics, validScopeFacts);
+        var context = new CalculationContext(dispositionInputs, validScopeFacts);
 
-        return
-        [
-            .. admitted.Select(fact => Calculate(fact, conflictingIdentities.Contains(fact.Id.Value), context))
-        ];
+        var calculated = admitted.Select(fact => Calculate(fact, conflictingIdentities.Contains(fact.Id.Value), context with { Candidates = [] })).ToImmutableArray();
+        return new([.. calculated.Select(entry => entry.Record)], [.. calculated.Select(entry => entry.Reported)]);
     }
 
-    static GenerationFactRecord Calculate(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
+    static CalculatedFact Calculate(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
     {
         var record = CalculateStructural(fact, hasConflictingIdentity, context);
         if (record.Disposition != GenerationFactDisposition.Lowered || BackendScopeFactReferences.Of(fact).Count == 0)
         {
-            return record;
+            return context.Complete(record);
         }
 
-        var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context)
+        var diagnostics = CanonicalDiagnostics(context, AssociatedDiagnostics(fact, context)
             .Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.BackendScopeNotSupported));
-        return diagnostics.IsEmpty ? record : record with { Disposition = GenerationFactDisposition.PartiallyLowered, Diagnostics = diagnostics };
+        return context.Complete(diagnostics.IsEmpty ? record : record with { Disposition = GenerationFactDisposition.PartiallyLowered, Diagnostics = diagnostics });
     }
 
     static GenerationFactRecord CalculateStructural(GenerationFact fact, bool hasConflictingIdentity, CalculationContext context)
@@ -81,7 +79,7 @@ internal static class GenerationFactDispositionCalculator
 
     static GenerationFactRecord DiagnosticIntentDisposition(GenerationFact fact, CalculationContext context)
     {
-        var diagnostics = CanonicalDiagnostics(context.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(fact.Id) || diagnostic.Lineage?.Inputs.Contains(fact.Id) == true));
+        var diagnostics = CanonicalDiagnostics(context, context.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(fact.Id) || diagnostic.Lineage?.Inputs.Contains(fact.Id) == true));
         var failures = diagnostics.Where(IsDiagnosticIntentFailure).ToArray();
         var disposition = failures.Length > 0 ? GenerationFactDisposition.OmittedWithDiagnostic : GenerationFactDisposition.ProvenanceOnly;
         if (failures.Any(diagnostic => diagnostic.Outcome == GenerationDiagnosticOutcome.Conflict))
@@ -106,7 +104,7 @@ internal static class GenerationFactDispositionCalculator
             return null;
         }
 
-        var diagnostics = CanonicalDiagnostics(AssociatedDiagnostics(fact, context));
+        var diagnostics = CanonicalDiagnostics(context, AssociatedDiagnostics(fact, context));
         return diagnostics.Any(diagnostic => diagnostic.Code != GenerationDiagnosticCodes.BackendScopeNotSupported && diagnostic.Outcome is GenerationDiagnosticOutcome.Unknown or GenerationDiagnosticOutcome.Unsupported)
             ? Omitted(fact, context)
             : new GenerationFactRecord { Fact = fact, Disposition = GenerationFactDisposition.ProvenanceOnly, Diagnostics = diagnostics };
@@ -188,7 +186,7 @@ internal static class GenerationFactDispositionCalculator
         {
             Fact = fact,
             Disposition = GenerationFactDisposition.Conflicted,
-            Diagnostics = CanonicalDiagnostics(associated)
+            Diagnostics = CanonicalDiagnostics(context, associated)
         };
     }
 
@@ -211,6 +209,11 @@ internal static class GenerationFactDispositionCalculator
             associated.Add(GenerationOmissionReport.UnsupportedRelationship(relationship));
         }
 
+        if (context.Explanations.TryGetValue(GenerationFactInstance.Of(fact), out var explanations))
+        {
+            associated.AddRange(explanations);
+        }
+
         if (associated.Count == 0)
         {
             associated.Add(OmittedFact(fact));
@@ -220,7 +223,7 @@ internal static class GenerationFactDispositionCalculator
         {
             Fact = fact,
             Disposition = GenerationFactDisposition.OmittedWithDiagnostic,
-            Diagnostics = CanonicalDiagnostics(associated)
+            Diagnostics = CanonicalDiagnostics(context, associated)
         };
     }
 
@@ -242,7 +245,7 @@ internal static class GenerationFactDispositionCalculator
         {
             foreach (var diagnostic in loweringDiagnostics)
             {
-                yield return Associate(diagnostic, fact.Id);
+                yield return Associate(diagnostic, fact.Id, context);
             }
         }
 
@@ -299,13 +302,13 @@ internal static class GenerationFactDispositionCalculator
         GenerationFact fact,
         IEnumerable<ResolvedArtifactVariant> variants,
         CalculationContext context) =>
-        CanonicalDiagnostics(variants
+        CanonicalDiagnostics(context, variants
             .Select(variant => GenerationFactSemanticKey.Artifact(variant.Definition))
             .Distinct(StringComparer.Ordinal)
             .Where(context.Coverage.Diagnostics.ContainsKey)
             .SelectMany(key => context.Coverage.Diagnostics[key])
             .Where(diagnostic => diagnostic.Code == GenerationDiagnosticCodes.UnsupportedArtifact)
-            .Select(diagnostic => Associate(diagnostic, fact.Id)));
+            .Select(diagnostic => Associate(diagnostic, fact.Id, context)));
 
     static ArtifactKey? GranularArtifact(GenerationFact fact) => fact switch
     {
@@ -338,31 +341,110 @@ internal static class GenerationFactDispositionCalculator
         return resolved.EffectiveVariants.All(_ => Structural.Placement(_.Placement) != placement);
     }
 
-    static GenerationDiagnostic Associate(GenerationDiagnostic diagnostic, FactId fact) => diagnostic with
+    static GenerationDiagnostic Associate(GenerationDiagnostic diagnostic, FactId fact, CalculationContext context)
     {
-        Facts =
-        [
-            .. diagnostic.Facts
-                .Append(fact)
-                .Distinct()
-                .OrderBy(link => link.Value, StringComparer.Ordinal)
-        ]
-    };
+        var associated = diagnostic with
+        {
+            Facts =
+            [
+                .. diagnostic.Facts
+                    .Append(fact)
+                    .Distinct()
+                    .OrderBy(link => link.Value, StringComparer.Ordinal)
+            ]
+        };
+        context.Origins.Link(associated, diagnostic);
+        return associated;
+    }
 
     static string SemanticIdentity(GenerationFact fact) =>
         GenerationFactSemanticKey.For(fact) ?? fact.GetType().FullName ?? fact.GetType().Name;
 
-    static ImmutableArray<GenerationDiagnostic> CanonicalDiagnostics(IEnumerable<GenerationDiagnostic> diagnostics) =>
-    [
-        .. diagnostics
-            .GroupBy(Canonical.Diagnostic, StringComparer.Ordinal)
-            .OrderBy(group => group.Key, StringComparer.Ordinal)
-            .Select(group => group.First())
-    ];
+    static ImmutableArray<GenerationDiagnostic> CanonicalDiagnostics(CalculationContext context, IEnumerable<GenerationDiagnostic> diagnostics)
+    {
+        var candidates = diagnostics.ToArray();
+        context.Candidates = [.. candidates.Select(diagnostic => new ReportedDiagnostic(diagnostic, context.Origins.Of(diagnostic)))];
+        return
+        [
+            .. candidates
+                .GroupBy(Canonical.Diagnostic, StringComparer.Ordinal)
+                .OrderBy(group => group.Key, StringComparer.Ordinal)
+                .Select(group => group.First())
+        ];
+    }
 
-    sealed record CalculationContext(
-        ResolvedApplicationGraph Graph,
-        ScreenplayLoweringCoverage Coverage,
-        IReadOnlyList<GenerationDiagnostic> Diagnostics,
-        IReadOnlySet<FactId> ValidScopeFacts);
+    sealed record CalculationContext(DispositionInputs Inputs, IReadOnlySet<FactId> ValidScopeFacts)
+    {
+        public ResolvedApplicationGraph Graph => Inputs.Graph;
+
+        public ScreenplayLoweringCoverage Coverage => Inputs.Coverage;
+
+        public IReadOnlyList<GenerationDiagnostic> Diagnostics => Inputs.Diagnostics;
+
+        public ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>> Explanations => Inputs.Explanations;
+
+        /// <summary>Gets the lowering original of each diagnostic instance linked to a fact.</summary>
+        public OriginTable Origins { get; } = new();
+
+        /// <summary>Gets or sets the diagnostics the fact being calculated considered before payload deduplication, with their origins.</summary>
+        public ImmutableArray<ReportedDiagnostic> Candidates { get; set; } = [];
+
+        public CalculatedFact Complete(GenerationFactRecord record)
+        {
+            var kept = record.Diagnostics.Select(Canonical.Diagnostic).ToHashSet(StringComparer.Ordinal);
+            var reported = Candidates.Select(entry => Canonical.Diagnostic(entry.Diagnostic)).ToHashSet(StringComparer.Ordinal).SetEquals(kept)
+                ? Candidates
+                : [.. record.Diagnostics.Select(diagnostic => new ReportedDiagnostic(diagnostic, Origins.Of(diagnostic)))];
+            return new(record, reported);
+        }
+    }
 }
+
+/// <summary>
+/// Tracks, by diagnostic instance, the lowering original a linked copy was made from.
+/// </summary>
+internal sealed class OriginTable
+{
+    readonly System.Runtime.CompilerServices.ConditionalWeakTable<GenerationDiagnostic, GenerationDiagnostic> _origins = [];
+
+    public void Link(GenerationDiagnostic copy, GenerationDiagnostic original) => _origins.AddOrUpdate(copy, original);
+
+    public GenerationDiagnostic? Of(GenerationDiagnostic diagnostic) => _origins.TryGetValue(diagnostic, out var original) ? original : null;
+}
+
+/// <summary>
+/// Holds the pipeline inputs a fact disposition is calculated from.
+/// </summary>
+/// <param name="Graph">The resolved application graph.</param>
+/// <param name="Coverage">The lowering coverage.</param>
+/// <param name="Diagnostics">The pipeline diagnostics.</param>
+/// <param name="Explanations">The concept-yield explanations per fact instance.</param>
+internal sealed record DispositionInputs(
+    ResolvedApplicationGraph Graph,
+    ScreenplayLoweringCoverage Coverage,
+    IReadOnlyList<GenerationDiagnostic> Diagnostics,
+    ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>> Explanations);
+
+/// <summary>
+/// Holds calculated fact records with, per record, each diagnostic paired with the lowering original it was
+/// associated from, when it is an association.
+/// </summary>
+/// <param name="Records">The calculated records.</param>
+/// <param name="Reported">The reported diagnostics, one array per record at the same index.</param>
+internal sealed record CalculatedFactRecords(
+    ImmutableArray<GenerationFactRecord> Records,
+    ImmutableArray<ImmutableArray<ReportedDiagnostic>> Reported);
+
+/// <summary>
+/// Holds a record diagnostic and, when it is a lowering diagnostic linked to the record, the original to publish.
+/// </summary>
+/// <param name="Diagnostic">The diagnostic as held on the record.</param>
+/// <param name="AssociatedFrom">The lowering original, or null for a pass-through diagnostic.</param>
+internal sealed record ReportedDiagnostic(GenerationDiagnostic Diagnostic, GenerationDiagnostic? AssociatedFrom);
+
+/// <summary>
+/// Holds a calculated record together with the origin-bearing diagnostics reported for it.
+/// </summary>
+/// <param name="Record">The calculated record.</param>
+/// <param name="Reported">The diagnostics reported for the record.</param>
+internal sealed record CalculatedFact(GenerationFactRecord Record, ImmutableArray<ReportedDiagnostic> Reported);

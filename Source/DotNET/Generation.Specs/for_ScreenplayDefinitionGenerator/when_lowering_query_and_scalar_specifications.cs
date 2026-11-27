@@ -113,12 +113,6 @@ public class when_lowering_query_and_scalar_specifications : given.a_specificati
     void should_report_the_complete_fixed_diagnostics() => Describe(_result.Diagnostics).ShouldEqual(
         """
         GEN0038 | Error | Unsupported | dotnet://Banking/Specs.Q02 | Specs/Q02.cs:7:1-7:20 | Specification scenario 'ScenarioQ02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.Q02 | Specs/Q02.cs:7:1-7:20 | Specification scenario 'ScenarioQ02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.Q02 | Specs/Q02.cs:7:1-7:20 | Specification scenario 'ScenarioQ02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.Q02 | Specs/Q02.cs:7:1-7:20 | Specification scenario 'ScenarioQ02' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.Q03 | Specs/Q03.cs:7:1-7:20 | Specification scenario 'ScenarioQ03' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.Q03 | Specs/Q03.cs:7:1-7:20 | Specification scenario 'ScenarioQ03' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
-        GEN0038 | Error | Unsupported | dotnet://Banking/Specs.Q03 | Specs/Q03.cs:7:1-7:20 | Specification scenario 'ScenarioQ03' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
         GEN0038 | Error | Unsupported | dotnet://Banking/Specs.Q03 | Specs/Q03.cs:7:1-7:20 | Specification scenario 'ScenarioQ03' uses behavior the current Screenplay syntax cannot represent exactly and was omitted as a whole
         """);
 }

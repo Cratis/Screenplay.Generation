@@ -19,6 +19,16 @@ static class ConceptNameYieldDiagnostics
         Structural.ArtifactKey(declaration.Definition.Artifact),
         Structural.Diagnostic(declaration.Definition.NameConflictYield!.Diagnostic with { Facts = [], Lineage = null }));
 
+    public static ImmutableDictionary<GenerationFactInstance, ImmutableArray<GenerationDiagnostic>> FacetExplanations(
+        IEnumerable<ArtifactDeclarationFact> declarations,
+        IEnumerable<GenerationFact> facts,
+        ImmutableDictionary<string, GenerationDiagnostic> coalesced) => declarations
+            .SelectMany(declaration => facts.Where(fact => IsConceptFacet(fact, declaration)).Select(fact => (Instance: GenerationFactInstance.Of(fact), Diagnostic: coalesced[Key(declaration)])))
+            .GroupBy(pair => pair.Instance)
+            .ToImmutableDictionary(
+                group => group.Key,
+                group => group.Select(pair => pair.Diagnostic).DistinctBy(Canonical.Diagnostic).OrderBy(Canonical.Diagnostic, StringComparer.Ordinal).ToImmutableArray());
+
     static GenerationDiagnostic Merge(IEnumerable<ArtifactDeclarationFact> input, EffectiveGenerationInputs effective, GenerationDerivationRuleIdentity rule)
     {
         var declarations = input.OrderBy(Structural.Fact, StringComparer.Ordinal).ToArray();

@@ -47,6 +47,7 @@ static class ConceptNameYieldSelection
             Diagnostics = [.. input.Diagnostics, .. diagnostics],
             Dispositions = dispositions.ToImmutable(),
             NameYieldFallbacks = fallbacks,
+            NameYieldFacetExplanations = ConceptNameYieldDiagnostics.FacetExplanations(yielded.Select(concept => (ArtifactDeclarationFact)concept.Fact), input.Facts, coalesced),
             NameYieldRules =
             [
                 new GenerationDerivationRuleRecord

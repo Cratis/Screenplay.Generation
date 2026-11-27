@@ -160,17 +160,7 @@ public sealed class ScreenplayDefinitionGenerator(
             .Select(fact => new GenerationFactRecord { Fact = fact })
             .Concat(derivation.Facts)
             .ToArray();
-        var factRecords = GenerationFactDispositionCalculator.Calculate(
-            inputRecords.Where(record => !effective.HasDisposition(record.Fact)),
-            graph,
-            lowering.Coverage,
-            [.. pipelineDiagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic)))])
-            .Concat(inputRecords.Where(record => effective.HasDisposition(record.Fact)).Select(record => record with
-            {
-                Disposition = effective.DispositionOf(record.Fact),
-                Diagnostics = [.. effective.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(record.Fact.Id))]
-            }))
-            .ToArray();
+        var (factRecords, reported) = Dispose(inputRecords, effective, new DispositionInputs(graph, lowering.Coverage, pipelineDiagnostics, effective.NameYieldFacetExplanations));
         var canonicalFactRecords = AdapterRunCanonicalizer.FactRecords(
             factRecords.Where(record => record.Lineage is null));
         var canonicalDerivation = AdapterRunCanonicalizer.Derivation(derivation with
@@ -178,7 +168,7 @@ public sealed class ScreenplayDefinitionGenerator(
             Facts = [.. factRecords.Where(record => record.Lineage is not null)]
         });
         var runnerDiagnostics = RunnerDiagnostics(snapshot.Diagnostics, canonicalAdapters);
-        var dispositionDiagnostics = GenerationOmissionReport.Diagnostics(factRecords, lowering.Coverage);
+        var dispositionDiagnostics = GenerationOmissionReport.Diagnostics(reported);
         var adapterRun = new AdapterRunSnapshot
         {
             Adapters = canonicalAdapters,
@@ -199,6 +189,24 @@ public sealed class ScreenplayDefinitionGenerator(
             Diagnostics = diagnostics,
             AdapterRun = adapterRun
         };
+    }
+
+    static (GenerationFactRecord[] Records, (GenerationFactRecord Record, ImmutableArray<ReportedDiagnostic> Reported)[] Reported) Dispose(
+        GenerationFactRecord[] inputRecords,
+        EffectiveGenerationInputs effective,
+        DispositionInputs inputs)
+    {
+        var calculated = GenerationFactDispositionCalculator.Calculate(
+            inputRecords.Where(record => !effective.HasDisposition(record.Fact)),
+            inputs with { Diagnostics = [.. inputs.Diagnostics.Where(diagnostic => !effective.Diagnostics.Any(eligibility => Canonical.Diagnostic(eligibility) == Canonical.Diagnostic(diagnostic)))] });
+        var predisposed = inputRecords.Where(record => effective.HasDisposition(record.Fact)).Select(record => record with
+        {
+            Disposition = effective.DispositionOf(record.Fact),
+            Diagnostics = [.. effective.Diagnostics.Where(diagnostic => diagnostic.Facts.Contains(record.Fact.Id))]
+        }).ToArray();
+        return (
+            [.. calculated.Records.Concat(predisposed)],
+            [.. calculated.Records.Zip(calculated.Reported).Concat(predisposed.Select(record => (record, record.Diagnostics.Select(diagnostic => new ReportedDiagnostic(diagnostic, null)).ToImmutableArray())))]);
     }
 
     static AdapterContributionSnapshot[] CompletedContributions(IEnumerable<AdapterRunRecord> adapters) =>
